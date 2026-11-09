@@ -406,4 +406,96 @@ ALTER TABLE dispatch_offers ADD COLUMN from_driver_id INTEGER;
 ALTER TABLE reassignment_suggestions ADD COLUMN analysis TEXT;
 `,
   },
+  {
+    version: 3,
+    name: 'management_and_replenishment',
+    sql: `
+-- Ledelsesgruppe: autoriserede brugere med roller
+CREATE TABLE management_users (
+  id INTEGER PRIMARY KEY,
+  name TEXT NOT NULL,
+  role TEXT NOT NULL CHECK (role IN ('admin','manager','observer')),
+  telegram_user_id TEXT UNIQUE,
+  link_code TEXT UNIQUE,
+  active INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+
+-- Revisionsspor for alle instruktioner fra ledelsen
+CREATE TABLE management_commands (
+  id INTEGER PRIMARY KEY,
+  user_id INTEGER REFERENCES management_users(id),
+  user_name TEXT,
+  telegram_user_id TEXT,
+  chat_id TEXT,
+  instruction TEXT NOT NULL,
+  intent TEXT,
+  params TEXT,
+  affected_orders TEXT,
+  decision TEXT NOT NULL,
+  result TEXT,
+  confirm_token TEXT UNIQUE,
+  confirm_expires_at TEXT,
+  confirmed_by TEXT,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+CREATE INDEX idx_mgmt_commands_created ON management_commands(created_at);
+
+CREATE TABLE management_messages (
+  id INTEGER PRIMARY KEY,
+  chat_id TEXT NOT NULL,
+  direction TEXT NOT NULL CHECK (direction IN ('in','out')),
+  user_name TEXT,
+  body TEXT NOT NULL,
+  external_update_id TEXT UNIQUE,
+  idempotency_key TEXT UNIQUE,
+  status TEXT NOT NULL DEFAULT 'received',
+  simulated INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+
+-- Ordreprioritet og pause (ledelsesbeslutninger)
+ALTER TABLE orders ADD COLUMN priority INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE orders ADD COLUMN paused_from_status TEXT;
+
+-- Proaktiv lageropfyldning af chaufførbiler
+CREATE TABLE replenishments (
+  id INTEGER PRIMARY KEY,
+  driver_id INTEGER NOT NULL REFERENCES drivers(id),
+  location_id INTEGER NOT NULL REFERENCES stock_locations(id),
+  status TEXT NOT NULL CHECK (status IN ('proposed','awaiting_management','approved','awaiting_driver','en_route','awaiting_pickup','picked_up','completed','rejected','cancelled','expired')),
+  after_order_id INTEGER,
+  items TEXT NOT NULL,
+  covers_orders TEXT NOT NULL,
+  analysis TEXT,
+  deadline_at TEXT,
+  sent_at TEXT,
+  reminder_sent_at TEXT,
+  escalated_at TEXT,
+  approved_by TEXT,
+  approved_at TEXT,
+  rejected_by TEXT,
+  rejected_reason TEXT,
+  driver_accepted_at TEXT,
+  picked_up_at TEXT,
+  completed_at TEXT,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+-- Højst én aktiv opfyldning pr. chauffør (forhindrer dobbeltopfyldning og modstridende planer)
+CREATE UNIQUE INDEX idx_replenishment_active ON replenishments(driver_id)
+  WHERE status IN ('proposed','awaiting_management','approved','awaiting_driver','en_route','awaiting_pickup','picked_up');
+
+CREATE TABLE replenishment_events (
+  id INTEGER PRIMARY KEY,
+  replenishment_id INTEGER NOT NULL REFERENCES replenishments(id),
+  from_status TEXT,
+  to_status TEXT,
+  actor TEXT NOT NULL,
+  data TEXT,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+`,
+  },
 ];

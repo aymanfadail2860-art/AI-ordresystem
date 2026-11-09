@@ -38,6 +38,15 @@ export class SimulatedTelegramAdapter implements TelegramAdapter {
     this.push({ kind: 'callback', fromUserId: userId, fromName: name, chatId: userId, callbackData: data, callbackId: `cb-${this.updateId + 1}` });
   }
 
+  /** Simulér en besked fra en bruger i en gruppechat (fx ledelsesgruppen). */
+  injectGroupText(chatId: string, userId: string, name: string, text: string): void {
+    this.push({ kind: 'message', fromUserId: userId, fromName: name, chatId, text });
+  }
+
+  injectGroupCallback(chatId: string, userId: string, name: string, data: string): void {
+    this.push({ kind: 'callback', fromUserId: userId, fromName: name, chatId, callbackData: data, callbackId: `cb-${this.updateId + 1}` });
+  }
+
   injectLocation(userId: string, name: string, lat: number, lng: number): void {
     this.push({ kind: 'location', fromUserId: userId, fromName: name, chatId: userId, location: { lat, lng, live: true } });
   }

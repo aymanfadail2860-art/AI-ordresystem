@@ -74,7 +74,10 @@ export function defaultSettings(mode: Settings['installation']['mode']): Setting
       delayTemplate: 'Din levering (ordre #{orderId}) er desværre forsinket. Ny forventet tid er ca. kl. {time}.',
       delayNoTimeTemplate: 'Din levering (ordre #{orderId}) er desværre forsinket. Vi giver besked, når chaufføren er tæt på.',
     },
+    management: { groupChatId: '', allowPrivateChats: true, confirmTimeoutMinutes: 10 },
+    replenishment: { enabled: true, pickupMinutes: 8, reminderAfterMinutes: 10, escalateLeadMinutes: 10, minRouteImprovementOre: 1000 },
     economics: {
+      priorityWeight: 3,
       defaultMarginPct: 35,
       driveCostPerMinuteOre: 400,
       waitCostPerMinuteOre: 60,
@@ -115,6 +118,7 @@ export function defaultSettings(mode: Settings['installation']['mode']): Setting
         customer_interpret: 'claude-haiku-5-5',
         customer_escalation: 'claude-opus-5-5',
         driver_interpret: 'claude-haiku-5-5',
+        management_interpret: 'claude-haiku-5-5',
       },
       fallbackModels: ['claude-sonnet-5-5'],
       models: DEFAULT_MODEL_PRICING,

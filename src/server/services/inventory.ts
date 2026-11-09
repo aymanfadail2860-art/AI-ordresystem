@@ -53,6 +53,13 @@ export class InventoryService {
     );
   }
 
+  location(id: number): { id: number; name: string; type: 'central' | 'vehicle'; lat: number | null; lng: number | null; driverId: number | null } | null {
+    const r = this.db.prepare(`SELECT id, name, type, lat, lng, driver_id FROM stock_locations WHERE id = ?`).get(id) as
+      | { id: number; name: string; type: 'central' | 'vehicle'; lat: number | null; lng: number | null; driver_id: number | null }
+      | undefined;
+    return r ? { id: r.id, name: r.name, type: r.type, lat: r.lat, lng: r.lng, driverId: r.driver_id } : null;
+  }
+
   vehicleLocationForDriver(driverId: number): number | null {
     const r = this.db.prepare(`SELECT id FROM stock_locations WHERE driver_id = ? AND active = 1`).get(driverId) as
       | { id: number }
@@ -209,6 +216,31 @@ export class InventoryService {
     })();
     if (changed) this.bus.touch('inventory');
     return changed;
+  }
+
+  /**
+   * Bekræftet fysisk afhentning ved lageropfyldning: varerne til de dækkede
+   * ordrer flyttes fra lagerlokationen til bilen (beholdning OG reservation).
+   * Bilens beholdning øges først her – aldrig ved godkendelse. Atomisk.
+   */
+  pickupForOrders(orderIds: number[], fromLocationId: number, vehicleLocationId: number, replenishmentId: number): { productId: number; quantity: number }[] {
+    const moved = new Map<number, number>();
+    this.db.transaction(() => {
+      for (const orderId of orderIds) {
+        const o = this.db.prepare(`SELECT stock_state, stock_location_id FROM orders WHERE id = ?`).get(orderId) as
+          | { stock_state: string; stock_location_id: number | null }
+          | undefined;
+        if (!o || o.stock_state !== 'reserved' || o.stock_location_id !== fromLocationId) continue; // allerede flyttet/annulleret
+        for (const n of this.orderNeeds(orderId)) {
+          this.move(fromLocationId, n.productId, -n.quantity, -n.quantity, 'replenish', orderId, `opfyldning #${replenishmentId} → bil`, 'driver');
+          this.move(vehicleLocationId, n.productId, n.quantity, n.quantity, 'replenish', orderId, `opfyldning #${replenishmentId} fra lager`, 'driver');
+          moved.set(n.productId, (moved.get(n.productId) ?? 0) + n.quantity);
+        }
+        this.db.prepare(`UPDATE orders SET stock_location_id = ? WHERE id = ?`).run(vehicleLocationId, orderId);
+      }
+    })();
+    this.bus.touch('inventory');
+    return [...moved.entries()].map(([productId, quantity]) => ({ productId, quantity }));
   }
 
   /** Manuel lagerregulering (optælling, ny levering). */

@@ -22,6 +22,10 @@ import { TelegramGateway } from './gateways/telegramGateway';
 import { CustomerAgent } from './agents/customerAgent';
 import { RoutingService } from './agents/routing';
 import { CustomerNotifier } from './agents/notifier';
+import { ReplenishmentService } from './agents/replenishment';
+import { ManagementAgent } from './agents/managementAgent';
+import { ManagementService } from './services/management';
+import { ClaudeManagementInterpreter, RuleBasedManagementInterpreter } from './ai/managementInterpreter';
 import { DispatchAgent } from './agents/dispatchAgent';
 import { DriverAgent } from './agents/driverAgent';
 import { LogisticsAgent } from './agents/logisticsAgent';
@@ -75,7 +79,10 @@ export interface App {
     driver: DriverAgent;
     logistics: LogisticsAgent;
     routing: RoutingService;
+    replenishment: ReplenishmentService;
+    management: ManagementAgent;
   };
+  management: ManagementService;
   backup: BackupService;
   retention: RetentionService;
   auth: AuthService;
@@ -179,7 +186,7 @@ export async function createApp(opts: AppOptions): Promise<App> {
   ctx.customerInterpreter = customerInterpreter;
   ctx.driverInterpreter = driverInterpreter;
   ctx.sms = new SmsGateway(db, bus, settings, conversations, jobs, events, integrations, kv);
-  ctx.telegram = new TelegramGateway(db, bus, drivers, jobs, events, integrations, kv);
+  ctx.telegram = new TelegramGateway(db, bus, drivers, jobs, events, integrations, kv, settings);
 
   const notifier = new CustomerNotifier(ctx);
   const routing = new RoutingService(ctx, notifier);
@@ -187,6 +194,32 @@ export async function createApp(opts: AppOptions): Promise<App> {
   const dispatch = new DispatchAgent(ctx, routing, notifier);
   const driver = new DriverAgent(ctx, dispatch, routing, notifier);
   const logistics = new LogisticsAgent(ctx, dispatch, routing);
+  const replenishment = new ReplenishmentService(ctx, routing);
+  driver.replenishment = replenishment;
+  // Kan et underskud ikke dækkes forsvarligt: foreslå omfordeling til chauffører med varerne
+  replenishment.onUncoverable = async (orderIds, fromDriverId) => {
+    for (const id of orderIds) {
+      const o = ctx.orders.get(id);
+      if (!o || o.status !== 'driver_assigned') continue;
+      const { feasible } = await dispatch.evaluate(o, { exclude: [fromDriverId], reassignment: true });
+      const alt = feasible.find((c) => c.stockPlan === 'own_vehicle' || c.stockPlan === 'move_to_vehicle');
+      if (!alt?.best) continue;
+      const open = db.prepare(`SELECT id FROM reassignment_suggestions WHERE order_id = ? AND status = 'open'`).get(id);
+      if (open) continue;
+      db.prepare(`INSERT INTO reassignment_suggestions (order_id, from_driver_id, to_driver_id, reason, eta_gain_minutes, analysis) VALUES (?, ?, ?, ?, ?, ?)`).run(
+        id,
+        fromDriverId,
+        alt.driver.id,
+        `${alt.driver.name} har varerne i bilen (lageropfyldning ikke mulig)`,
+        null,
+        JSON.stringify(alt.best.analysis),
+      );
+      bus.touch('logistics');
+    }
+  };
+  const management = new ManagementService(db, bus, audit);
+  const managementInterpreter = isDemo ? new RuleBasedManagementInterpreter(ai) : new ClaudeManagementInterpreter(ai);
+  const managementAgent = new ManagementAgent(ctx, management, managementInterpreter, dispatch, routing, replenishment);
   const backup = new BackupService(ctx, opts.dbFile, opts.backupDir);
   const retention = new RetentionService(ctx);
   const auth = new AuthService(ctx);
@@ -215,7 +248,8 @@ export async function createApp(opts: AppOptions): Promise<App> {
   const app: App = {
     ctx,
     mode: opts.mode,
-    agents: { customer, dispatch, driver, logistics, routing },
+    agents: { customer, dispatch, driver, logistics, routing, replenishment, management: managementAgent },
+    management,
     backup,
     retention,
     auth,
@@ -228,6 +262,7 @@ export async function createApp(opts: AppOptions): Promise<App> {
       await ctx.telegram.start(tgAdapter);
       if (!opts.manualJobs) {
         logistics.start();
+        replenishment.start();
         backup.start();
         retention.start();
         jobs.start();

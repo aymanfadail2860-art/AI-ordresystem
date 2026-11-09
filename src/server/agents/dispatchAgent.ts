@@ -185,7 +185,7 @@ export class DispatchAgent {
   }
 
   /** Opret et tilbud med den konkrete ruteplan. Gemmes i databasen (overlever genstart). */
-  createOffer(order: Order, c: Candidate, alternatives: RoutePlanSummary['alternatives'], kind: 'new_order' | 'reassignment', fromDriverId: number | null, send: boolean): number {
+  createOffer(order: Order, c: Candidate, alternatives: RoutePlanSummary['alternatives'], kind: 'new_order' | 'reassignment' | 'route_change', fromDriverId: number | null, send: boolean): number {
     const { ctx } = this;
     const s = ctx.settings.get();
     const r = c.best!;
@@ -227,14 +227,14 @@ export class DispatchAgent {
     })();
   }
 
-  private offerText(order: Order, c: Candidate, kind: 'new_order' | 'reassignment'): string {
+  private offerText(order: Order, c: Candidate, kind: 'new_order' | 'reassignment' | 'route_change'): string {
     const r = c.best!;
     const items = order.lines.map((l) => `${l.quantity}× ${l.productName}`).join(', ');
     const pickup = c.stockPlan === 'central_pickup' || c.stockPlan === 'move_to_central' ? '\n📦 Afhentes på centrallageret' : '';
     const newEta = r.etas[r.insertIndex];
     const pos = `Stop ${r.insertIndex + 1} af ${r.sequence.length}`;
     const lines = [
-      `${kind === 'reassignment' ? 'Overtag ordre' : 'Ny ordre'} #${order.id}`,
+      `${kind === 'reassignment' ? 'Overtag ordre' : kind === 'route_change' ? 'Ændret rækkefølge – ordre' : 'Ny ordre'} #${order.id}`,
       items,
       `Til: ${order.addressText}${pickup}`,
       `${pos} · ca. kl. ${formatTime(new Date(newEta.etaMs).toISOString())}`,
@@ -265,6 +265,10 @@ export class DispatchAgent {
     this.ctx.orders.addEvent(offer.order_id, 'offer_expired', 'system', { driverId: offer.driver_id, kind: offer.kind });
     this.ctx.telegram.sendToDriver(offer.driver_id, `Tilbuddet på ordre #${offer.order_id} er udløbet – din rute er uændret.`, `offer_expired:${offerId}`);
     this.ctx.bus.touch('logistics', 'drivers');
+    if (offer.kind === 'route_change') {
+      this.ctx.events.log('info', 'dispatch', 'route_change_expired', `Ruteændring for ordre #${offer.order_id} blev ikke accepteret – ruten er uændret`);
+      return;
+    }
     if (offer.kind === 'reassignment') {
       this.ctx.events.log('info', 'dispatch', 'reassignment_expired', `Omfordeling af ordre #${offer.order_id} blev ikke accepteret – ordren bliver hos nuværende chauffør`);
       return;
@@ -319,6 +323,23 @@ export class DispatchAgent {
       ctx.bus.touch('logistics', 'drivers');
       return msg;
     };
+    if (offer.kind === 'route_change') {
+      // Ændret rækkefølge i chaufførens egen rute – gælder kun hvis ruten er uændret siden forslaget
+      const cancel = (msg: string) => {
+        ctx.db.prepare(`UPDATE dispatch_offers SET status = 'cancelled', responded_at = ? WHERE id = ?`).run(new Date().toISOString(), offerId);
+        ctx.bus.touch('logistics', 'drivers');
+        return msg;
+      };
+      if (order.driverId !== driverId || !['driver_assigned', 'out_for_delivery'].includes(order.status)) return cancel(`Ruteændringen for ordre #${order.id} er ikke længere aktuel.`);
+      if (driver.routeVersion !== offer.route_version) return cancel('Din rute er ændret siden forslaget – ruteændringen er annulleret. Kontoret kan bede om et nyt forslag.');
+      ctx.db.transaction(() => {
+        ctx.db.prepare(`UPDATE dispatch_offers SET status = 'accepted', responded_at = ? WHERE id = ?`).run(new Date().toISOString(), offerId);
+        this.routing.applySequence(driverId, sequence.filter((id) => this.isActiveFor(id, driverId)), `ruteændring accepteret (#${order.id})`);
+        ctx.orders.addEvent(order.id, 'route_change_accepted', 'driver', { sequence });
+      })();
+      await this.routing.refreshEtas(driverId, 'ruteændring accepteret');
+      return `Tak! Ny rækkefølge: ${ctx.drivers.routeStops(driverId).map((x) => '#' + x.orderId).join(' → ')}.`;
+    }
     const validStatus = offer.kind === 'reassignment' ? order.status === 'driver_assigned' && order.driverId === offer.from_driver_id : order.status === 'awaiting_driver';
     if (!validStatus) return cancelAndRedispatch(`Ordre #${order.id} kan ikke længere tildeles (status ændret).`);
 
@@ -463,6 +484,79 @@ export class DispatchAgent {
     ctx.db.prepare(`UPDATE drivers SET route_version = route_version + 1, current_order_id = CASE WHEN current_order_id = ? THEN NULL ELSE current_order_id END WHERE id = ?`).run(orderId, driverId);
     ctx.telegram.sendToDriver(driverId, `Ordre #${orderId} er taget fra dig (${reason}).`, `unassigned:${orderId}:${Date.now()}`);
     await this.routing.refreshEtas(driverId, 'ordre fjernet');
+  }
+
+  /**
+   * Send et tilbud om en bestemt ordre til en bestemt chauffør (ledelsens
+   * instruktion). Uden `force` kræves en gyldig løsning; med `force` (særlig
+   * ledelsesbeslutning) bruges den bedste placering, selv om den bryder en
+   * begrænsning – chaufføren skal stadig acceptere.
+   */
+  async offerToDriver(orderId: number, driverId: number, opts: { force?: boolean } = {}): Promise<{ ok: boolean; message: string; offerId?: number }> {
+    const { ctx } = this;
+    const order = ctx.orders.get(orderId);
+    const driver = ctx.drivers.get(driverId);
+    if (!order) return { ok: false, message: `Ordre #${orderId} findes ikke.` };
+    if (!driver || !driver.active) return { ok: false, message: `Chauffør #${driverId} findes ikke.` };
+    if (!['awaiting_driver', 'driver_assigned', 'confirmed'].includes(order.status)) return { ok: false, message: `Ordre #${orderId} kan ikke flyttes (status: ${order.status}).` };
+    if (order.driverId === driverId) return { ok: false, message: `Ordre #${orderId} ligger allerede hos ${driver.name}.` };
+    if (driver.pendingOfferCount > 0) return { ok: false, message: `${driver.name} har allerede et ubesvaret tilbud. Prøv igen om lidt.` };
+    if (ctx.drivers.offers(orderId).some((o) => o.status === 'pending')) return { ok: false, message: `Ordre #${orderId} har allerede et ubesvaret tilbud.` };
+    const reassignment = order.status === 'driver_assigned';
+    if (order.status === 'confirmed') ctx.orders.transition(orderId, 'awaiting_driver', 'staff');
+    const fresh = ctx.orders.get(orderId)!;
+    const { feasible, rejected } = await this.evaluate(fresh, { reassignment });
+    let cand = feasible.find((c) => c.driver.id === driverId) ?? null;
+    if (!cand) {
+      const why = rejected.find((r) => r.driver.id === driverId)?.reason ?? 'ingen gyldig placering';
+      const plan = this.stockPlanFor(driver, fresh);
+      if (!opts.force || !plan) {
+        const alt = feasible[0];
+        return {
+          ok: false,
+          message: `Kan ikke flytte ordre #${orderId} til ${driver.name}: ${why}.${alt ? ` Forslag: ${alt.driver.name} kan tage den (levering om ca. ${alt.best!.analysis.newOrderEtaMinutes} min).` : ''}${plan && !opts.force ? ' Skriv "flyt ordre ' + orderId + ' til chauffør ' + driverId + ' alligevel" for en særlig beslutning.' : ''}`,
+        };
+      }
+      const results = await this.routing.planInsertion(
+        driver,
+        { id: fresh.id, point: { lat: fresh.addressLat!, lng: fresh.addressLng! }, needsPickup: plan === 'central_pickup' || plan === 'move_to_central', deliveryFeeOre: fresh.deliveryFeeOre },
+        { reassignment },
+      );
+      const best = [...results].sort((a, b) => b.analysis.score - a.analysis.score)[0];
+      best.analysis.explanation.push('Særlig ledelsesbeslutning: tildelt trods begrænsning');
+      cand = { driver, stockPlan: plan, best, reason: 'ledelsesbeslutning' };
+      ctx.events.log('warn', 'dispatch', 'management_override', `Ledelsen tildeler ordre #${orderId} til ${driver.name} trods: ${best.violations.join('; ') || why}`, { data: { orderId, driverId } });
+    }
+    const offerId = this.createOffer(fresh, cand, [], reassignment ? 'reassignment' : 'new_order', reassignment ? fresh.driverId : null, true);
+    return { ok: true, offerId, message: `Tilbud sendt til ${driver.name} (ordre #${orderId}, stop ${cand.best!.insertIndex + 1} af ${cand.best!.sequence.length}). Ændringen gælder, når chaufføren accepterer.` };
+  }
+
+  /** Send en ændret rækkefølge til chaufføren (kræver altid chaufførens accept). */
+  createRouteChangeOffer(driverId: number, orderId: number, sequence: number[], analysis: RoutePlanSummary['analysis'], etas: Record<string, string>): { ok: boolean; message: string; offerId?: number } {
+    const { ctx } = this;
+    const driver = ctx.drivers.get(driverId)!;
+    if (driver.pendingOfferCount > 0) return { ok: false, message: `${driver.name} har allerede et ubesvaret tilbud. Prøv igen om lidt.` };
+    const order = ctx.orders.get(orderId)!;
+    const plan: RoutePlanSummary = { sequence, insertIndex: sequence.indexOf(orderId), newOrderId: orderId, etas, analysis, alternatives: [] };
+    const s = ctx.settings.get();
+    const expiresAt = new Date(Date.now() + s.delivery.offerTimeoutSeconds * 1000).toISOString();
+    const id = ctx.db.transaction(() => {
+      const r = ctx.db
+        .prepare(`INSERT INTO dispatch_offers (order_id, driver_id, status, score, sent_at, expires_at, kind, plan, route_version) VALUES (?, ?, 'pending', ?, ?, ?, 'route_change', ?, ?)`)
+        .run(orderId, driverId, analysis.score, new Date().toISOString(), expiresAt, JSON.stringify(plan), driver.routeVersion);
+      const offerId = Number(r.lastInsertRowid);
+      ctx.orders.addEvent(orderId, 'route_change_proposed', 'system', { driverId, sequence, explanation: analysis.explanation });
+      ctx.telegram.sendToDriver(
+        driverId,
+        `Forslag til ny rækkefølge:\n${sequence.map((x, i) => `${i + 1}. #${x}${etas[String(x)] ? ` (ca. ${formatTime(etas[String(x)])})` : ''}`).join('\n')}\n${analysis.explanation.slice(0, 3).join('\n')}\n\nAccepterer du?`,
+        `offer:${offerId}`,
+        { orderId: order.id, buttons: [[{ text: '✅ Accepter', data: `offer:${offerId}:accept` }, { text: '❌ Afvis', data: `offer:${offerId}:reject` }]] },
+      );
+      ctx.jobs.enqueue('offer_timeout', { offerId }, { delayMs: s.delivery.offerTimeoutSeconds * 1000, dedupeKey: `offer_timeout:${offerId}`, lane: 'dispatch' });
+      return offerId;
+    })();
+    ctx.bus.touch('logistics', 'drivers');
+    return { ok: true, offerId: id, message: `Ruteændring sendt til ${driver.name} – gælder, når chaufføren accepterer.` };
   }
 
   /** Medarbejder anvender et omfordelingsforslag → tilbud til den nye chauffør (kræver accept). */

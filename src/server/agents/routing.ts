@@ -1,7 +1,7 @@
 import type { Ctx } from '../context';
 import type { LatLng } from '../../core/geo';
 import { computeRouteEtas, etaCommunicable, historicalBias, type EtaAnchor, type StopEta } from '../../core/eta';
-import { evaluateInsertions, orderValue, type InsertionResult, type OrderValue, type PlanningStop } from '../../core/routePlanning';
+import { evaluateInsertions, optimizeSequence, orderValue, type InsertionResult, type OrderValue, type PlanningStop, type SequenceEvaluation } from '../../core/routePlanning';
 import type { Driver } from '../../shared/types';
 import type { TravelResult } from '../services/maps';
 import type { CustomerNotifier } from './notifier';
@@ -13,9 +13,25 @@ export interface RouteStopRow {
   status: string;
   promisedMs: number | null;
   extraDelayMs: number;
+  /** Ordrens varer ligger ikke i bilen (reserveret på et lager) → kræver afhentning før levering. */
   needsPickup: boolean;
+  stockLocationId: number | null;
+  priority: number;
   value: OrderValue;
   previousEta: string | null;
+}
+
+export const ACTIVE_REPLENISHMENT = ['proposed', 'awaiting_management', 'approved', 'awaiting_driver', 'en_route', 'awaiting_pickup', 'picked_up'];
+/** Statusser hvor chaufføren har accepteret lagerbesøget (tæller som sikker plan). */
+export const ACCEPTED_REPLENISHMENT = ['en_route', 'awaiting_pickup', 'picked_up'];
+
+export interface PlannedPickup {
+  id: number;
+  status: string;
+  afterOrderId: number | null;
+  locationId: number;
+  point: LatLng | null;
+  covers: number[];
 }
 
 export interface RefreshResult {
@@ -101,11 +117,11 @@ export class RoutingService {
   stops(driverId: number): RouteStopRow[] {
     const { ctx } = this;
     this.syncStops(driverId);
-    const central = ctx.inventory.centralLocation();
+    const vehicle = ctx.inventory.vehicleLocationForDriver(driverId);
     const margin = ctx.settings.get().economics.defaultMarginPct;
     const rows = ctx.db
       .prepare(
-        `SELECT rs.order_id, rs.sequence, rs.extra_delay_s, o.address_lat, o.address_lng, o.status, o.eta_communicated, o.stock_location_id, o.delivery_fee_ore, o.eta
+        `SELECT rs.order_id, rs.sequence, rs.extra_delay_s, o.address_lat, o.address_lng, o.status, o.eta_communicated, o.stock_location_id, o.delivery_fee_ore, o.eta, o.priority
          FROM route_stops rs JOIN orders o ON o.id = rs.order_id WHERE rs.driver_id = ? ORDER BY rs.sequence`,
       )
       .all(driverId) as Record<string, unknown>[];
@@ -116,7 +132,9 @@ export class RoutingService {
       status: r.status as string,
       promisedMs: r.eta_communicated ? new Date(r.eta_communicated as string).getTime() : null,
       extraDelayMs: ((r.extra_delay_s as number) ?? 0) * 1000,
-      needsPickup: !!central && r.status === 'driver_assigned' && r.stock_location_id === central.id,
+      needsPickup: r.stock_location_id != null && r.stock_location_id !== vehicle,
+      stockLocationId: (r.stock_location_id as number) ?? null,
+      priority: (r.priority as number) ?? 0,
       value: this.valueOf(r.order_id as number, (r.delivery_fee_ore as number) ?? 0, margin),
       previousEta: (r.eta as string) ?? null,
     }));
@@ -163,31 +181,84 @@ export class RoutingService {
 
   // ---------------- Køretider ----------------
 
+  /** Aktive lageropfyldninger for chaufføren (planlagte lagerbesøg). */
+  plannedPickups(driverId: number): PlannedPickup[] {
+    const rows = this.ctx.db
+      .prepare(`SELECT id, status, after_order_id, location_id, covers_orders FROM replenishments WHERE driver_id = ? AND status IN (${ACTIVE_REPLENISHMENT.map((x) => `'${x}'`).join(',')})`)
+      .all(driverId) as { id: number; status: string; after_order_id: number | null; location_id: number; covers_orders: string }[];
+    return rows
+      .filter((r) => r.status !== 'picked_up')
+      .map((r) => {
+        const loc = this.ctx.inventory.location(r.location_id);
+        return {
+          id: r.id,
+          status: r.status,
+          afterOrderId: r.after_order_id,
+          locationId: r.location_id,
+          point: loc?.lat != null ? { lat: loc.lat, lng: loc.lng! } : null,
+          covers: JSON.parse(r.covers_orders) as number[],
+        };
+      });
+  }
+
   /**
-   * Byg køretidsfunktion over knuder: -1 = ankerpunkt, 0..n-1 = stop, n = ekstra (ny ordre).
-   * Stop der kræver afhentning på centrallager køres via centrallageret.
+   * Køretidsfunktion over knuder: -1 = ankerpunkt, 0..n-1 = stop, n = ekstra (ny ordre).
+   * - Planlagte lagerbesøg (opfyldninger) lægges ind før stoppet efter `afterOrderId`.
+   * - Stop hvis varer ligger på et lager, og som ikke er dækket af en planlagt
+   *   opfyldning, estimeres med en omvej via lageret (kun som estimat).
    */
-  async travelFor(anchorPoint: LatLng | null, stops: { point: LatLng | null; needsPickup: boolean }[], extra?: { point: LatLng; needsPickup: boolean }) {
+  async travelFor(
+    anchorPoint: LatLng | null,
+    stops: { orderId?: number; point: LatLng | null; needsPickup: boolean; stockLocationId?: number | null }[],
+    extra?: { orderId?: number; point: LatLng; needsPickup: boolean; stockLocationId?: number | null },
+    pickups: PlannedPickup[] = [],
+  ) {
     const { ctx } = this;
     const central = ctx.inventory.centralLocation();
     const centralPt = central?.lat != null ? { lat: central.lat, lng: central.lng! } : null;
     const all = [...stops, ...(extra ? [extra] : [])];
     const fallbackPt = all.find((s) => s.point)?.point ?? centralPt ?? { lat: 0, lng: 0 };
     const points: LatLng[] = [anchorPoint ?? centralPt ?? fallbackPt, ...all.map((s) => s.point ?? fallbackPt)];
-    const centralIdx = centralPt ? points.push(centralPt) - 1 : -1;
+    const locNode = new Map<number, number>();
+    const nodeForLocation = (locationId: number | null | undefined, pt?: LatLng | null): number => {
+      const id = locationId ?? central?.id ?? -1;
+      if (locNode.has(id)) return locNode.get(id)!;
+      const loc = id >= 0 ? ctx.inventory.location(id) : null;
+      const p = pt ?? (loc?.lat != null ? { lat: loc.lat, lng: loc.lng! } : centralPt);
+      if (!p) return -99;
+      const node = points.push(p) - 1;
+      locNode.set(id, node);
+      return node;
+    };
+    // Planlagte lagerbesøg: før hvilket stop-indeks
+    const explicit = new Map<number, number>();
+    const covered = new Set<number>();
+    for (const p of pickups) {
+      const idx = p.afterOrderId == null ? 0 : stops.findIndex((x) => x.orderId === p.afterOrderId) + 1;
+      if (idx < 0 || idx > stops.length) continue;
+      explicit.set(idx, nodeForLocation(p.locationId, p.point));
+      p.covers.forEach((c) => covered.add(c));
+    }
+    all.forEach((s) => {
+      if (s.needsPickup && !(s.orderId && covered.has(s.orderId))) nodeForLocation(s.stockLocationId);
+    });
     const m = await ctx.maps.matrix(points, points);
-    const prep = ctx.settings.get().delivery.defaultPrepMinutes * 60;
+    const s = ctx.settings.get();
+    const pickupS = s.replenishment.pickupMinutes * 60;
     const flat = m.flat();
     const quality: TravelResult['quality'] = flat.some((x) => x.quality === 'fallback') ? 'fallback' : flat.some((x) => x.quality === 'simulated') ? 'simulated' : 'live';
     const idx = (node: number) => node + 1; // -1 → 0
     const travel = (from: number, to: number): number => {
+      const via = explicit.get(to);
+      if (via !== undefined && via >= 0 && to < stops.length) return m[idx(from)][via].durationS + pickupS + m[via][idx(to)].durationS;
       const target = all[to];
-      if (target?.needsPickup && centralIdx >= 0 && !(from >= 0 && all[from]?.needsPickup)) {
-        return m[idx(from)][centralIdx].durationS + prep + m[centralIdx][idx(to)].durationS;
+      if (target?.needsPickup && !(target.orderId && covered.has(target.orderId)) && !(from >= 0 && all[from]?.needsPickup)) {
+        const node = nodeForLocation(target.stockLocationId);
+        if (node >= 0) return m[idx(from)][node].durationS + pickupS + m[node][idx(to)].durationS;
       }
       return m[idx(from)][idx(to)].durationS;
     };
-    return { travel, quality };
+    return { travel, quality, covered };
   }
 
   biasMinutes(): number {
@@ -217,15 +288,15 @@ export class RoutingService {
 
   async planInsertion(
     driver: Driver,
-    order: { id: number; point: LatLng; needsPickup: boolean; deliveryFeeOre: number },
+    order: { id: number; point: LatLng; needsPickup: boolean; deliveryFeeOre: number; stockLocationId?: number | null; priority?: number },
     opts: { reassignment: boolean },
   ): Promise<InsertionResult[]> {
     const anchor = this.ensureAnchor(driver);
     const stops = this.stops(driver.id).filter((s) => s.orderId !== order.id);
     const anchorPt = anchor.lat != null ? { lat: anchor.lat, lng: anchor.lng! } : null;
-    const { travel } = await this.travelFor(anchorPt, stops, { point: order.point, needsPickup: order.needsPickup });
+    const { travel } = await this.travelFor(anchorPt, stops, { point: order.point, needsPickup: order.needsPickup, stockLocationId: order.stockLocationId }, this.plannedPickups(driver.id));
     const s = this.ctx.settings.get();
-    const existing: PlanningStop[] = stops.map((x) => ({ orderId: x.orderId, promisedMs: x.promisedMs, extraDelayMs: x.extraDelayMs, value: x.value }));
+    const existing: PlanningStop[] = stops.map((x) => ({ orderId: x.orderId, promisedMs: x.promisedMs, extraDelayMs: x.extraDelayMs, value: x.value, priority: x.priority }));
     // Anker til planlægning: et afgangsanker i fortiden betyder at chaufføren allerede er undervejs
     const planAnchor = anchor.kind === 'start' && stops.length === 0 ? { ...anchor, atMs: Math.max(anchor.atMs, Date.now()), reportedAtMs: Date.now() } : anchor;
     return evaluateInsertions({
@@ -233,12 +304,51 @@ export class RoutingService {
       anchor: planAnchor,
       existing,
       lockedCount: this.lockedCount(driver, stops, anchor),
-      newOrder: { orderId: order.id, value: this.valueOf(order.id, order.deliveryFeeOre, s.economics.defaultMarginPct) },
+      newOrder: { orderId: order.id, value: this.valueOf(order.id, order.deliveryFeeOre, s.economics.defaultMarginPct), priority: order.priority ?? 0 },
       travel,
       eta: this.etaParams(),
       econ: s.economics,
       reassignment: opts.reassignment,
     });
+  }
+
+  /** Fælles planlægningsgrundlag for chaufførens nuværende rute. */
+  private async routeContext(driver: Driver) {
+    const anchor = this.ensureAnchor(driver);
+    const stops = this.stops(driver.id);
+    const anchorPt = anchor.lat != null ? { lat: anchor.lat, lng: anchor.lng! } : null;
+    const { travel } = await this.travelFor(anchorPt, stops, undefined, this.plannedPickups(driver.id));
+    const s = this.ctx.settings.get();
+    const existing: PlanningStop[] = stops.map((x) => ({ orderId: x.orderId, promisedMs: x.promisedMs, extraDelayMs: x.extraDelayMs, value: x.value, priority: x.priority }));
+    return { anchor, stops, travel, existing, econ: s.economics, eta: this.etaParams(), locked: this.lockedCount(driver, stops, anchor) };
+  }
+
+  /** "Find en bedre rute": bedste rækkefølge af de stop, der ikke er låst. */
+  async optimizeRoute(driverId: number): Promise<{ current: SequenceEvaluation; best: SequenceEvaluation } | null> {
+    const driver = this.ctx.drivers.get(driverId);
+    if (!driver) return null;
+    const c = await this.routeContext(driver);
+    if (c.stops.length < 2) return null;
+    return optimizeSequence({ nowMs: Date.now(), anchor: c.anchor, existing: c.existing, lockedCount: c.locked, travel: c.travel, eta: c.eta, econ: c.econ });
+  }
+
+  /**
+   * Prioritér en ordre i chaufførens rute: tidligste placering, der ikke bryder
+   * givne løfter for andre kunder. null = ikke muligt.
+   */
+  async prioritizePlan(driverId: number, orderId: number): Promise<InsertionResult | null> {
+    const driver = this.ctx.drivers.get(driverId);
+    if (!driver) return null;
+    const stops = this.stops(driverId);
+    const current = stops.findIndex((x) => x.orderId === orderId);
+    if (current <= 0) return null;
+    const o = this.ctx.orders.get(orderId)!;
+    const results = await this.planInsertion(
+      driver,
+      { id: orderId, point: { lat: o.addressLat!, lng: o.addressLng! }, needsPickup: stops[current].needsPickup, stockLocationId: stops[current].stockLocationId, deliveryFeeOre: o.deliveryFeeOre, priority: 1 },
+      { reassignment: false },
+    );
+    return results.filter((r) => r.feasible && r.insertIndex < current).sort((a, b) => a.insertIndex - b.insertIndex)[0] ?? null;
   }
 
   // ---------------- ETA-genberegning ----------------
@@ -257,11 +367,21 @@ export class RoutingService {
     }
     const anchor = this.ensureAnchor(driver);
     const anchorPt = anchor.lat != null ? { lat: anchor.lat, lng: anchor.lng! } : null;
-    const { travel, quality } = await this.travelFor(anchorPt, stops);
+    const pickups = this.plannedPickups(driverId);
+    const { travel, quality } = await this.travelFor(anchorPt, stops, undefined, pickups);
+    // Stop der afhænger af en lageropfyldning, chaufføren endnu ikke har accepteret, er usikre
+    const blockedBy = (orderId: number, needsPickup: boolean): string | null => {
+      if (!needsPickup) return null;
+      const p = pickups.find((x) => x.covers.includes(orderId));
+      if (!p) return 'afventer lageropfyldning';
+      if (ACCEPTED_REPLENISHMENT.includes(p.status)) return null;
+      if (p.status === 'approved' || p.status === 'awaiting_driver') return 'afventer chaufførens accept af lagerbesøg';
+      return 'afventer godkendelse af lageropfyldning';
+    };
     const etas = computeRouteEtas(
       Date.now(),
       anchor,
-      stops.map((s) => ({ orderId: s.orderId, extraDelayMs: s.extraDelayMs })),
+      stops.map((s) => ({ orderId: s.orderId, extraDelayMs: s.extraDelayMs, blocked: blockedBy(s.orderId, s.needsPickup) })),
       (i) => travel(i === 0 ? -1 : i - 1, i),
       this.etaParams(),
     );
@@ -290,6 +410,7 @@ export class RoutingService {
       });
     })();
     ctx.bus.touch('logistics', 'orders');
+    ctx.bus.emit('route_refreshed', { driverId });
     return { etas, quality, notifiedOrderIds: notified };
   }
 }

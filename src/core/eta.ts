@@ -26,6 +26,8 @@ export interface EtaStopInput {
   orderId: number;
   /** Meldt ekstra forsinkelse ved dette stop (ms) – lægges til og forplanter sig. */
   extraDelayMs: number;
+  /** Stoppet kan ikke leveres som planlagt (fx afventer opfyldning) → lav sikkerhed. */
+  blocked?: string | null;
 }
 
 export interface EtaParams {
@@ -88,7 +90,11 @@ export function computeRouteEtas(nowMs: number, anchor: EtaAnchor, stops: EtaSto
     let unc = BASE_UNCERTAINTY[anchor.kind] + 2 * i;
     if (stale) unc += 5 + (ageMin - p.staleMinutes) / 2;
     if (overdue || overdueSeen) unc += 10;
-    const confidence: EtaConfidence = stale || overdue || overdueSeen ? 'low' : unc <= 5 ? 'high' : unc <= 12 ? 'medium' : 'low';
+    if (s.blocked) {
+      unc += 10;
+      basis += ` · ${s.blocked}`;
+    }
+    const confidence: EtaConfidence = stale || overdue || overdueSeen || s.blocked ? 'low' : unc <= 5 ? 'high' : unc <= 12 ? 'medium' : 'low';
     out.push({
       orderId: s.orderId,
       etaMs: t,

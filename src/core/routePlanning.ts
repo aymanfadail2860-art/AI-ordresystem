@@ -56,6 +56,8 @@ export interface PlanningStop {
   promisedMs: number | null;
   extraDelayMs: number;
   value: OrderValue;
+  /** > 0 = prioriteret af ledelsen (højere ventetidsvægt). */
+  priority?: number;
 }
 
 export interface InsertionArgs {
@@ -64,7 +66,7 @@ export interface InsertionArgs {
   existing: PlanningStop[];
   /** Antal stop forrest i ruten, der ikke må flyttes (fx stop chaufføren er på vej til). */
   lockedCount: number;
-  newOrder: { orderId: number; value: OrderValue };
+  newOrder: { orderId: number; value: OrderValue; priority?: number };
   /**
    * Køretid i sekunder mellem knuder: -1 = ankerpunkt, 0..n-1 = eksisterende stop,
    * n = den nye ordre. Kalderen indregner fx afhentning på centrallager i ben til n.
@@ -94,7 +96,8 @@ function sequenceEtas(args: InsertionArgs, nodes: number[]): StopEta[] {
   return computeRouteEtas(args.nowMs, args.anchor, stops, (i) => args.travel(i === 0 ? -1 : nodes[i - 1], nodes[i]), args.eta);
 }
 
-const weight = (v: OrderValue, e: EconomicsSettings) => 1 + Math.max(0, v.contributionOre) / Math.max(1, e.valueWeightScaleOre);
+const weight = (v: OrderValue, e: EconomicsSettings, priority = 0) =>
+  (1 + Math.max(0, v.contributionOre) / Math.max(1, e.valueWeightScaleOre)) * (priority > 0 ? e.priorityWeight || 1 : 1);
 
 export function evaluateInsertions(args: InsertionArgs): InsertionResult[] {
   const e = args.econ;
@@ -127,7 +130,7 @@ export function evaluateInsertions(args: InsertionArgs): InsertionResult[] {
       if (delayMin > 0.5) {
         disrupted++;
         maxDelay = Math.max(maxDelay, delayMin);
-        existingWaitCost += e.waitCostPerMinuteOre * weight(stop.value, e) * delayMin;
+        existingWaitCost += e.waitCostPerMinuteOre * weight(stop.value, e, stop.priority) * delayMin;
       }
       if (stop.promisedMs) {
         const overMin = (after - stop.promisedMs) / 60000;
@@ -148,7 +151,7 @@ export function evaluateInsertions(args: InsertionArgs): InsertionResult[] {
     const v = args.newOrder.value;
     const contribution = v.contributionOre;
     const driveCost = e.driveCostPerMinuteOre * extraDriveMin;
-    const newWaitCost = e.waitCostPerMinuteOre * weight(v, e) * Math.max(0, newEtaMin);
+    const newWaitCost = e.waitCostPerMinuteOre * weight(v, e, args.newOrder.priority) * Math.max(0, newEtaMin);
     const latePenalty = e.latePenaltyPerMinuteOre * lateMinutes;
     const riskPenalty = e.riskPenaltyPerMinuteOre * newEta.uncertaintyMinutes;
     const disruption = e.disruptionCostOre * disrupted;
@@ -199,4 +202,96 @@ export function evaluateInsertions(args: InsertionArgs): InsertionResult[] {
     });
   }
   return results.sort((a, b) => Number(b.feasible) - Number(a.feasible) || b.analysis.score - a.analysis.score);
+}
+
+export interface SequenceEvaluation {
+  sequence: number[];
+  feasible: boolean;
+  violations: string[];
+  /** Samlet omkostning (øre) – lavere er bedre. */
+  costOre: number;
+  driveMinutes: number;
+  etas: Record<number, number>;
+}
+
+/**
+ * Evaluér en bestemt rækkefølge af ruten (til "find en bedre rute" og
+ * prioritering). Omkostning = kørsel + værdivægtet ventetid + forsinkelse ud
+ * over løfter. Hårdt: et givet løfte må ikke brydes ud over tolerancen, hvis
+ * stoppet bliver senere end i den nuværende plan.
+ */
+export function evaluateSequence(
+  args: Omit<InsertionArgs, 'newOrder' | 'reassignment' | 'lockedCount'>,
+  order: number[],
+  baselineEtas?: Record<number, number>,
+): SequenceEvaluation {
+  const e = args.econ;
+  const byId = new Map(args.existing.map((s, i) => [s.orderId, { s, node: i }]));
+  const nodes = order.map((id) => byId.get(id)!.node);
+  const stops = order.map((id) => ({ orderId: id, extraDelayMs: byId.get(id)!.s.extraDelayMs }));
+  const etas = computeRouteEtas(args.nowMs, args.anchor, stops, (i) => args.travel(i === 0 ? -1 : nodes[i - 1], nodes[i]), args.eta);
+  let cost = 0;
+  let late = 0;
+  const violations: string[] = [];
+  const driveS = etas.reduce((a, x) => a + x.driveSeconds, 0);
+  etas.forEach((x, i) => {
+    const s = byId.get(order[i])!.s;
+    const waitMin = Math.max(0, (x.etaMs - args.nowMs) / 60000);
+    cost += e.waitCostPerMinuteOre * weight(s.value, e, s.priority) * waitMin;
+    if (s.promisedMs) {
+      const over = (x.etaMs - s.promisedMs) / 60000;
+      if (over > 0) late += over;
+      const before = baselineEtas?.[s.orderId];
+      if (over > e.promiseToleranceMinutes && (before === undefined || x.etaMs > before + 30000)) {
+        violations.push(`Ordre #${s.orderId} ville blive ${Math.round(over)} min senere end lovet`);
+      }
+    }
+  });
+  cost += e.driveCostPerMinuteOre * (driveS / 60) + e.latePenaltyPerMinuteOre * late;
+  return {
+    sequence: order,
+    feasible: violations.length === 0,
+    violations,
+    costOre: Math.round(cost),
+    driveMinutes: Math.round(driveS / 60),
+    etas: Object.fromEntries(etas.map((x) => [x.orderId, x.etaMs])),
+  };
+}
+
+/** Find den bedste rækkefølge af de ulåste stop (udtømmende op til 7 stop, ellers grådig + 2-opt). */
+export function optimizeSequence(args: Omit<InsertionArgs, 'newOrder' | 'reassignment'>): { current: SequenceEvaluation; best: SequenceEvaluation } {
+  const ids = args.existing.map((s) => s.orderId);
+  const locked = ids.slice(0, Math.min(args.lockedCount, ids.length));
+  const free = ids.slice(locked.length);
+  const current = evaluateSequence(args, ids);
+  let best = current;
+  const consider = (seq: number[]) => {
+    const ev = evaluateSequence(args, seq, current.etas);
+    if (ev.feasible && (ev.costOre < best.costOre || !best.feasible)) best = ev;
+  };
+  if (free.length <= 7) {
+    const permute = (arr: number[], prefix: number[] = []) => {
+      if (!arr.length) return consider([...locked, ...prefix]);
+      arr.forEach((x, i) => permute([...arr.slice(0, i), ...arr.slice(i + 1)], [...prefix, x]));
+    };
+    permute(free);
+  } else {
+    let seq = [...free];
+    let improved = true;
+    while (improved) {
+      improved = false;
+      for (let i = 0; i < seq.length - 1; i++) {
+        for (let j = i + 1; j < seq.length; j++) {
+          const cand = [...seq.slice(0, i), ...seq.slice(i, j + 1).reverse(), ...seq.slice(j + 1)];
+          const before = best.costOre;
+          consider([...locked, ...cand]);
+          if (best.costOre < before) {
+            seq = cand;
+            improved = true;
+          }
+        }
+      }
+    }
+  }
+  return { current, best };
 }

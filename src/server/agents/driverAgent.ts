@@ -8,6 +8,7 @@ import type { DriverInterpretation } from '../ai/schemas';
 import type { Driver } from '../../shared/types';
 import { fillTemplate, formatTime } from './replies';
 import { AiDisabledError, BudgetExceededError } from '../ai/gateway';
+import type { ReplenishmentService } from './replenishment';
 
 /**
  * Driver Communication Agent – uden live-GPS.
@@ -18,6 +19,9 @@ import { AiDisabledError, BudgetExceededError } from '../ai/gateway';
  * Ordrenumre gættes aldrig – ved uklarhed stilles et opklarende spørgsmål.
  */
 export class DriverAgent {
+  /** Sættes efter konstruktion (lageropfyldning). */
+  replenishment: ReplenishmentService | null = null;
+
   constructor(
     private ctx: Ctx,
     private dispatch: DispatchAgent,
@@ -86,6 +90,20 @@ export class DriverAgent {
     const base = emptyDriverInterpretation();
     if (u.kind === 'callback' && u.callbackData) {
       await ctx.telegram.answerCallback(u.callbackId);
+      const rep = u.callbackData.match(/^rep:(\d+):(driver_accept|driver_reject|arrived|picked_up)$/);
+      if (rep && this.replenishment) {
+        const id = parseInt(rep[1], 10);
+        this.recordStatus(driver, 'replenishment', `[knap] lagerbesøg #${id} ${rep[2]}`);
+        if (rep[2] === 'driver_accept' || rep[2] === 'driver_reject') {
+          const msg = await this.replenishment.driverRespond(id, driver.id, rep[2] === 'driver_accept');
+          ctx.telegram.sendToDriver(driver.id, msg, replyKey, rep[2] === 'driver_accept' ? { buttons: [[{ text: '🏬 Ved lageret', data: `rep:${id}:arrived` }, { text: '📦 Afhentet', data: `rep:${id}:picked_up` }]] } : {});
+        } else if (rep[2] === 'arrived') {
+          this.reply(driver.id, this.replenishment.driverArrived(id, driver.id), replyKey);
+        } else {
+          this.reply(driver.id, await this.replenishment.driverPickedUp(id, driver.id), replyKey);
+        }
+        return;
+      }
       const offer = u.callbackData.match(/^offer:(\d+):(accept|reject)$/);
       if (offer) {
         const msg = await this.dispatch.respondToOffer(parseInt(offer[1], 10), driver.id, offer[2] === 'accept');
@@ -129,6 +147,23 @@ export class DriverAgent {
     if (cmd === '/start') {
       this.reply(driver.id, 'Du er allerede forbundet. Skriv /online for at blive klar.', replyKey);
       return;
+    }
+
+    // Lagerbesøg i gang: "afhentet" / "ved lageret" gælder opfyldningen
+    if (this.replenishment) {
+      const act = this.replenishment.active(driver.id);
+      if (act && ['en_route', 'awaiting_pickup'].includes(act.status)) {
+        if (/(afhentet|har hentet|varerne er i bilen|har varerne|læsset|lastet)/i.test(text)) {
+          this.recordStatus(driver, 'replenishment', text);
+          this.reply(driver.id, await this.replenishment.driverPickedUp(act.id, driver.id), replyKey);
+          return;
+        }
+        if (/(ved lageret|på lageret|fremme ved lager)/i.test(text)) {
+          this.recordStatus(driver, 'replenishment', text);
+          this.reply(driver.id, this.replenishment.driverArrived(act.id, driver.id), replyKey);
+          return;
+        }
+      }
     }
 
     let interp: DriverInterpretation;
@@ -243,7 +278,13 @@ export class DriverAgent {
           data: { driverId: driver.id, productId: p?.id ?? null, affectedOrders: affected.map((o) => o.id) },
         });
         this.recordStatus(driver, 'out_of_stock', text);
-        this.reply(driver.id, `Noteret – kontoret er informeret${affected.length ? ` (berørte ordrer: ${affected.map((o) => '#' + o.id).join(', ')})` : ''}.`, replyKey);
+        let extra = '';
+        if (p && this.replenishment && interp.quantity != null) {
+          const r = await this.replenishment.reconcileVehicleStock(driver.id, p.id, interp.quantity);
+          if (r.movedOrders.length) extra = ` Ordrer ${r.movedOrders.map((x) => '#' + x).join(', ')} dækkes nu fra lageret – du får besked om lagerbesøg.`;
+          if (r.failedOrders.length) extra += ` Ordrer ${r.failedOrders.map((x) => '#' + x).join(', ')} kan ikke dækkes – kontoret håndterer dem.`;
+        }
+        this.reply(driver.id, `Noteret – kontoret er informeret${affected.length ? ` (berørte ordrer: ${affected.map((o) => '#' + o.id).join(', ')})` : ''}.${extra}`, replyKey);
         return;
       }
       case 'question':

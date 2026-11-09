@@ -157,6 +157,7 @@ export function emptyDriverInterpretation(): DriverInterpretation {
     delayMinutes: null,
     delayReason: null,
     productSku: null,
+    quantity: null,
     note: null,
     ambiguous: false,
     clarificationQuestion: null,
@@ -178,7 +179,7 @@ Intents:
 - completed_and_next: finished one order and driving to the next ("færdig med 142 og kører mod 143") → orderId=finished, nextOrderId=next
 - heading_to: driving towards a specific order → nextOrderId
 - delayed: delay in minutes ("10 min forsinket", "trafik, bliver 20 min senere") → delayMinutes, delayReason
-- customer_unreachable, out_of_stock (productSku from catalog), picked_up (has the goods and is driving)
+- customer_unreachable, out_of_stock (productSku from catalog; quantity = how many the driver says are left, 0 if none), picked_up (has the goods and is driving)
 - capacity_available: driver can take an extra order on the way
 - accept_offer, reject_offer, go_online, go_offline, take_break, question, other
 Rules:
@@ -378,9 +379,12 @@ export class RuleBasedDriverInterpreter implements DriverInterpreter {
       r.orderId = parseInt(completed[1], 10);
       r.nextOrderId = parseInt(completed[2], 10);
       r.confidence = 0.95;
-    } else if (/(ikke flere|løbet tør|udsolgt|har ikke mere|ikke mere|mangler)/.test(t)) {
+    } else if (/(ikke flere|løbet tør|udsolgt|har ikke mere|ikke mere|mangler|tilbage i bilen|\d+\s+\S+.*tilbage)/.test(t) && !/(kører mod|på vej)/.test(t)) {
       r.intent = 'out_of_stock';
-      r.productSku = extractItems(raw, ctx.catalog.map((c) => ({ ...c, category: '', variant: null, available: true, description: null })))[0]?.sku ?? null;
+      const left = raw.match(/(?:har\s+(?:kun\s+)?|kun\s+)(\d{1,4})\s+(.+?)\s+tilbage/i);
+      const name = left ? left[2] : raw;
+      r.productSku = extractItems(name, ctx.catalog.map((c) => ({ ...c, category: '', variant: null, available: true, description: null })))[0]?.sku ?? null;
+      r.quantity = left ? parseInt(left[1], 10) : /(ikke flere|løbet tør|udsolgt|har ikke mere|ikke mere)/.test(t) ? 0 : null;
       r.confidence = r.productSku ? 0.85 : 0.5;
     } else if (/(svarer ikke|åbner ikke|ingen åbner|tager ikke telefonen|ikke hjemme)/.test(t)) {
       r.intent = 'customer_unreachable';

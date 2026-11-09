@@ -195,6 +195,8 @@ export interface Order {
   cancelReason: string | null;
   needsAttention: boolean;
   attentionReason: string | null;
+  priority: number;
+  pausedFromStatus: OrderStatus | null;
   version: number;
   lines: OrderLine[];
 }
@@ -262,7 +264,7 @@ export interface DispatchOffer {
   driverId: number;
   driverName: string;
   status: 'pending' | 'accepted' | 'rejected' | 'expired' | 'cancelled';
-  kind: 'new_order' | 'reassignment';
+  kind: 'new_order' | 'reassignment' | 'route_change';
   plan: RoutePlanSummary | null;
   sentAt: string;
   respondedAt: string | null;
@@ -327,6 +329,112 @@ export interface RoutePlanSummary {
   etas: Record<string, string>;
   analysis: DecisionAnalysis;
   alternatives: { driverId: number; driverName: string; score: number; feasible: boolean; reason: string }[];
+}
+
+export type ManagementRole = 'admin' | 'manager' | 'observer';
+export const MANAGEMENT_ROLE_LABELS: Record<ManagementRole, string> = { admin: 'Administrator', manager: 'Leder', observer: 'Observatør' };
+
+export interface ManagementUser {
+  id: number;
+  name: string;
+  role: ManagementRole;
+  telegramUserId: string | null;
+  linkCode: string | null;
+  active: boolean;
+  createdAt: string;
+}
+
+export interface ManagementCommand {
+  id: number;
+  userName: string | null;
+  instruction: string;
+  intent: string | null;
+  params: Record<string, unknown> | null;
+  affectedOrders: number[];
+  decision: string;
+  result: string | null;
+  confirmedBy: string | null;
+  createdAt: string;
+}
+
+export const REPLENISHMENT_STATUSES = [
+  'proposed',
+  'awaiting_management',
+  'approved',
+  'awaiting_driver',
+  'en_route',
+  'awaiting_pickup',
+  'picked_up',
+  'completed',
+  'rejected',
+  'cancelled',
+  'expired',
+] as const;
+export type ReplenishmentStatus = (typeof REPLENISHMENT_STATUSES)[number];
+export const REPLENISHMENT_STATUS_LABELS: Record<ReplenishmentStatus, string> = {
+  proposed: 'Opfyldning foreslået',
+  awaiting_management: 'Afventer ledelsesgodkendelse',
+  approved: 'Godkendt',
+  awaiting_driver: 'Afventer chaufføraccept',
+  en_route: 'På vej til lager',
+  awaiting_pickup: 'Afventer fysisk afhentning',
+  picked_up: 'Afhentning bekræftet',
+  completed: 'Afsluttet',
+  rejected: 'Afvist',
+  cancelled: 'Annulleret',
+  expired: 'Udløbet',
+};
+
+export interface ReplenishmentOption {
+  locationId: number;
+  locationName: string;
+  afterOrderId: number | null;
+  afterIndex: number;
+  feasible: boolean;
+  violations: string[];
+  extraDriveMinutes: number;
+  pickupMinutes: number;
+  maxDelayMinutes: number;
+  delays: { orderId: number; minutes: number }[];
+  costOre: number;
+  lateRiskMinutes: number;
+  deliveriesPerHour: number;
+  safeUntil: string | null;
+  explanation: string[];
+}
+
+export interface Replenishment {
+  id: number;
+  driverId: number;
+  driverName: string;
+  locationId: number;
+  locationName: string;
+  status: ReplenishmentStatus;
+  afterOrderId: number | null;
+  items: { productId: number; productName: string; quantity: number }[];
+  coversOrders: number[];
+  analysis: { chosen: ReplenishmentOption; alternatives: ReplenishmentOption[]; reasoning: string[]; rejectedOptions?: string[] } | null;
+  deadlineAt: string | null;
+  sentAt: string | null;
+  approvedBy: string | null;
+  approvedAt: string | null;
+  rejectedBy: string | null;
+  rejectedReason: string | null;
+  driverAcceptedAt: string | null;
+  pickedUpAt: string | null;
+  completedAt: string | null;
+  createdAt: string;
+}
+
+export interface StockForecast {
+  driverId: number;
+  driverName: string;
+  vehicleLocationId: number | null;
+  /** Fysisk lager i bilen nu (minus varer reserveret til ordrer uden for ruten). */
+  start: Record<number, number>;
+  stops: { orderId: number; sequence: number; eta: string | null; needs: Record<number, number>; after: Record<number, number>; pickupBefore: boolean; uncovered: boolean }[];
+  shortages: { productId: number; productName: string; missing: number; firstStopOrderId: number; firstStopIndex: number }[];
+  activeReplenishmentId: number | null;
 }
 
 export type EventLevel = 'info' | 'warn' | 'error' | 'critical';
@@ -402,7 +510,7 @@ export interface ModelPricing {
   cacheWritePerMTokUsd: number;
 }
 
-export type AiTaskType = 'customer_interpret' | 'customer_escalation' | 'driver_interpret';
+export type AiTaskType = 'customer_interpret' | 'customer_escalation' | 'driver_interpret' | 'management_interpret';
 
 export interface OpeningHoursDay {
   open: string; // "HH:MM"
@@ -469,7 +577,24 @@ export interface Settings {
     delayTemplate: string;
     delayNoTimeTemplate: string;
   };
+  management: {
+    /** Telegram-chat-ID for ledelsesgruppen. Kun beskeder fra denne chat (eller private chats, hvis tilladt) behandles. */
+    groupChatId: string;
+    allowPrivateChats: boolean;
+    confirmTimeoutMinutes: number;
+  };
+  replenishment: {
+    enabled: boolean;
+    pickupMinutes: number;
+    reminderAfterMinutes: number;
+    /** Eskalér så mange minutter før sidste sikre opfyldningspunkt. */
+    escalateLeadMinutes: number;
+    /** Mindste forbedring (øre) før et ruteforslag sendes til chaufføren. */
+    minRouteImprovementOre: number;
+  };
   economics: {
+    /** Vægt for ordrer, ledelsen har prioriteret. */
+    priorityWeight: number;
     /** Avance (%) for varer uden registreret vareomkostning. */
     defaultMarginPct: number;
     driveCostPerMinuteOre: number;
@@ -584,4 +709,6 @@ export type LiveTopic =
   | 'ai'
   | 'settings'
   | 'logistics'
-  | 'demo';
+  | 'demo'
+  | 'management'
+  | 'replenishment';
