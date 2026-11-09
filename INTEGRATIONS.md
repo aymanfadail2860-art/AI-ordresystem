@@ -106,10 +106,12 @@ chat.db-læser + AppleScript i egen kode, eller en dedikeret Mac + iPhone).
 
 - Long polling (`getUpdates`) – ingen offentlig webhook eller port nødvendig. Offset gemmes → ingen tab eller dubletter efter genstart.
 - Chauffører knyttes via engangskode: kontoret ser koden under Chauffører, chaufføren skriver `/start KODE` til botten.
-- Inline-knapper: Accepter/Afvis tilbud; Kører nu / Fremme / Leveret / Kunden svarer ikke / +15 min.
-- Kommandoer: `/online`, `/offline`, `/pause`, `/status`.
+- Inline-knapper: Accepter/Afvis tilbud (tilbuddet viser placering i ruten og evt. ruteændring); Kører mod denne / Der om 5 min / Fremme / Leveret / Kunden svarer ikke / +10 min.
+- Kommandoer: `/online`, `/offline`, `/pause`, `/status` (viser ruten med ETA'er), `/ekstra` (kan tage en ekstra ordre).
 - Fritekst ("Jeg er fremme", "Kunden svarer ikke", "Jeg bliver 15 minutter forsinket", "Jeg har ikke flere Red Bull", "Ordre 142 er leveret") fortolkes og valideres mod chaufførens ordrer.
-- **Position:** Telegram-bots får ikke kontinuerlig GPS. Chaufføren kan dele *live-position* i chatten; den modtages som `edited_message.location`. Uden frisk position bruges centrallageret som udgangspunkt, og ETA markeres som estimat og loves ikke til kunder. Der bruges aldrig fiktive positioner i drift.
+- **Ingen live-GPS:** AI Dispatch tracker bevidst ikke chaufførernes position. Delte positioner fra Telegram gemmes ikke (chaufføren får besked om at skrive status i stedet). ETA'er bygger på chaufførens meldinger, bekræftede leveringer, planlagte ruter og køretider – se ARCHITECTURE.md → Logistik uden live-GPS.
+- **Statusmeldinger der forstås** (eksempler): "Ordre 142, jeg er der om 5 min", "Jeg er 10 min forsinket" (gælder hele den resterende rute), "Jeg er færdig med 142 og kører mod 143", "Der er trafik, bliver nok 20 min senere", "Jeg kan godt tage en ekstra ordre på vejen". Uklare beskeder besvares med et opklarende spørgsmål; ordrenumre gættes aldrig.
+- **Statusforespørgsel:** Har en chauffør med aktive ordrer ikke givet status i N minutter, spørger botten; svares der stadig ikke, eskaleres til kontoret.
 - Fælles chaufførgruppe: feltet findes i indstillingerne (`telegram.driverGroupChatId`); udsendelse til gruppe er planlagt (Etape 4).
 
 Opsætning: @BotFather → `/newbot` → token → Indstillinger → Integrationer.
@@ -120,7 +122,7 @@ Opsætning: @BotFather → `/newbot` → token → Indstillinger → Integration
 |---|---|---|
 | Adressevalidering / geokodning | Geocoding API | `region=dk`, `components=country:DK`; upræcise resultater (uden husnummer / APPROXIMATE / partial_match) kræver præcisering fra kunden |
 | Køretider med trafik | Routes API `computeRouteMatrix` (`TRAFFIC_AWARE`) | Én matrix pr. ruteberegning |
-| Ruteoptimering | Lokal heuristik (billigste indsættelse) | Undgår dyr Route Optimization API; vægter leveringsløfter |
+| Ruteoptimering | Lokal økonomisk indsættelsesmodel | Undgår dyr Route Optimization API; respekterer bindende ruter og givne løfter |
 
 Caching: geokodning 14 dage, køretider 10 min (koordinater afrundet til ~11 m).
 Ved fejl: luftlinjeestimat × vejfaktor, markeret `fallback` → kommunikeres ikke som løfte.

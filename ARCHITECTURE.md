@@ -73,9 +73,9 @@ den tilfører værdi (fortolkning af fri tekst). Alt andet er deterministisk kod
 |---|---|---|---|
 | A. Customer Agent | `agents/customerAgent.ts` | Ja (fortolkning) | Samler kundens beskeder, fortolker, formulerer svar ud fra skabeloner |
 | B. Order Agent | samme fil (`apply`, `advanceDraft`) | Nej | Opretter/ændrer kladder, priser fra katalog, lagerkontrol, reservation, bekræftelse, annullering |
-| C. Dispatch Agent | `agents/dispatchAgent.ts` | Nej | Rangerer chauffører (ETA, lager i bil, arbejdsbyrde, løfter), sender tilbud, tildeler |
-| D. Logistics Agent | `agents/logisticsAgent.ts`, `agents/routing.ts` | Nej | Ruter (billigste indsættelse med vægtning af leveringsløfter), forsinkelser, omfordelingsforslag, udløbne tilbud |
-| E. Driver Communication Agent | `agents/driverAgent.ts` | Ja (kun fritekst) | Knapper/kommandoer deterministisk; fritekst fortolkes; handlinger valideres mod chaufførens ordrer |
+| C. Dispatch Agent | `agents/dispatchAgent.ts` | Nej | Økonomisk indsættelse i alle chaufførers ruter, tilbud med konkret ruteplan, versionskontrol, tildeling |
+| D. Logistics Agent | `agents/logisticsAgent.ts`, `agents/routing.ts`, `agents/notifier.ts` | Nej | Bindende ruter, ETA-genberegning uden GPS, kundeopdateringer, statusforespørgsler, økonomiske omfordelingsforslag |
+| E. Driver Communication Agent | `agents/driverAgent.ts` | Ja (kun fritekst) | Status/ETA/forsinkelser fra Telegram; knapper deterministisk; fritekst fortolkes; uklarhed → opklarende spørgsmål |
 | F. Monitoring Agent | `logisticsAgent.monitor`, `IntegrationRegistry`, `EventLog` | Nej | Integrationsstatus, usikre beskeder, ventende kunder, fejlede jobs, budget |
 
 ### AI-sikkerhedsregler
@@ -98,6 +98,72 @@ den tilfører værdi (fortolkning af fri tekst). Alt andet er deterministisk kod
 7. Dispatch rangerer chauffører, sender Telegram-tilbud med knapper, timeout-job.
 8. Accept → reservation flyttes atomisk til bilen (eller centrallager-afhentning) → `driver_assigned` → rute og ETA beregnes → chauffør og kunde informeres.
 9. Chaufførknapper/tekst: kører nu → fremme → leveret (lager fradrages, kunden informeres).
+
+## Logistik uden live-GPS
+
+AI Dispatch tracker **ikke** chaufførernes GPS. Positioner fra Telegram gemmes ikke.
+"Senest kendte stop" (seneste leverede adresse, centrallager eller startsted) bruges
+kun som udgangspunkt for køretidsberegning og vises aldrig som live-position.
+
+### Bindende rute
+
+`route_stops` indeholder chaufførens rækkefølge. Den ændres kun når:
+1. chaufføren accepterer et tilbud, der indeholder den konkrete nye rækkefølge (`dispatch_offers.plan`),
+2. chaufføren selv melder, hvilken ordre han kører mod / er ved, eller
+3. en ordre leveres, annulleres eller omfordeles.
+Hver ændring øger `drivers.route_version`. Et tilbud gemmer den ruteversion, det
+blev beregnet på; ved accept efter en ruteændring planlægges der igen, og ændres
+løsningen væsentligt, sendes et nyt tilbud i stedet.
+
+### ETA-motor (`src/core/eta.ts`)
+
+| Kilde ("anker") | Betydning |
+|---|---|
+| `driver_report` | Chaufføren: "Ordre 142, jeg er der om 5 min" → ankomsttid til 142 |
+| `delivered` | Seneste bekræftede levering → afgang fra den adresse |
+| `start` | Tildeling/afgang fra senest kendte stop eller centrallager |
+
+Efterfølgende stop: forrige ETA + tid pr. aflevering + køretid (kortleverandør) +
+meldte forsinkelser (pr. stop, forplanter sig) + historisk tillæg (gennemsnitlig
+forsinkelse på tidligere leveringer, begrænset). Hvert stop får et interval
+(`eta_low`–`eta_high`), et grundlag og en sikkerhed (`high`/`medium`/`low`).
+Sikkerheden bliver `low`, hvis chaufførens status er ældre end grænsen, eller hvis
+en ETA er passeret uden levering – så opfindes der ikke en ny tid; den markeres
+"overskredet – afventer status".
+
+### Kundeopdateringer (`src/server/agents/notifier.ts`)
+
+- "Stå klar"-besked, når chaufføren melder ≤ N minutter (én gang pr. ordre).
+- Ved hver genberegning sammenlignes ny ETA med den tid, kunden har fået. Besked kun ved
+  ændring ≥ grænse (forsinkelse/fremrykning), med minimumsinterval og maks. antal pr. ordre.
+- Usikker ETA → kun "forsinket, vi giver besked" – aldrig et opdigtet tidspunkt.
+- Alle ETA-ændringer og kundebeskeder registreres i ordrehistorikken (`eta_changed`, `customer_notified`).
+
+### Økonomisk beslutningsmodel (`src/core/routePlanning.ts`)
+
+For hver ny ordre og hver chauffør med lager og kapacitet afprøves alle tilladte
+indsættelsespositioner i den bindende rute. Hver løsning får:
+
+| Måltal | |
+|---|---|
+| Omsætning og dækningsbidrag | Vareomkostning bruges når registreret; ellers standard-avance (markeres "estimeret") |
+| Ekstra køretid og samlet køretid | Fra kortadapterens køretidsmatrix |
+| Ændring i eksisterende ETA'er | Pr. kunde, vægtet efter ordreværdi |
+| Leveringer pr. time | For ruten efter indsættelse |
+| Forsinkelsesrisiko | ETA-usikkerhed + minutter over givne løfter |
+| Omfordelingsomkostning | Ved flytning fra en anden chauffør |
+| Nærhed | Bonus hvis ordren ligger ≤ N min fra et eksisterende stop |
+
+`score = dækningsbidrag − kørsel − vægtet ventetid (ny + eksisterende) − forstyrrelse − forsinkelsesstraf − risiko − omfordeling + nærhedsbonus`
+
+**Hårde begrænsninger** (overstyres aldrig af omsætning): et givet leveringsløfte må
+højst overskrides med tolerancen; ny ordre inden for maks. leveringstid; stop
+chaufføren er på vej til flyttes ikke; lager og kapacitet; højst ét ubesvaret
+tilbud pr. chauffør. Ændringer i eksisterende ETA'er over grænsen er "væsentlige" og
+kræver altid chaufførens accept. Findes ingen gyldig løsning, eskaleres til medarbejder.
+
+Alle vægte og grænser kan konfigureres under Indstillinger → Logistik og økonomi.
+Claude bruges kun til at fortolke chaufførbeskeder – aldrig til køretider eller økonomi.
 
 ## Ordretilstandsmaskine
 
@@ -122,6 +188,8 @@ annullering, fradrag ved levering) udføres i samme transaktion.
 | CHECK-constraints: lager kan ikke blive negativt eller over-reserveret | migration 1 |
 | Backup før migrationer; automatisk og manuel backup; sikker gendannelse ved opstart | `app.ts`, `maintenance.ts` |
 | Fallback til luftlinjeestimater ved kortfejl – markeres og loves ikke til kunder | `MapsService` |
+| Tilbud med ruteplan + ruteversion overlever genstart; accept efter ruteændring planlægges igen | `DispatchAgent.acceptOffer` |
+| Dispatch serialiseres i én kø (`lane: dispatch`) – ingen dobbeltbooking ved samtidige ordrer | `DispatchAgent` |
 | Hændelsesdrevet; kun ét let deterministisk tjek pr. minut (ingen AI-polling) | `LogisticsAgent.tick` |
 
 ## Omkostningsstyring (AI)

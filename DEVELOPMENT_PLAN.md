@@ -32,11 +32,13 @@
 - 🟡 Telegram-integration (long polling, knapper, tilknytning, live-position)
 - ✅ Chaufførstyring
 - 🟡 Google Maps (Geocoding, Routes Matrix) + caching
-- ✅ Ruteoptimering (billigste indsættelse med løfte-vægtning)
+- ✅ Ruteoptimering: økonomisk indsættelsesmodel med hårde løftebegrænsninger, bindende ruter, ruteplaner i tilbud
+- ✅ Telegram-baseret ETA (ingen live-GPS), usikkerhed, statusforespørgsler, kundeopdateringer med grænser
+- ⬜ Kalibrering af økonomiske vægte og historisk tillæg på rigtige leveringsdata
 - ✅ Lager i køretøjer + validering ved tildeling
 - ✅ Automatisk dispatch med tilbud/accept/timeout
 - ⬜ Udsendelse til fælles chaufførgruppe
-- ⬜ Rigtigt kort (Google Maps JS) i Logistik-siden (nu skematisk SVG)
+- ⬜ Rigtigt kort (Google Maps JS) over planlagte stop i Logistik-siden (nu skematisk; viser aldrig live-position)
 
 ## Etape 5 – Samlet automatisering
 - ✅ End-to-end ordreflow

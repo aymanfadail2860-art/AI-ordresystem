@@ -1,7 +1,7 @@
 {
   "name": "ai-dispatch",
   "productName": "AI Dispatch",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "AI-drevet ordre- og logistiksystem til macOS (SMS via Apple Messages, chauffører via Telegram)",
   "private": true,
   "main": "dist/main/main.js",

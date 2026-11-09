@@ -9,8 +9,8 @@ bekræfter ordrer, reserverer lager, vælger chauffør, kommunikerer med chauff�
 via **Telegram** og holder kunden opdateret – mens medarbejdere altid kan overtage.
 
 > **Status (Etape 1–2 + store dele af 3–5):** Fungerende desktop-applikation med
-> komplet Demo Mode, ordresystem, lager, AI-orkestrering, dispatch, ruter,
-> Human Takeover og 75 automatiske tests. Rigtige integrationer (imsg/SMS,
+> komplet Demo Mode, ordresystem, lager, AI-orkestrering, økonomisk dispatch,
+> Telegram-baserede ETA'er (ingen live-GPS), Human Takeover og 90 automatiske tests. Rigtige integrationer (imsg/SMS,
 > Telegram, Google Maps, Claude) er implementeret, men **ikke verificeret mod
 > rigtig hardware/rigtige konti endnu**. Se [Status](#status).
 
@@ -49,7 +49,7 @@ og åbn http://127.0.0.1:5199.
 | Ordrer | Live-liste, detaljer, statushistorik, manuel redigering (varer, status, annullering), tildeling af chauffør |
 | Kundesamtaler | Samtaler, AI-tilstand (AI aktiv / Manuel overtagelse / AI pauseret / Integrationsfejl), Human Takeover, beskedhistorik med leveringsstatus |
 | Chauffører | Status, Telegram-forbindelse via engangskode, aktive leveringer, rute, lager i bilen, beskeder |
-| Logistik | Skematisk kort, ruter og ETA'er, forsinkelser, åbne tilbud, omfordelingsforslag |
+| Logistik | Planlagte ruter, seneste Telegram-status, ETA-interval og -sikkerhed, forsinkelser, omsætning pr. chauffør og rute, leveringer pr. time, tilbud og omfordelingsforslag med økonomisk begrundelse (ingen live-GPS) |
 | Produkter og lager | Katalog og priser, centrallager + billagre, regulering, overførsel, lagerbevægelser |
 | AI Control Center | Modelvalg pr. opgave, modelpriser, budget, tokenforbrug, AI-kald, agenthændelser, automatiseringsindstillinger |
 | Hændelser | Monitoring: fejl og situationer, der kræver menneskelig handling |
@@ -73,6 +73,7 @@ og åbn http://127.0.0.1:5199.
 |---|---|---|---|
 | Ordresystem, tilstandsmaskine, priser | ✅ | ✅ automatiske tests | ✅ (forretningsregler bør gennemgås af virksomheden) |
 | Lager (central + biler, reservation) | ✅ | ✅ | ✅ |
+| Telegram-baseret ETA, kundeopdateringer, økonomisk ruteplanlægning | ✅ | ✅ 15 scenarier | 🟡 vægte og grænser bør kalibreres på rigtige data |
 | Demo Mode (alle integrationer simuleret) | ✅ | ✅ tests + browsertest | – (demo) |
 | Human Takeover | ✅ | ✅ (simuleret) | ⚠️ automatisk registrering af manuelle iPhone-svar kræver hardwaretest |
 | SMS via Apple Messages (imsg) | ✅ | ✅ mod falsk imsg-proces | ❌ kræver PoC på rigtig iPhone + Mac |

@@ -21,9 +21,10 @@ rigtige beskeder**.
 | `tests/ai.test.ts` | Validering af AI-output, skema, prisberegning, AI kan ikke sætte priser, telefonnummer sendes ikke til AI, eskalering ved lav sikkerhed, modelfallback, vedvarende API-fejl, budgetstop, ingen nøgle, forbrugslogning |
 | `tests/adapters.test.ts` | imsg JSON-RPC (falsk proces): cursor, mapping, gruppebeskeder, afsendelses-dispositioner, procesnedbrud, manglende diskadgang. Telegram: mapping, rate limit, timeout. Google: geokodning, Routes-matrix |
 | `tests/restart.test.ts` | Data, cursor og jobs overlever genstart, backup + gendannelse, migrationer, CHECK-constraints, produktion starter med automatik slået fra, jobkø (dedupe, retry, permanent fejl) |
+| `tests/logistics.test.ts` | De 15 logistikscenarier: 5-min-melding og "stå klar"-SMS, 10 min forsinkelse ved A → genberegning af A–D, kun relevante kunder opdateres (og ingen gentagelser ved små ændringer), ordre 3 min fra eksisterende stop, stor ordre (5.000 kr.) mod mindre, stor ordre afvist når den bryder løfter, uklar besked, chauffør svarer ikke (tilbud udløber, statusforespørgsel, eskalering), flere mulige chauffører, ruteændring kræver accept, forældet ETA, genstart midt i ruteændring, samtidige ordrer. Desuden: "færdig med X, kører mod Y", trafikforsinkelse, ekstra kapacitet og at live-position ikke gemmes. Bruger et deterministisk testkort (30 km/t). |
 | `tests/e2e.test.ts` | Hele flowet: SMS → tilbud → bekræftelse → Telegram-accept → kører → leveret → lagerfradrag |
 
-Seneste kørsel: **9 testfiler, 75 tests, alle bestået.**
+Seneste kørsel: **10 testfiler, 90 tests, alle bestået** (kørt gentagne gange for at udelukke ustabile tests). Alle tests kører i cloudmiljøet uden API-nøgler.
 
 ## Typecheck og build
 
