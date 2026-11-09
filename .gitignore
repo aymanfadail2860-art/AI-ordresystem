@@ -1,0 +1,19 @@
+node_modules/
+dist/
+release/
+out/
+coverage/
+*.log
+.DS_Store
+# Lokale data – må aldrig committes
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.db
+data/
+backups/
+.env
+.env.*
+!.env.example
+secrets.json
+vendor/imsg/
