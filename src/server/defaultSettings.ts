@@ -42,7 +42,7 @@ export function defaultSettings(mode: Settings['installation']['mode']): Setting
     pricing: {
       deliveryFeeOre: 3900,
       freeDeliveryThresholdOre: 30000,
-      minimumOrderOre: 10000,
+      minimumOrderOre: 0,
       currency: 'DKK',
     },
     delivery: {

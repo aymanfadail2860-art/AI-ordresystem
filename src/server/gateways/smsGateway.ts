@@ -175,7 +175,9 @@ export class SmsGateway {
     if (status !== 'queued') return; // allerede sendt/blokeret – intet at gøre (idempotent)
     const author = row.author as string;
     const s = this.settings.get();
-    if (author === 'ai') {
+    const isHandoff = String(row.idempotency_key ?? '').startsWith('handoff:');
+    if (author === 'ai' || (author === 'system' && !isHandoff)) {
+      // Automatiske beskeder sendes aldrig ved manuel overtagelse/pause/fejl
       if (row.ai_mode !== 'ai_active') {
         this.conversations.setMessageStatus(messageId, 'blocked', { error: 'AI ikke aktiv for samtalen' });
         return;
@@ -223,6 +225,7 @@ export class SmsGateway {
       this.bus.touch('messages');
       if (job.attempts >= job.maxAttempts) {
         this.conversations.setMessageStatus(messageId, 'failed', { error: result.error ?? 'Afsendelse fejlede' });
+        this.conversations.setMode(row.conversation_id as number, 'integration_error', `Afsendelse fejlede: ${result.error ?? 'ukendt'}`, 'system');
         this.events.log('error', 'sms', 'send_failed', `Besked #${messageId} kunne ikke sendes: ${result.error}`, {
           requiresAction: true,
           data: { conversationId: row.conversation_id },

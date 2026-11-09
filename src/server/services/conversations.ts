@@ -114,7 +114,8 @@ export class ConversationService {
       if (mode !== 'ai_active') {
         this.db
           .prepare(
-            `UPDATE messages SET status = 'blocked', error = ? WHERE conversation_id = ? AND direction = 'out' AND author = 'ai' AND status = 'queued'`,
+            `UPDATE messages SET status = 'blocked', error = ? WHERE conversation_id = ? AND direction = 'out' AND status = 'queued'
+             AND (author = 'ai' OR (author = 'system' AND COALESCE(idempotency_key, '') NOT LIKE 'handoff:%'))`,
           )
           .run(`Blokeret: ${AI_MODE_LABELS[mode]}`, conversationId);
       } else {

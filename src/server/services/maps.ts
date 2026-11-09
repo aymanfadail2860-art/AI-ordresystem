@@ -22,6 +22,10 @@ export class MapsService {
     private opts: { geocodeTtlHours: number; travelTtlMinutes: number },
   ) {}
 
+  setAdapter(a: MapsAdapter | null): void {
+    this.adapter = a;
+  }
+
   get available(): boolean {
     return !!this.adapter;
   }

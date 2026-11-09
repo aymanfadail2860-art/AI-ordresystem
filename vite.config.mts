@@ -4,11 +4,11 @@ import { resolve } from 'node:path';
 
 // Renderer (React UI). Bygges til dist/renderer og indlæses af Electron via file://
 export default defineConfig({
-  root: resolve(__dirname, 'src/renderer'),
+  root: resolve(import.meta.dirname, 'src/renderer'),
   base: './',
   plugins: [react()],
   build: {
-    outDir: resolve(__dirname, 'dist/renderer'),
+    outDir: resolve(import.meta.dirname, 'dist/renderer'),
     emptyOutDir: true,
     sourcemap: true,
   },
