@@ -134,7 +134,7 @@ export function createApi(host: AppHost): Record<string, Handler> {
       const id = num(p.id, 'id');
       const o = C().orders.transition(id, to, 'staff', { reason: typeof p.reason === 'string' ? p.reason : 'manuel' });
       C().audit.record('staff', 'order_transition', 'order', id, { to });
-      if (to === 'awaiting_driver') C().jobs.enqueue('dispatch_order', { orderId: id }, { dedupeKey: `dispatch:${id}`, lane: `order:${id}` });
+      if (to === 'awaiting_driver') C().jobs.enqueue('dispatch_order', { orderId: id }, { dedupeKey: `dispatch:${id}`, lane: 'dispatch' });
       return o;
     },
     'orders.cancel': (p) => {
@@ -164,7 +164,7 @@ export function createApi(host: AppHost): Record<string, Handler> {
     },
     'orders.redispatch': (p) => {
       const id = num(p.id, 'id');
-      C().jobs.enqueue('dispatch_order', { orderId: id }, { dedupeKey: `dispatch:${id}`, lane: `order:${id}` });
+      C().jobs.enqueue('dispatch_order', { orderId: id }, { dedupeKey: `dispatch:${id}`, lane: 'dispatch' });
       return { ok: true };
     },
     'orders.editLines': (p) => {
@@ -315,7 +315,7 @@ export function createApi(host: AppHost): Record<string, Handler> {
     },
     'logistics.recompute': async () => {
       const app = A();
-      for (const d of app.ctx.drivers.list()) if (d.activeOrderCount > 0) await app.agents.routing.recompute(d.id);
+      for (const d of app.ctx.drivers.list()) if (d.activeOrderCount > 0) await app.agents.routing.refreshEtas(d.id, 'manuel genberegning');
       return { ok: true };
     },
 

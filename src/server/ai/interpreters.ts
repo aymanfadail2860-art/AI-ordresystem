@@ -148,15 +148,43 @@ function handoff(reason: string): CustomerInterpretation {
   };
 }
 
+export function emptyDriverInterpretation(): DriverInterpretation {
+  return {
+    intent: 'other',
+    orderId: null,
+    nextOrderId: null,
+    etaMinutes: null,
+    delayMinutes: null,
+    delayReason: null,
+    productSku: null,
+    note: null,
+    ambiguous: false,
+    clarificationQuestion: null,
+    confidence: 0,
+  };
+}
+
 export class ClaudeDriverInterpreter implements DriverInterpreter {
   readonly simulated = false;
   constructor(private gateway: AiGateway) {}
 
   async interpret(ctx: DriverTurnContext): Promise<InterpretResult<DriverInterpretation>> {
     const system = `You interpret Danish Telegram messages from delivery drivers working for a drinks delivery business.
-Return only a structured interpretation; the system validates and performs actions.
-Intents: arrived (at the customer), delivered, delayed (set delayMinutes), customer_unreachable, out_of_stock (set productSku from the catalog), picked_up (has the goods and is driving), accept_offer, reject_offer, go_online, go_offline, take_break, question, other.
-orderId: only set it if the driver explicitly writes an order number, otherwise null. Never guess an order number.
+Return only a structured interpretation; deterministic business code validates it and performs actions. You never calculate travel times, ETAs for other stops or money.
+Intents:
+- eta_report: driver states when they will arrive ("Ordre 142, jeg er der om 5 min") → etaMinutes
+- arrived: driver is at the customer now
+- delivered: an order is delivered
+- completed_and_next: finished one order and driving to the next ("færdig med 142 og kører mod 143") → orderId=finished, nextOrderId=next
+- heading_to: driving towards a specific order → nextOrderId
+- delayed: delay in minutes ("10 min forsinket", "trafik, bliver 20 min senere") → delayMinutes, delayReason
+- customer_unreachable, out_of_stock (productSku from catalog), picked_up (has the goods and is driving)
+- capacity_available: driver can take an extra order on the way
+- accept_offer, reject_offer, go_online, go_offline, take_break, question, other
+Rules:
+- orderId / nextOrderId: ONLY numbers the driver explicitly wrote. Never infer from the list of active orders. Otherwise null.
+- If the message is unclear or could refer to several orders, set ambiguous=true and write a short Danish clarificationQuestion to the driver.
+- A delay without an order number is a delay for the driver's whole remaining route; that is not ambiguous.
 Catalog SKUs: ${ctx.catalog.map((c) => `${c.sku}=${c.name}${c.synonyms.length ? ` (${c.synonyms.join(', ')})` : ''}`).join('; ')}`;
     const res = await this.gateway.structured('driver_interpret', 'driver_agent', {
       system,
@@ -165,9 +193,7 @@ Catalog SKUs: ${ctx.catalog.map((c) => `${c.sku}=${c.name}${c.synonyms.length ? 
       maxTokens: 1024,
       effort: 'low',
     });
-    const out = res.output
-      ? sanitizeDriverInterpretation(res.output)
-      : { intent: 'other' as const, orderId: null, delayMinutes: null, productSku: null, note: null, confidence: 0 };
+    const out = res.output ? sanitizeDriverInterpretation(res.output) : { ...emptyDriverInterpretation(), ambiguous: true };
     return { result: out, model: res.model, simulated: false, escalated: false };
   }
 }
@@ -332,21 +358,48 @@ export class RuleBasedDriverInterpreter implements DriverInterpreter {
   constructor(private gateway: AiGateway | null) {}
 
   async interpret(ctx: DriverTurnContext): Promise<InterpretResult<DriverInterpretation>> {
-    const t = normalize(ctx.text);
-    const r: DriverInterpretation = { intent: 'other', orderId: null, delayMinutes: null, productSku: null, note: null, confidence: 0.4 };
-    const orderRef = ctx.text.match(/(?:ordre|ordrer|order|#|nr\.?)\s*#?(\d{1,7})/i);
-    if (orderRef) r.orderId = parseInt(orderRef[1], 10);
-    if (/(ikke flere|løbet tør|udsolgt|har ikke mere|ikke mere|mangler)/.test(t)) {
+    const raw = ctx.text;
+    const t = normalize(raw);
+    const r = emptyDriverInterpretation();
+    r.confidence = 0.4;
+    const num = (re: RegExp) => {
+      const m = raw.match(re);
+      return m ? parseInt(m[1], 10) : null;
+    };
+    const ref = /(?:ordre|ordrer|order|#|nr\.?)\s*#?(\d{1,7})/i;
+    r.orderId = num(ref);
+    const completed = raw.match(/(?:færdig med|afleveret|leveret)\s*(?:ordre\s*)?#?(\d{1,7}).*?(?:kører mod|videre til|på vej til|kører til|tager)\s*(?:ordre\s*)?#?(\d{1,7})/i);
+    const heading = raw.match(/(?:kører mod|på vej til|kører til|videre til)\s*(?:ordre\s*)?#?(\d{1,7})/i);
+    const etaMin = num(/(?:der|fremme|hos (?:kunden|dem)|ankommer|ankomst)\s*(?:om|på)\s*(?:ca\.?\s*|cirka\s*)?(\d{1,3})\s*min/i) ?? num(/\bom\s*(?:ca\.?\s*)?(\d{1,3})\s*min/i);
+    const delayMin =
+      num(/(\d{1,3})\s*min(?:utter)?\.?\s*(?:forsinket|senere|bagud|forsinkelse)/i) ?? num(/forsinket\D{0,20}(\d{1,3})\s*min/i) ?? num(/bliver\s*(?:nok\s*)?(\d{1,3})\s*min/i);
+    if (completed) {
+      r.intent = 'completed_and_next';
+      r.orderId = parseInt(completed[1], 10);
+      r.nextOrderId = parseInt(completed[2], 10);
+      r.confidence = 0.95;
+    } else if (/(ikke flere|løbet tør|udsolgt|har ikke mere|ikke mere|mangler)/.test(t)) {
       r.intent = 'out_of_stock';
-      r.productSku = extractItems(ctx.text, ctx.catalog.map((c) => ({ ...c, category: '', variant: null, available: true, description: null })))[0]?.sku ?? null;
+      r.productSku = extractItems(raw, ctx.catalog.map((c) => ({ ...c, category: '', variant: null, available: true, description: null })))[0]?.sku ?? null;
       r.confidence = r.productSku ? 0.85 : 0.5;
     } else if (/(svarer ikke|åbner ikke|ingen åbner|tager ikke telefonen|ikke hjemme)/.test(t)) {
       r.intent = 'customer_unreachable';
       r.confidence = 0.9;
-    } else if (/(forsink|bliver \d+ min|\d+ min(utter)? (forsinket|senere|bagud)|kommer \d+ min)/.test(t)) {
+    } else if (/(ekstra ordre|en ordre mere|plads til (?:en )?(?:mere|ordre)|kan godt tage|kan tage en)/.test(t)) {
+      r.intent = 'capacity_available';
+      r.confidence = 0.9;
+    } else if (delayMin != null || /forsink|trafik|kø på/.test(t)) {
       r.intent = 'delayed';
-      const m = t.match(/(\d{1,3})\s*min/);
-      r.delayMinutes = m ? parseInt(m[1], 10) : 10;
+      r.delayMinutes = delayMin;
+      r.delayReason = /trafik|kø/.test(t) ? 'trafik' : null;
+      r.confidence = delayMin != null ? 0.9 : 0.4;
+      if (delayMin == null) {
+        r.ambiguous = true;
+        r.clarificationQuestion = 'Hvor mange minutter forventer du at blive forsinket?';
+      }
+    } else if (etaMin != null) {
+      r.intent = 'eta_report';
+      r.etaMinutes = etaMin;
       r.confidence = 0.9;
     } else if (/(leveret|afleveret|overleveret)/.test(t)) {
       r.intent = 'delivered';
@@ -358,7 +411,12 @@ export class RuleBasedDriverInterpreter implements DriverInterpreter {
     } else if (/(fremme|er ankommet|ankommet|står udenfor|er her)/.test(t)) {
       r.intent = 'arrived';
       r.confidence = 0.9;
-    } else if (/(hentet|kører nu|kører ud|på vej|afgang)/.test(t)) {
+    } else if (heading) {
+      r.intent = 'heading_to';
+      r.nextOrderId = parseInt(heading[1], 10);
+      r.orderId = null;
+      r.confidence = 0.9;
+    } else if (/(hentet|kører nu|kører ud|afgang)/.test(t)) {
       r.intent = 'picked_up';
       r.confidence = 0.85;
     } else if (/^(ja|accepter|tager den|ok jeg tager)/.test(t)) {
@@ -376,11 +434,17 @@ export class RuleBasedDriverInterpreter implements DriverInterpreter {
     } else if (/(online|er klar|starter|møder ind)/.test(t)) {
       r.intent = 'go_online';
       r.confidence = 0.85;
-    } else if (/\?/.test(ctx.text)) {
+    } else if (/\?/.test(raw)) {
       r.intent = 'question';
+      r.note = raw.slice(0, 300);
       r.confidence = 0.6;
+    } else {
+      r.ambiguous = true;
+      r.note = raw.slice(0, 300);
+      r.clarificationQuestion = 'Jeg forstod ikke helt. Skriv fx "ordre 142, der om 5 min", "10 min forsinket" eller "ordre 142 leveret".';
+      r.confidence = 0.3;
     }
-    this.gateway?.logSimulated('driver_agent', 'driver_interpret', ctx.text.length + 600, 80);
+    this.gateway?.logSimulated('driver_agent', 'driver_interpret', raw.length + 600, 80);
     return { result: sanitizeDriverInterpretation(r), model: 'demo-regelbaseret', simulated: true, escalated: false };
   }
 }

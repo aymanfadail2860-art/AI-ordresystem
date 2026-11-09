@@ -37,12 +37,16 @@ export const CustomerInterpretationSchema = z.object({
 export type CustomerInterpretation = z.infer<typeof CustomerInterpretationSchema>;
 
 export const DRIVER_INTENTS = [
+  'eta_report',
   'arrived',
   'delivered',
+  'completed_and_next',
+  'heading_to',
   'delayed',
   'customer_unreachable',
   'out_of_stock',
   'picked_up',
+  'capacity_available',
   'accept_offer',
   'reject_offer',
   'go_online',
@@ -52,12 +56,22 @@ export const DRIVER_INTENTS = [
   'other',
 ] as const;
 
+/**
+ * Chaufførbesked → struktureret fortolkning. AI'en må ALDRIG gætte et
+ * ordrenummer: står det ikke i beskeden, er orderId null, og uklarhed
+ * markeres med ambiguous + et opklarende spørgsmål.
+ */
 export const DriverInterpretationSchema = z.object({
   intent: z.enum(DRIVER_INTENTS),
   orderId: z.number().int().nullable(),
+  nextOrderId: z.number().int().nullable(),
+  etaMinutes: z.number().int().nullable(),
   delayMinutes: z.number().int().nullable(),
+  delayReason: z.string().nullable(),
   productSku: z.string().nullable(),
   note: z.string().nullable(),
+  ambiguous: z.boolean(),
+  clarificationQuestion: z.string().nullable(),
   confidence: z.number(),
 });
 export type DriverInterpretation = z.infer<typeof DriverInterpretationSchema>;
@@ -96,7 +110,11 @@ export function sanitizeDriverInterpretation(x: DriverInterpretation): DriverInt
   return {
     ...x,
     orderId: x.orderId != null && x.orderId > 0 ? x.orderId : null,
+    nextOrderId: x.nextOrderId != null && x.nextOrderId > 0 ? x.nextOrderId : null,
+    etaMinutes: x.etaMinutes != null ? Math.max(0, Math.min(240, Math.trunc(x.etaMinutes))) : null,
     delayMinutes: x.delayMinutes != null ? Math.max(1, Math.min(240, Math.trunc(x.delayMinutes))) : null,
+    delayReason: x.delayReason?.trim().slice(0, 100) || null,
+    clarificationQuestion: x.clarificationQuestion?.trim().slice(0, 300) || null,
     productSku: x.productSku?.trim().toUpperCase() || null,
     note: x.note?.trim().slice(0, 300) || null,
     confidence: Math.max(0, Math.min(1, x.confidence)),

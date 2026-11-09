@@ -343,4 +343,67 @@ CREATE TABLE audit_log (
 );
 `,
   },
+  {
+    version: 2,
+    name: 'telegram_eta_and_economics',
+    sql: `
+-- Vareomkostning (til dækningsbidrag). NULL = ukendt → standard-avance bruges.
+ALTER TABLE products ADD COLUMN cost_ore INTEGER CHECK (cost_ore IS NULL OR cost_ore >= 0);
+
+-- Chaufførstatus fra Telegram (ingen live-GPS). last_lat/last_lng betyder nu
+-- "senest kendte stop" (leveret adresse, centrallager eller manuelt angivet startsted).
+ALTER TABLE drivers ADD COLUMN last_status_text TEXT;
+ALTER TABLE drivers ADD COLUMN last_status_at TEXT;
+ALTER TABLE drivers ADD COLUMN current_order_id INTEGER;
+ALTER TABLE drivers ADD COLUMN extra_capacity_until TEXT;
+ALTER TABLE drivers ADD COLUMN route_version INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE drivers ADD COLUMN status_request_sent_at TEXT;
+UPDATE drivers SET last_position_source = 'manual' WHERE last_position_source IN ('telegram_live', 'demo');
+
+-- Udgangspunkt for ETA-beregning pr. chauffør
+CREATE TABLE eta_anchors (
+  driver_id INTEGER PRIMARY KEY REFERENCES drivers(id),
+  kind TEXT NOT NULL CHECK (kind IN ('driver_report','delivered','start')),
+  at TEXT NOT NULL,
+  lat REAL,
+  lng REAL,
+  order_id INTEGER,
+  reported_at TEXT NOT NULL
+);
+
+CREATE TABLE driver_status_updates (
+  id INTEGER PRIMARY KEY,
+  driver_id INTEGER NOT NULL REFERENCES drivers(id),
+  kind TEXT NOT NULL,
+  order_id INTEGER,
+  eta_minutes INTEGER,
+  delay_minutes INTEGER,
+  text TEXT,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+CREATE INDEX idx_driver_status_driver ON driver_status_updates(driver_id, id);
+
+-- Ruten er nu bindende (rækkefølge ændres kun via accepteret plan)
+ALTER TABLE route_stops ADD COLUMN eta_low TEXT;
+ALTER TABLE route_stops ADD COLUMN eta_high TEXT;
+ALTER TABLE route_stops ADD COLUMN eta_basis TEXT;
+ALTER TABLE route_stops ADD COLUMN confidence TEXT;
+ALTER TABLE route_stops ADD COLUMN extra_delay_s INTEGER NOT NULL DEFAULT 0;
+
+ALTER TABLE orders ADD COLUMN eta_low TEXT;
+ALTER TABLE orders ADD COLUMN eta_high TEXT;
+ALTER TABLE orders ADD COLUMN eta_confidence TEXT;
+ALTER TABLE orders ADD COLUMN eta_updates_sent INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE orders ADD COLUMN eta_notified_at TEXT;
+ALTER TABLE orders ADD COLUMN arrival_soon_sent INTEGER NOT NULL DEFAULT 0;
+
+-- Tilbud indeholder den konkrete ruteplan, chaufføren accepterer
+ALTER TABLE dispatch_offers ADD COLUMN kind TEXT NOT NULL DEFAULT 'new_order';
+ALTER TABLE dispatch_offers ADD COLUMN plan TEXT;
+ALTER TABLE dispatch_offers ADD COLUMN route_version INTEGER;
+ALTER TABLE dispatch_offers ADD COLUMN from_driver_id INTEGER;
+
+ALTER TABLE reassignment_suggestions ADD COLUMN analysis TEXT;
+`,
+  },
 ];

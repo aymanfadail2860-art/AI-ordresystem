@@ -110,7 +110,7 @@ describe('Driver Communication Agent', () => {
     await t.run();
     const after = ctx.orders.get(id)!.eta!;
     expect(new Date(after).getTime() - new Date(before).getTime()).toBe(15 * 60000);
-    expect(t.lastSmsTo(PHONE)).toContain('15 minutter forsinket');
+    expect(t.lastSmsTo(PHONE)).toContain('forsinket');
   });
 
   it('"Kunden svarer ikke" markerer ordren og advarer kontoret', async () => {

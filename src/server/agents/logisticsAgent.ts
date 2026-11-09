@@ -67,16 +67,21 @@ export class LogisticsAgent {
     // Ordrer uden chauffør
     for (const o of ctx.orders.list({ status: ['awaiting_driver', 'confirmed'] })) {
       const hasPending = ctx.drivers.offers(o.id).some((x) => x.status === 'pending');
-      if (!hasPending && s.installation.automationEnabled && s.automation.autoDispatch) {
-        ctx.jobs.enqueue('dispatch_order', { orderId: o.id }, { dedupeKey: `dispatch:${o.id}`, lane: `order:${o.id}` });
-      }
+      if (!hasPending && s.installation.automationEnabled && s.automation.autoDispatch) this.dispatch.enqueue(o.id);
     }
 
-    // Forsinkelser
+    // Genberegn ETA'er for alle aktive ruter (status bliver forældet med tiden)
+    const drivers = ctx.drivers.list();
+    for (const d of drivers) {
+      if (d.activeOrderCount > 0) await this.routing.refreshEtas(d.id, 'periodisk kontrol');
+    }
+
+    // Overskredne løfter
     for (const o of ctx.orders.list({ status: ['driver_assigned', 'out_for_delivery'] })) {
-      if (o.eta && now - new Date(o.eta).getTime() > 5 * 60000) {
-        if (!o.needsAttention) ctx.orders.flag(o.id, 'Forsinket i forhold til ETA');
-        ctx.events.log('warn', 'logistics', 'order_late', `Ordre #${o.id} er forsinket (ETA ${new Date(o.eta).toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit' })})`, {
+      const promised = ctx.db.prepare(`SELECT eta_communicated FROM orders WHERE id = ?`).get(o.id) as { eta_communicated: string | null };
+      if (promised.eta_communicated && now - new Date(promised.eta_communicated).getTime() > 5 * 60000) {
+        if (!o.needsAttention) ctx.orders.flag(o.id, 'Leveringsløftet er overskredet');
+        ctx.events.log('warn', 'logistics', 'order_late', `Ordre #${o.id} er forsinket i forhold til det lovede tidspunkt (${new Date(promised.eta_communicated).toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit' })})`, {
           dedupeKey: `order_late:${o.id}`,
           dedupeMinutes: 30,
           data: { orderId: o.id },
@@ -84,20 +89,27 @@ export class LogisticsAgent {
       }
     }
 
-    // Genberegn ruter, der er mere end 5 minutter gamle
-    const stale = ctx.db
-      .prepare(`SELECT DISTINCT driver_id FROM route_stops WHERE computed_at < ?`)
-      .all(new Date(now - 5 * 60000).toISOString()) as { driver_id: number }[];
-    for (const r of stale) await this.routing.recompute(r.driver_id);
-
-    // Forældede positioner for chauffører med aktive ordrer
-    for (const d of ctx.drivers.list()) {
+    // Chauffører uden status: bed om status, og eskalér hvis der ikke svares
+    for (const d of drivers) {
       if (d.activeOrderCount === 0) continue;
-      const age = d.lastPositionAt ? (now - new Date(d.lastPositionAt).getTime()) / 60000 : Infinity;
-      if (age > s.delivery.maxPositionAgeMinutes) {
-        ctx.events.log('info', 'logistics', 'stale_position', `Ingen frisk position fra ${d.name} – ETA'er er usikre og loves ikke til kunder`, {
-          dedupeKey: `stale_position:${d.id}`,
+      const anchor = this.routing.getAnchor(d.id);
+      const lastInfo = Math.max(anchor?.reportedAtMs ?? 0, d.lastStatusAt ? new Date(d.lastStatusAt).getTime() : 0);
+      const ageMin = (now - lastInfo) / 60000;
+      const reqAt = (ctx.db.prepare(`SELECT status_request_sent_at FROM drivers WHERE id = ?`).get(d.id) as { status_request_sent_at: string | null }).status_request_sent_at;
+      if (ageMin >= s.logistics.statusRequestAfterMinutes && !reqAt) {
+        const next = ctx.drivers.routeStops(d.id)[0];
+        ctx.telegram.sendToDriver(
+          d.id,
+          `Hej ${d.name.split(' ')[0]} – hvordan går det?${next ? ` Hvornår er du ved ordre #${next.orderId}?` : ''} Svar fx "ordre ${next?.orderId ?? 142}, der om 10 min".`,
+          `status_request:${d.id}:${Math.floor(now / 600000)}`,
+        );
+        ctx.db.prepare(`UPDATE drivers SET status_request_sent_at = ? WHERE id = ?`).run(new Date(now).toISOString(), d.id);
+      } else if (reqAt && ageMin >= s.logistics.escalateNoStatusMinutes) {
+        ctx.events.log('warn', 'logistics', 'driver_no_status', `${d.name} har ikke givet status i ${Math.round(ageMin)} min – ETA'er er usikre og loves ikke til kunder`, {
+          requiresAction: true,
+          dedupeKey: `driver_no_status:${d.id}`,
           dedupeMinutes: 60,
+          data: { driverId: d.id },
         });
       }
     }
@@ -106,29 +118,51 @@ export class LogisticsAgent {
     this.monitor();
   }
 
-  /** Foreslå omfordeling, hvis en anden chauffør kan levere markant hurtigere. */
+  /**
+   * Foreslå omfordeling, når en anden chauffør giver en klart bedre samlet
+   * løsning (score inkl. omfordelingsomkostning). Forslag anvendes aldrig
+   * automatisk – en medarbejder godkender, og den nye chauffør skal acceptere.
+   */
   async suggestReassignments(): Promise<void> {
     const { ctx } = this;
+    const econ = ctx.settings.get().economics;
     const candidates = ctx.orders.list({ status: ['driver_assigned'] }).slice(0, 10);
     for (const o of candidates) {
+      if (!o.driverId || o.addressLat == null) continue;
       const open = ctx.db.prepare(`SELECT id FROM reassignment_suggestions WHERE order_id = ? AND status = 'open'`).get(o.id);
-      if (open || !o.eta || !o.driverId) continue;
-      const ranked = await this.dispatch.rankCandidates(o, [o.driverId]);
-      const best = ranked.find((c) => c.etaMs && c.driver.status === 'available');
-      if (!best?.etaMs) continue;
-      const gain = (new Date(o.eta).getTime() - best.etaMs) / 60000;
-      if (gain >= 15) {
-        ctx.db
-          .prepare(`INSERT INTO reassignment_suggestions (order_id, from_driver_id, to_driver_id, reason, eta_gain_minutes) VALUES (?, ?, ?, ?, ?)`)
-          .run(o.id, o.driverId, best.driver.id, `${best.driver.name} kan levere ca. ${Math.round(gain)} min hurtigere`, gain);
-        ctx.bus.touch('logistics');
-      }
+      if (open) continue;
+      const current = ctx.drivers.get(o.driverId)!;
+      if (current.currentOrderId === o.id) continue; // chaufføren er på vej – flyttes ikke
+      const stops = this.routing.stops(current.id);
+      const idx = stops.findIndex((x) => x.orderId === o.id);
+      const plan = this.dispatch.stockPlanFor(current, o) ?? 'own_vehicle';
+      const keepResults = await this.routing.planInsertion(
+        current,
+        { id: o.id, point: { lat: o.addressLat, lng: o.addressLng! }, needsPickup: plan === 'central_pickup' || plan === 'move_to_central', deliveryFeeOre: o.deliveryFeeOre },
+        { reassignment: false },
+      );
+      const keep = keepResults.find((r) => r.insertIndex === Math.max(0, idx)) ?? keepResults[0];
+      const { feasible } = await this.dispatch.evaluate(o, { exclude: [current.id], reassignment: true });
+      const alt = feasible[0];
+      if (!alt?.best || !keep) continue;
+      const gain = alt.best.analysis.score - keep.analysis.score;
+      if (gain < econ.minReassignmentGainOre) continue;
+      const etaGain = keep.analysis.newOrderEtaMinutes - alt.best.analysis.newOrderEtaMinutes;
+      const analysis = {
+        ...alt.best.analysis,
+        explanation: [
+          `Samlet gevinst ${Math.round(gain / 100)} kr. (score ${alt.best.analysis.score} mod ${keep.analysis.score} hos ${current.name})`,
+          `Levering ${etaGain >= 0 ? `ca. ${etaGain} min hurtigere` : `ca. ${-etaGain} min senere`} hos ${alt.driver.name}`,
+          ...alt.best.analysis.explanation,
+        ],
+      };
+      ctx.db
+        .prepare(`INSERT INTO reassignment_suggestions (order_id, from_driver_id, to_driver_id, reason, eta_gain_minutes, analysis) VALUES (?, ?, ?, ?, ?, ?)`)
+        .run(o.id, current.id, alt.driver.id, `${alt.driver.name} giver en bedre samlet løsning (+${Math.round(gain / 100)} kr.)`, etaGain, JSON.stringify(analysis));
+      ctx.bus.touch('logistics');
     }
-    // Luk forældede forslag
     ctx.db
-      .prepare(
-        `UPDATE reassignment_suggestions SET status = 'dismissed' WHERE status = 'open' AND order_id IN (SELECT id FROM orders WHERE status <> 'driver_assigned')`,
-      )
+      .prepare(`UPDATE reassignment_suggestions SET status = 'dismissed' WHERE status = 'open' AND order_id IN (SELECT id FROM orders WHERE status <> 'driver_assigned')`)
       .run();
   }
 

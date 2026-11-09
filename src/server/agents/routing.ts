@@ -1,191 +1,295 @@
 import type { Ctx } from '../context';
 import type { LatLng } from '../../core/geo';
+import { computeRouteEtas, etaCommunicable, historicalBias, type EtaAnchor, type StopEta } from '../../core/eta';
+import { evaluateInsertions, orderValue, type InsertionResult, type OrderValue, type PlanningStop } from '../../core/routePlanning';
 import type { Driver } from '../../shared/types';
 import type { TravelResult } from '../services/maps';
+import type { CustomerNotifier } from './notifier';
 
-export const SERVICE_MINUTES_PER_STOP = 3;
-
-export interface PlannedStop {
+export interface RouteStopRow {
   orderId: number;
-  etaMs: number;
-  durationFromPrevS: number;
-  distanceFromPrevM: number;
-}
-
-export interface RoutePlan {
-  stops: PlannedStop[];
-  startedFrom: 'position' | 'central' | 'unknown';
-  quality: 'live' | 'simulated' | 'fallback';
-  positionFresh: boolean;
-  needsPickup: boolean;
-}
-
-interface StopInput {
-  orderId: number;
-  point: LatLng;
+  sequence: number;
+  point: LatLng | null;
+  status: string;
   promisedMs: number | null;
+  extraDelayMs: number;
+  needsPickup: boolean;
+  value: OrderValue;
+  previousEta: string | null;
+}
+
+export interface RefreshResult {
+  etas: StopEta[];
+  quality: TravelResult['quality'];
+  notifiedOrderIds: number[];
 }
 
 /**
- * Ruteplanlægning (Logistics). Rækkefølgen bestemmes lokalt med
- * billigste-indsættelse, der vægter samlet køretid OG overskridelse af
- * allerede givne leveringsløfter – ikke kun korteste afstand.
+ * Ruteplanlægning uden live-GPS.
+ *
+ * - Rækkefølgen i `route_stops` er BINDENDE: den ændres kun ved en accepteret
+ *   plan (tilbud), chaufførens egen melding eller en medarbejder.
+ * - ETA'er genberegnes ud fra chaufførens anker (melding/levering/afgang),
+ *   køretider fra kortadapteren, meldte forsinkelser og historisk tillæg.
  */
-export function cheapestInsertionOrder(
-  start: number,
-  stops: StopInput[],
-  matrix: TravelResult[][],
-  nowMs: number,
-  pointIndex: (i: number) => number,
-): number[] {
-  const order: number[] = [];
-  const remaining = stops.map((_, i) => i);
-  const cost = (seq: number[]): number => {
-    let t = nowMs;
-    let prev = start;
-    let total = 0;
-    for (const i of seq) {
-      const leg = matrix[prev][pointIndex(i)];
-      t += leg.durationS * 1000;
-      total += leg.durationS;
-      const promised = stops[i].promisedMs;
-      if (promised && t > promised) total += ((t - promised) / 1000) * 2; // forsinkelse vægtes dobbelt
-      t += SERVICE_MINUTES_PER_STOP * 60000;
-      prev = pointIndex(i);
-    }
-    return total;
-  };
-  while (remaining.length) {
-    let best: { r: number; pos: number; c: number } | null = null;
-    for (const r of remaining) {
-      for (let pos = 0; pos <= order.length; pos++) {
-        const seq = [...order.slice(0, pos), r, ...order.slice(pos)];
-        const c = cost(seq);
-        if (!best || c < best.c) best = { r, pos, c };
-      }
-    }
-    order.splice(best!.pos, 0, best!.r);
-    remaining.splice(remaining.indexOf(best!.r), 1);
-  }
-  return order;
-}
-
 export class RoutingService {
-  constructor(private ctx: Ctx) {}
+  constructor(
+    private ctx: Ctx,
+    private notifier: CustomerNotifier,
+  ) {}
 
-  driverStart(driver: Driver): { point: LatLng | null; source: RoutePlan['startedFrom']; fresh: boolean } {
-    const s = this.ctx.settings.get();
-    if (driver.lastLat != null && driver.lastPositionAt) {
-      const age = Date.now() - new Date(driver.lastPositionAt).getTime();
-      const fresh = age <= s.delivery.maxPositionAgeMinutes * 60000;
-      if (fresh) return { point: { lat: driver.lastLat, lng: driver.lastLng! }, source: 'position', fresh: true };
-    }
-    const central = this.ctx.inventory.centralLocation();
-    if (central?.lat != null) return { point: { lat: central.lat, lng: central.lng! }, source: 'central', fresh: false };
-    if (driver.lastLat != null) return { point: { lat: driver.lastLat, lng: driver.lastLng! }, source: 'position', fresh: false };
-    return { point: null, source: 'unknown', fresh: false };
+  // ---------------- Anker ----------------
+
+  getAnchor(driverId: number): (EtaAnchor & { lat: number | null; lng: number | null }) | null {
+    const r = this.ctx.db.prepare(`SELECT * FROM eta_anchors WHERE driver_id = ?`).get(driverId) as
+      | { kind: EtaAnchor['kind']; at: string; reported_at: string; order_id: number | null; lat: number | null; lng: number | null }
+      | undefined;
+    if (!r) return null;
+    return { kind: r.kind, atMs: new Date(r.at).getTime(), reportedAtMs: new Date(r.reported_at).getTime(), orderId: r.order_id, lat: r.lat, lng: r.lng };
   }
 
-  /**
-   * Planlæg ruten for en chauffør med eventuelt en ekstra (hypotetisk) ordre.
-   * Bruges både til tildeling (simulering) og til at gemme den faktiske rute.
-   */
-  async plan(driver: Driver, extra?: { orderId: number; point: LatLng; needsCentralPickup: boolean }): Promise<RoutePlan | null> {
+  setAnchor(driverId: number, a: { kind: EtaAnchor['kind']; atMs: number; orderId?: number | null; point?: LatLng | null; reportedAtMs?: number }): void {
+    const prev = this.getAnchor(driverId);
+    const point = a.point !== undefined ? a.point : prev ? (prev.lat != null ? { lat: prev.lat, lng: prev.lng! } : null) : null;
+    this.ctx.db
+      .prepare(
+        `INSERT INTO eta_anchors (driver_id, kind, at, lat, lng, order_id, reported_at) VALUES (?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(driver_id) DO UPDATE SET kind=excluded.kind, at=excluded.at, lat=excluded.lat, lng=excluded.lng,
+           order_id=excluded.order_id, reported_at=excluded.reported_at`,
+      )
+      .run(driverId, a.kind, new Date(a.atMs).toISOString(), point?.lat ?? null, point?.lng ?? null, a.orderId ?? null, new Date(a.reportedAtMs ?? Date.now()).toISOString());
+  }
+
+  /** Markér at chaufføren netop har givet en frisk status (uden at ændre ankerets tid). */
+  touchAnchor(driverId: number): void {
+    this.ctx.db.prepare(`UPDATE eta_anchors SET reported_at = ? WHERE driver_id = ?`).run(new Date().toISOString(), driverId);
+  }
+
+  /** Sørg for at chaufføren har et anker (afgang nu fra senest kendte stop / centrallager). */
+  ensureAnchor(driver: Driver): EtaAnchor & { lat: number | null; lng: number | null } {
+    const existing = this.getAnchor(driver.id);
+    if (existing) return existing;
+    const central = this.ctx.inventory.centralLocation();
+    const point = driver.lastLat != null ? { lat: driver.lastLat, lng: driver.lastLng! } : central?.lat != null ? { lat: central.lat, lng: central.lng! } : null;
+    this.setAnchor(driver.id, { kind: 'start', atMs: Date.now(), point });
+    return this.getAnchor(driver.id)!;
+  }
+
+  // ---------------- Rute ----------------
+
+  /** Bring route_stops i overensstemmelse med chaufførens tildelte ordrer (uden at omsortere). */
+  syncStops(driverId: number): void {
+    const { db } = this.ctx;
+    db.transaction(() => {
+      db.prepare(
+        `DELETE FROM route_stops WHERE driver_id = ? AND order_id NOT IN (SELECT id FROM orders WHERE driver_id = ? AND status IN ('driver_assigned','out_for_delivery'))`,
+      ).run(driverId, driverId);
+      const missing = db
+        .prepare(
+          `SELECT id FROM orders WHERE driver_id = ? AND status IN ('driver_assigned','out_for_delivery') AND id NOT IN (SELECT order_id FROM route_stops WHERE driver_id = ?) ORDER BY id`,
+        )
+        .all(driverId, driverId) as { id: number }[];
+      let max = (db.prepare(`SELECT COALESCE(MAX(sequence), 0) AS m FROM route_stops WHERE driver_id = ?`).get(driverId) as { m: number }).m;
+      for (const m of missing) db.prepare(`INSERT INTO route_stops (driver_id, order_id, sequence) VALUES (?, ?, ?)`).run(driverId, m.id, ++max);
+      // Normalisér sekvens 1..n
+      const rows = db.prepare(`SELECT order_id FROM route_stops WHERE driver_id = ? ORDER BY sequence`).all(driverId) as { order_id: number }[];
+      rows.forEach((r, i) => db.prepare(`UPDATE route_stops SET sequence = ? WHERE driver_id = ? AND order_id = ?`).run(-(i + 1), driverId, r.order_id));
+      db.prepare(`UPDATE route_stops SET sequence = -sequence WHERE driver_id = ?`).run(driverId);
+    })();
+  }
+
+  stops(driverId: number): RouteStopRow[] {
     const { ctx } = this;
-    const start = this.driverStart(driver);
-    if (!start.point) return null;
+    this.syncStops(driverId);
+    const central = ctx.inventory.centralLocation();
+    const margin = ctx.settings.get().economics.defaultMarginPct;
     const rows = ctx.db
       .prepare(
-        `SELECT id, address_lat, address_lng, eta_communicated, status, stock_location_id FROM orders
-         WHERE driver_id = ? AND status IN ('driver_assigned','out_for_delivery') AND address_lat IS NOT NULL`,
+        `SELECT rs.order_id, rs.sequence, rs.extra_delay_s, o.address_lat, o.address_lng, o.status, o.eta_communicated, o.stock_location_id, o.delivery_fee_ore, o.eta
+         FROM route_stops rs JOIN orders o ON o.id = rs.order_id WHERE rs.driver_id = ? ORDER BY rs.sequence`,
       )
-      .all(driver.id) as { id: number; address_lat: number; address_lng: number; eta_communicated: string | null; status: string; stock_location_id: number | null }[];
-    const central = ctx.inventory.centralLocation();
-    const stops: StopInput[] = rows.map((r) => ({
-      orderId: r.id,
-      point: { lat: r.address_lat, lng: r.address_lng },
-      promisedMs: r.eta_communicated ? new Date(r.eta_communicated).getTime() : null,
+      .all(driverId) as Record<string, unknown>[];
+    return rows.map((r) => ({
+      orderId: r.order_id as number,
+      sequence: r.sequence as number,
+      point: r.address_lat != null ? { lat: r.address_lat as number, lng: r.address_lng as number } : null,
+      status: r.status as string,
+      promisedMs: r.eta_communicated ? new Date(r.eta_communicated as string).getTime() : null,
+      extraDelayMs: ((r.extra_delay_s as number) ?? 0) * 1000,
+      needsPickup: !!central && r.status === 'driver_assigned' && r.stock_location_id === central.id,
+      value: this.valueOf(r.order_id as number, (r.delivery_fee_ore as number) ?? 0, margin),
+      previousEta: (r.eta as string) ?? null,
     }));
-    let needsPickup = rows.some((r) => r.status === 'driver_assigned' && central && r.stock_location_id === central.id);
-    if (extra) {
-      stops.push({ orderId: extra.orderId, point: extra.point, promisedMs: null });
-      needsPickup = needsPickup || extra.needsCentralPickup;
-    }
-    if (!stops.length) return { stops: [], startedFrom: start.source, quality: 'live', positionFresh: start.fresh, needsPickup: false };
-
-    // Punkter: 0 = start, (1 = centrallager ved afhentning), derefter stop
-    const points: LatLng[] = [start.point];
-    const pickupIdx = needsPickup && central?.lat != null ? points.push({ lat: central.lat, lng: central.lng! }) - 1 : -1;
-    const base = points.length;
-    for (const st of stops) points.push(st.point);
-    const matrix = await ctx.maps.matrix(points, points);
-    const quality: RoutePlan['quality'] = matrix.flat().some((m) => m.quality === 'fallback')
-      ? 'fallback'
-      : matrix.flat().some((m) => m.quality === 'simulated')
-        ? 'simulated'
-        : 'live';
-
-    let now = Date.now();
-    let first = 0;
-    if (pickupIdx >= 0) {
-      now += matrix[0][pickupIdx].durationS * 1000 + ctx.settings.get().delivery.defaultPrepMinutes * 60000;
-      first = pickupIdx;
-    }
-    const seq = cheapestInsertionOrder(first, stops, matrix, now, (i) => base + i);
-    const planned: PlannedStop[] = [];
-    let t = now;
-    let prev = first;
-    for (const i of seq) {
-      const leg = matrix[prev][base + i];
-      t += leg.durationS * 1000;
-      planned.push({ orderId: stops[i].orderId, etaMs: t, durationFromPrevS: leg.durationS, distanceFromPrevM: leg.distanceM });
-      t += SERVICE_MINUTES_PER_STOP * 60000;
-      prev = base + i;
-    }
-    return { stops: planned, startedFrom: start.source, quality, positionFresh: start.fresh, needsPickup };
   }
 
-  /** Genberegn og gem chaufførens rute + ETA'er. Advarer kunder ved væsentlig forsinkelse. */
-  async recompute(driverId: number): Promise<RoutePlan | null> {
+  valueOf(orderId: number, deliveryFeeOre: number, marginPct: number): OrderValue {
+    const lines = this.ctx.db
+      .prepare(`SELECT ol.quantity, ol.unit_price_ore, p.cost_ore FROM order_lines ol JOIN products p ON p.id = ol.product_id WHERE ol.order_id = ?`)
+      .all(orderId) as { quantity: number; unit_price_ore: number; cost_ore: number | null }[];
+    return orderValue(lines.map((l) => ({ quantity: l.quantity, unitPriceOre: l.unit_price_ore, costOre: l.cost_ore })), deliveryFeeOre, marginPct);
+  }
+
+  /** Skriv ny bindende rækkefølge og øg ruteversionen. */
+  applySequence(driverId: number, sequence: number[], reason: string): void {
+    const { db } = this.ctx;
+    db.transaction(() => {
+      const keepDelay = new Map(
+        (db.prepare(`SELECT order_id, extra_delay_s FROM route_stops WHERE driver_id = ?`).all(driverId) as { order_id: number; extra_delay_s: number }[]).map((r) => [r.order_id, r.extra_delay_s]),
+      );
+      db.prepare(`DELETE FROM route_stops WHERE driver_id = ?`).run(driverId);
+      const ins = db.prepare(`INSERT INTO route_stops (driver_id, order_id, sequence, extra_delay_s) VALUES (?, ?, ?, ?)`);
+      sequence.forEach((id, i) => ins.run(driverId, id, i + 1, keepDelay.get(id) ?? 0));
+      db.prepare(`UPDATE drivers SET route_version = route_version + 1 WHERE id = ?`).run(driverId);
+    })();
+    this.ctx.events.log('info', 'routing', 'route_changed', `Rute for chauffør #${driverId} ændret (${reason}): ${sequence.map((x) => '#' + x).join(' → ')}`);
+    this.ctx.bus.touch('logistics', 'drivers');
+  }
+
+  /** Flyt et stop forrest (chaufførens egen melding om, hvor han kører hen). */
+  moveToFront(driverId: number, orderId: number, reason: string): boolean {
+    const seq = this.stops(driverId).map((s) => s.orderId);
+    if (!seq.includes(orderId) || seq[0] === orderId) return false;
+    this.applySequence(driverId, [orderId, ...seq.filter((x) => x !== orderId)], reason);
+    return true;
+  }
+
+  addStopDelay(driverId: number, orderId: number, minutes: number): void {
+    this.ctx.db.prepare(`UPDATE route_stops SET extra_delay_s = extra_delay_s + ? WHERE driver_id = ? AND order_id = ?`).run(Math.round(minutes * 60), driverId, orderId);
+  }
+
+  clearStopDelay(driverId: number, orderId: number): void {
+    this.ctx.db.prepare(`UPDATE route_stops SET extra_delay_s = 0 WHERE driver_id = ? AND order_id = ?`).run(driverId, orderId);
+  }
+
+  // ---------------- Køretider ----------------
+
+  /**
+   * Byg køretidsfunktion over knuder: -1 = ankerpunkt, 0..n-1 = stop, n = ekstra (ny ordre).
+   * Stop der kræver afhentning på centrallager køres via centrallageret.
+   */
+  async travelFor(anchorPoint: LatLng | null, stops: { point: LatLng | null; needsPickup: boolean }[], extra?: { point: LatLng; needsPickup: boolean }) {
+    const { ctx } = this;
+    const central = ctx.inventory.centralLocation();
+    const centralPt = central?.lat != null ? { lat: central.lat, lng: central.lng! } : null;
+    const all = [...stops, ...(extra ? [extra] : [])];
+    const fallbackPt = all.find((s) => s.point)?.point ?? centralPt ?? { lat: 0, lng: 0 };
+    const points: LatLng[] = [anchorPoint ?? centralPt ?? fallbackPt, ...all.map((s) => s.point ?? fallbackPt)];
+    const centralIdx = centralPt ? points.push(centralPt) - 1 : -1;
+    const m = await ctx.maps.matrix(points, points);
+    const prep = ctx.settings.get().delivery.defaultPrepMinutes * 60;
+    const flat = m.flat();
+    const quality: TravelResult['quality'] = flat.some((x) => x.quality === 'fallback') ? 'fallback' : flat.some((x) => x.quality === 'simulated') ? 'simulated' : 'live';
+    const idx = (node: number) => node + 1; // -1 → 0
+    const travel = (from: number, to: number): number => {
+      const target = all[to];
+      if (target?.needsPickup && centralIdx >= 0 && !(from >= 0 && all[from]?.needsPickup)) {
+        return m[idx(from)][centralIdx].durationS + prep + m[centralIdx][idx(to)].durationS;
+      }
+      return m[idx(from)][idx(to)].durationS;
+    };
+    return { travel, quality };
+  }
+
+  biasMinutes(): number {
+    const rows = this.ctx.db
+      .prepare(`SELECT eta_communicated, delivered_at FROM orders WHERE status = 'delivered' AND eta_communicated IS NOT NULL AND delivered_at IS NOT NULL ORDER BY id DESC LIMIT 50`)
+      .all() as { eta_communicated: string; delivered_at: string }[];
+    return historicalBias(
+      rows.map((r) => ({ promisedMs: new Date(r.eta_communicated).getTime(), deliveredMs: new Date(r.delivered_at).getTime() })),
+      this.ctx.settings.get().logistics.historicalBufferMaxMinutes,
+    );
+  }
+
+  etaParams() {
+    const l = this.ctx.settings.get().logistics;
+    return { serviceMinutes: l.serviceMinutesPerStop, staleMinutes: l.statusStaleMinutes, biasMinutes: this.biasMinutes() };
+  }
+
+  /** Antal låste stop: det stop chaufføren har meldt han er på vej til / er ankommet til. */
+  lockedCount(driver: Driver, stops: RouteStopRow[], anchor: EtaAnchor): number {
+    if (!stops.length) return 0;
+    if (anchor.kind === 'driver_report' && anchor.orderId === stops[0].orderId) return 1;
+    if (driver.currentOrderId && driver.currentOrderId === stops[0].orderId) return 1;
+    return 0;
+  }
+
+  // ---------------- Planlægning af ny ordre ----------------
+
+  async planInsertion(
+    driver: Driver,
+    order: { id: number; point: LatLng; needsPickup: boolean; deliveryFeeOre: number },
+    opts: { reassignment: boolean },
+  ): Promise<InsertionResult[]> {
+    const anchor = this.ensureAnchor(driver);
+    const stops = this.stops(driver.id).filter((s) => s.orderId !== order.id);
+    const anchorPt = anchor.lat != null ? { lat: anchor.lat, lng: anchor.lng! } : null;
+    const { travel } = await this.travelFor(anchorPt, stops, { point: order.point, needsPickup: order.needsPickup });
+    const s = this.ctx.settings.get();
+    const existing: PlanningStop[] = stops.map((x) => ({ orderId: x.orderId, promisedMs: x.promisedMs, extraDelayMs: x.extraDelayMs, value: x.value }));
+    // Anker til planlægning: et afgangsanker i fortiden betyder at chaufføren allerede er undervejs
+    const planAnchor = anchor.kind === 'start' && stops.length === 0 ? { ...anchor, atMs: Math.max(anchor.atMs, Date.now()), reportedAtMs: Date.now() } : anchor;
+    return evaluateInsertions({
+      nowMs: Date.now(),
+      anchor: planAnchor,
+      existing,
+      lockedCount: this.lockedCount(driver, stops, anchor),
+      newOrder: { orderId: order.id, value: this.valueOf(order.id, order.deliveryFeeOre, s.economics.defaultMarginPct) },
+      travel,
+      eta: this.etaParams(),
+      econ: s.economics,
+      reassignment: opts.reassignment,
+    });
+  }
+
+  // ---------------- ETA-genberegning ----------------
+
+  /**
+   * Genberegn ETA'er for chaufførens bindende rute, gem dem, registrér
+   * væsentlige ændringer i ordrehistorikken og opdatér berørte kunder.
+   */
+  async refreshEtas(driverId: number, reason = 'genberegning'): Promise<RefreshResult> {
     const { ctx } = this;
     const driver = ctx.drivers.get(driverId);
-    if (!driver) return null;
-    const plan = await this.plan(driver);
-    const s = ctx.settings.get();
+    const stops = this.stops(driverId);
+    if (!driver || !stops.length) {
+      ctx.bus.touch('logistics');
+      return { etas: [], quality: 'live', notifiedOrderIds: [] };
+    }
+    const anchor = this.ensureAnchor(driver);
+    const anchorPt = anchor.lat != null ? { lat: anchor.lat, lng: anchor.lng! } : null;
+    const { travel, quality } = await this.travelFor(anchorPt, stops);
+    const etas = computeRouteEtas(
+      Date.now(),
+      anchor,
+      stops.map((s) => ({ orderId: s.orderId, extraDelayMs: s.extraDelayMs })),
+      (i) => travel(i === 0 ? -1 : i - 1, i),
+      this.etaParams(),
+    );
+    const mode = ctx.settings.get().installation.mode;
+    const notified: number[] = [];
+    const now = new Date().toISOString();
     ctx.db.transaction(() => {
-      ctx.db.prepare(`DELETE FROM route_stops WHERE driver_id = ?`).run(driverId);
-      if (!plan) return;
-      const ins = ctx.db.prepare(
-        `INSERT INTO route_stops (driver_id, order_id, sequence, eta, duration_from_prev_s, distance_from_prev_m, computed_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      );
-      // ETA-kilde: kun 'route_live' (rigtige kortdata + frisk position) må loves til kunder i drift
-      const etaSource =
-        plan.quality === 'live' && plan.positionFresh ? 'route_live' : plan.quality === 'simulated' ? 'route_simulated' : 'estimate';
-      plan.stops.forEach((st, i) => {
-        const eta = new Date(st.etaMs).toISOString();
-        ins.run(driverId, st.orderId, i + 1, eta, st.durationFromPrevS, st.distanceFromPrevM, new Date().toISOString());
-        ctx.orders.updateFields(st.orderId, { eta, etaSource }, 'system');
-        this.maybeNotifyDelay(st.orderId, st.etaMs, s);
+      etas.forEach((e, i) => {
+        const stop = stops[i];
+        const etaIso = new Date(e.etaMs).toISOString();
+        ctx.db
+          .prepare(
+            `UPDATE route_stops SET eta = ?, eta_low = ?, eta_high = ?, eta_basis = ?, confidence = ?, duration_from_prev_s = ?, computed_at = ? WHERE driver_id = ? AND order_id = ?`,
+          )
+          .run(etaIso, new Date(e.lowMs).toISOString(), new Date(e.highMs).toISOString(), e.basis, e.confidence, Math.round(e.driveSeconds), now, driverId, stop.orderId);
+        const etaSource = e.confidence === 'low' ? 'estimate' : quality === 'live' ? 'route_live' : quality === 'simulated' ? 'route_simulated' : 'estimate';
+        ctx.orders.updateFields(
+          stop.orderId,
+          { eta: etaIso, etaSource, etaLow: new Date(e.lowMs).toISOString(), etaHigh: new Date(e.highMs).toISOString(), etaConfidence: e.confidence },
+          'system',
+        );
+        if (stop.previousEta && Math.abs(new Date(stop.previousEta).getTime() - e.etaMs) >= 2 * 60000) {
+          ctx.orders.addEvent(stop.orderId, 'eta_changed', 'system', { from: stop.previousEta, to: etaIso, reason, basis: e.basis, confidence: e.confidence });
+        }
+        if (this.notifier.evaluate(stop.orderId, e.etaMs, etaCommunicable(e.confidence, quality, mode))) notified.push(stop.orderId);
       });
     })();
     ctx.bus.touch('logistics', 'orders');
-    return plan;
-  }
-
-  private maybeNotifyDelay(orderId: number, etaMs: number, s: ReturnType<Ctx['settings']['get']>): void {
-    const { ctx } = this;
-    const o = ctx.orders.get(orderId);
-    if (!o?.conversationId || !s.automation.customerEtaUpdates || !s.installation.automationEnabled) return;
-    const row = ctx.db.prepare(`SELECT eta_communicated, eta_source FROM orders WHERE id = ?`).get(orderId) as { eta_communicated: string | null; eta_source: string | null };
-    if (!row.eta_communicated) return;
-    const promised = new Date(row.eta_communicated).getTime();
-    if (etaMs - promised < 10 * 60000) return;
-    const communicable = row.eta_source === 'route_live' || (s.installation.mode === 'demo' && row.eta_source === 'route_simulated');
-    const rounded = Math.ceil(etaMs / 300000) * 300000;
-    const text = communicable
-      ? `Din levering (ordre #${orderId}) er desværre forsinket. Ny forventet tid er ca. kl. ${new Date(rounded).toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit' })}.`
-      : `Din levering (ordre #${orderId}) er desværre forsinket. Vi giver besked, når chaufføren er tæt på.`;
-    ctx.sms.queue(o.conversationId, text, 'system', `eta_delay:${orderId}:${rounded}`, orderId);
-    ctx.orders.updateFields(orderId, { etaCommunicated: new Date(rounded).toISOString() }, 'system');
+    return { etas, quality, notifiedOrderIds: notified };
   }
 }

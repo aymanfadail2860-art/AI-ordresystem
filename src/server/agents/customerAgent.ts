@@ -451,7 +451,7 @@ export class CustomerAgent {
     ctx.orders.transition(order.id, 'confirmed', 'customer');
     ctx.jobs.cancelByDedupeKey(`expire_quote:${order.id}`);
     ctx.orders.transition(order.id, 'awaiting_driver', 'system');
-    ctx.jobs.enqueue('dispatch_order', { orderId: order.id }, { dedupeKey: `dispatch:${order.id}`, lane: `order:${order.id}` });
+    ctx.jobs.enqueue('dispatch_order', { orderId: order.id }, { dedupeKey: `dispatch:${order.id}`, lane: 'dispatch' });
     return { text: fillTemplate(s.messages.orderConfirmed, { orderId: order.id, company: s.company.name }), orderId: order.id };
   }
 }

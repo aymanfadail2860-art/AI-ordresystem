@@ -250,6 +250,9 @@ export class OrderService {
       eta: string | null;
       etaSource: string | null;
       etaCommunicated: string | null;
+      etaLow: string | null;
+      etaHigh: string | null;
+      etaConfidence: string | null;
       driverId: number | null;
       paymentStatus: string;
       needsAttention: boolean;
@@ -267,6 +270,9 @@ export class OrderService {
       eta: 'eta',
       etaSource: 'eta_source',
       etaCommunicated: 'eta_communicated',
+      etaLow: 'eta_low',
+      etaHigh: 'eta_high',
+      etaConfidence: 'eta_confidence',
       driverId: 'driver_id',
       paymentStatus: 'payment_status',
       needsAttention: 'needs_attention',
@@ -281,7 +287,7 @@ export class OrderService {
     }
     if (!sets.length) return;
     this.db.prepare(`UPDATE orders SET ${sets.join(', ')}, updated_at = ? WHERE id = ?`).run(...args, nowIso(), orderId);
-    const quiet = Object.keys(patch).every((k) => ['eta', 'etaSource', 'etaCommunicated'].includes(k));
+    const quiet = Object.keys(patch).every((k) => ['eta', 'etaSource', 'etaCommunicated', 'etaLow', 'etaHigh', 'etaConfidence'].includes(k));
     if (!quiet) this.addEvent(orderId, 'updated', actor, patch as Record<string, unknown>);
     this.bus.touch('orders');
   }
@@ -328,6 +334,9 @@ export function mapOrder(r: Record<string, unknown>): Order {
     requestedTime: (r.requested_time as string) ?? null,
     eta: (r.eta as string) ?? null,
     etaSource: (r.eta_source as string) ?? null,
+    etaLow: (r.eta_low as string) ?? null,
+    etaHigh: (r.eta_high as string) ?? null,
+    etaConfidence: (r.eta_confidence as Order['etaConfidence']) ?? null,
     driverId: (r.driver_id as number) ?? null,
     driverName: (r.driver_name as string) ?? null,
     stockLocationId: (r.stock_location_id as number) ?? null,

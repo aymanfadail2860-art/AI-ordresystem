@@ -1,13 +1,14 @@
 import { randomBytes } from 'node:crypto';
 import type { Db } from '../db/database';
-import { nowIso } from '../db/database';
+import { nowIso, parseJson } from '../db/database';
 import type { AuditLog, Bus } from '../infra';
 import type { Driver, DriverMessage, DriverStatus, DispatchOffer, RouteStop, OrderStatus, ReassignmentSuggestion } from '../../shared/types';
 import type { InventoryService } from './inventory';
 
 const DRIVER_SELECT = `
 SELECT d.*, sl.id AS vehicle_location_id,
-  (SELECT COUNT(*) FROM orders o WHERE o.driver_id = d.id AND o.status IN ('driver_assigned','out_for_delivery')) AS active_count
+  (SELECT COUNT(*) FROM orders o WHERE o.driver_id = d.id AND o.status IN ('driver_assigned','out_for_delivery')) AS active_count,
+  (SELECT COUNT(*) FROM dispatch_offers f WHERE f.driver_id = d.id AND f.status = 'pending') AS pending_offers
 FROM drivers d LEFT JOIN stock_locations sl ON sl.driver_id = d.id AND sl.active = 1`;
 
 export function mapDriver(r: Record<string, unknown>): Driver {
@@ -26,8 +27,14 @@ export function mapDriver(r: Record<string, unknown>): Driver {
     lastLng: (r.last_lng as number) ?? null,
     lastPositionAt: (r.last_position_at as string) ?? null,
     lastPositionSource: (r.last_position_source as string) ?? null,
+    lastStatusText: (r.last_status_text as string) ?? null,
+    lastStatusAt: (r.last_status_at as string) ?? null,
+    currentOrderId: (r.current_order_id as number) ?? null,
+    extraCapacityUntil: (r.extra_capacity_until as string) ?? null,
+    routeVersion: (r.route_version as number) ?? 0,
     active: !!r.active,
     activeOrderCount: (r.active_count as number) ?? 0,
+    pendingOfferCount: (r.pending_offers as number) ?? 0,
   };
 }
 
@@ -96,7 +103,8 @@ export class DriverService {
     this.bus.emit('driver_status', { driverId: id, status });
   }
 
-  setPosition(id: number, lat: number, lng: number, source: 'telegram_live' | 'manual' | 'demo'): void {
+  /** Registrér chaufførens senest kendte stop (ikke live-position). */
+  setPosition(id: number, lat: number, lng: number, source: 'delivered_stop' | 'central' | 'manual'): void {
     this.db
       .prepare(`UPDATE drivers SET last_lat = ?, last_lng = ?, last_position_at = ?, last_position_source = ? WHERE id = ?`)
       .run(lat, lng, nowIso(), source, id);
@@ -205,6 +213,8 @@ export class DriverService {
       driverId: r.driver_id as number,
       driverName: r.driver_name as string,
       status: r.status as DispatchOffer['status'],
+      kind: ((r.kind as string) ?? 'new_order') as DispatchOffer['kind'],
+      plan: parseJson(r.plan as string | null, null),
       sentAt: r.sent_at as string,
       respondedAt: (r.responded_at as string) ?? null,
       expiresAt: r.expires_at as string,
@@ -224,6 +234,10 @@ export class DriverService {
       orderId: r.order_id as number,
       sequence: r.sequence as number,
       eta: (r.eta as string) ?? null,
+      etaLow: (r.eta_low as string) ?? null,
+      etaHigh: (r.eta_high as string) ?? null,
+      etaBasis: (r.eta_basis as string) ?? null,
+      confidence: (r.confidence as RouteStop['confidence']) ?? null,
       durationFromPrevS: (r.duration_from_prev_s as number) ?? null,
       distanceFromPrevM: (r.distance_from_prev_m as number) ?? null,
       lat: (r.address_lat as number) ?? null,
@@ -249,6 +263,7 @@ export class DriverService {
       toDriverName: r.to_name as string,
       reason: r.reason as string,
       etaGainMinutes: (r.eta_gain_minutes as number) ?? null,
+      analysis: parseJson(r.analysis as string | null, null),
       status: r.status as ReassignmentSuggestion['status'],
       createdAt: r.created_at as string,
     }));

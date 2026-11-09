@@ -133,7 +133,6 @@ export function DeliveryTab({ s }: { s: Settings }) {
           <Field label="Tilbud gælder (minutter)"><input type="number" min={5} value={d.quoteExpiryMinutes} onChange={(e) => setD({ ...d, quoteExpiryMinutes: Number(e.target.value) })} /></Field>
           <Field label="Chauffør skal svare inden (sek.)"><input type="number" min={30} value={d.offerTimeoutSeconds} onChange={(e) => setD({ ...d, offerTimeoutSeconds: Number(e.target.value) })} /></Field>
           <Field label="Pakketid på centrallager (min.)"><input type="number" min={0} value={d.defaultPrepMinutes} onChange={(e) => setD({ ...d, defaultPrepMinutes: Number(e.target.value) })} /></Field>
-          <Field label="Maks. alder på position (min.)" hint="Ældre positioner giver ikke ETA-løfter"><input type="number" min={1} value={d.maxPositionAgeMinutes} onChange={(e) => setD({ ...d, maxPositionAgeMinutes: Number(e.target.value) })} /></Field>
           <label className="row"><input type="checkbox" checked={d.allowCentralPickup} onChange={(e) => setD({ ...d, allowCentralPickup: e.target.checked })} /> Chauffører kan hente varer på centrallageret</label>
         </div>
       </Card>

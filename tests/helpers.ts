@@ -73,7 +73,7 @@ export function fixture(ctx: Ctx) {
     const uid = `sim-driver-${d.id}`;
     ctx.db.prepare(`UPDATE drivers SET telegram_user_id = ?, telegram_chat_id = ? WHERE id = ?`).run(uid, uid, d.id);
     ctx.drivers.setStatus(d.id, 'available');
-    ctx.drivers.setPosition(d.id, lat, lng, 'demo');
+    ctx.drivers.setPosition(d.id, lat, lng, 'manual');
     return ctx.drivers.get(d.id)!;
   };
   const a = mk('Anna', 55.68, 12.56);

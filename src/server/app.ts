@@ -21,6 +21,7 @@ import { SmsGateway } from './gateways/smsGateway';
 import { TelegramGateway } from './gateways/telegramGateway';
 import { CustomerAgent } from './agents/customerAgent';
 import { RoutingService } from './agents/routing';
+import { CustomerNotifier } from './agents/notifier';
 import { DispatchAgent } from './agents/dispatchAgent';
 import { DriverAgent } from './agents/driverAgent';
 import { LogisticsAgent } from './agents/logisticsAgent';
@@ -180,10 +181,11 @@ export async function createApp(opts: AppOptions): Promise<App> {
   ctx.sms = new SmsGateway(db, bus, settings, conversations, jobs, events, integrations, kv);
   ctx.telegram = new TelegramGateway(db, bus, drivers, jobs, events, integrations, kv);
 
-  const routing = new RoutingService(ctx);
+  const notifier = new CustomerNotifier(ctx);
+  const routing = new RoutingService(ctx, notifier);
   const customer = new CustomerAgent(ctx);
-  const dispatch = new DispatchAgent(ctx, routing);
-  const driver = new DriverAgent(ctx, dispatch, routing);
+  const dispatch = new DispatchAgent(ctx, routing, notifier);
+  const driver = new DriverAgent(ctx, dispatch, routing, notifier);
   const logistics = new LogisticsAgent(ctx, dispatch, routing);
   const backup = new BackupService(ctx, opts.dbFile, opts.backupDir);
   const retention = new RetentionService(ctx);

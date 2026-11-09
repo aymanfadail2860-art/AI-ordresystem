@@ -9,6 +9,7 @@ export interface ProductInput {
   category: string;
   variant?: string | null;
   priceOre: number;
+  costOre?: number | null;
   active?: boolean;
   description?: string | null;
   synonyms?: string[];
@@ -22,6 +23,7 @@ export function mapProduct(r: Record<string, unknown>): Product {
     category: r.category as string,
     variant: (r.variant as string) ?? null,
     priceOre: r.price_ore as number,
+    costOre: (r.cost_ore as number) ?? null,
     active: !!r.active,
     description: (r.description as string) ?? null,
     synonyms: parseJson<string[]>(r.synonyms as string, []),
@@ -58,14 +60,15 @@ export class CatalogService {
     if (!/^[A-Za-z0-9_\-]{1,40}$/.test(p.sku.trim())) throw new Error('SKU må kun indeholde bogstaver, tal, - og _');
     if (!p.name?.trim()) throw new Error('Produktnavn mangler');
     if (!Number.isInteger(p.priceOre) || p.priceOre < 0 || p.priceOre > 10_000_000) throw new Error('Ugyldig pris');
+    if (p.costOre != null && (!Number.isInteger(p.costOre) || p.costOre < 0 || p.costOre > 10_000_000)) throw new Error('Ugyldig vareomkostning');
   }
 
   create(p: ProductInput): Product {
     this.validate(p);
     const r = this.db
       .prepare(
-        `INSERT INTO products (sku, name, category, variant, price_ore, active, description, synonyms)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO products (sku, name, category, variant, price_ore, cost_ore, active, description, synonyms)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         p.sku.trim().toUpperCase(),
@@ -73,6 +76,7 @@ export class CatalogService {
         p.category?.trim() || 'Andet',
         p.variant ?? null,
         p.priceOre,
+        p.costOre ?? null,
         p.active === false ? 0 : 1,
         p.description ?? null,
         JSON.stringify(cleanSynonyms(p.synonyms)),
@@ -85,7 +89,7 @@ export class CatalogService {
     this.validate(p);
     this.db
       .prepare(
-        `UPDATE products SET sku = ?, name = ?, category = ?, variant = ?, price_ore = ?, active = ?,
+        `UPDATE products SET sku = ?, name = ?, category = ?, variant = ?, price_ore = ?, cost_ore = ?, active = ?,
          description = ?, synonyms = ?, updated_at = ? WHERE id = ?`,
       )
       .run(
@@ -94,6 +98,7 @@ export class CatalogService {
         p.category?.trim() || 'Andet',
         p.variant ?? null,
         p.priceOre,
+        p.costOre ?? null,
         p.active === false ? 0 : 1,
         p.description ?? null,
         JSON.stringify(cleanSynonyms(p.synonyms)),

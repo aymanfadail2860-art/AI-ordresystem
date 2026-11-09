@@ -50,7 +50,7 @@ export function seedDemo(ctx: Ctx): void {
       const uid = `sim-driver-${driver.id}`;
       ctx.db.prepare(`UPDATE drivers SET telegram_user_id = ?, telegram_chat_id = ?, telegram_link_code = NULL WHERE id = ?`).run(uid, uid, driver.id);
       ctx.drivers.setStatus(driver.id, d.status, 'system');
-      ctx.drivers.setPosition(driver.id, d.lat, d.lng, 'demo');
+      ctx.drivers.setPosition(driver.id, d.lat, d.lng, 'manual');
       const loc = ctx.inventory.vehicleLocationForDriver(driver.id)!;
       for (const p of products) {
         const qty = p.category === 'Energidrik' || p.category === 'Sodavand' ? 6 + Math.floor(Math.random() * 10) : Math.floor(Math.random() * 6);

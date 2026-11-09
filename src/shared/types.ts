@@ -73,6 +73,8 @@ export interface Product {
   category: string;
   variant: string | null;
   priceOre: number;
+  /** Vareomkostning i øre (til dækningsbidrag). null = ukendt. */
+  costOre: number | null;
   active: boolean;
   description: string | null;
   synonyms: string[];
@@ -174,6 +176,9 @@ export interface Order {
   requestedTime: string | null;
   eta: string | null;
   etaSource: string | null;
+  etaLow: string | null;
+  etaHigh: string | null;
+  etaConfidence: EtaConfidence | null;
   driverId: number | null;
   driverName: string | null;
   stockLocationId: number | null;
@@ -224,13 +229,22 @@ export interface Driver {
   vehicleName: string | null;
   vehicleLocationId: number | null;
   maxActiveOrders: number;
+  /** Senest kendte stop (leveret adresse/centrallager/startsted) – IKKE live-GPS. */
   lastLat: number | null;
   lastLng: number | null;
   lastPositionAt: string | null;
   lastPositionSource: string | null;
+  lastStatusText: string | null;
+  lastStatusAt: string | null;
+  currentOrderId: number | null;
+  extraCapacityUntil: string | null;
+  routeVersion: number;
   active: boolean;
   activeOrderCount: number;
+  pendingOfferCount: number;
 }
+
+export type EtaConfidence = 'high' | 'medium' | 'low';
 
 export interface DriverMessage {
   id: number;
@@ -248,6 +262,8 @@ export interface DispatchOffer {
   driverId: number;
   driverName: string;
   status: 'pending' | 'accepted' | 'rejected' | 'expired' | 'cancelled';
+  kind: 'new_order' | 'reassignment';
+  plan: RoutePlanSummary | null;
   sentAt: string;
   respondedAt: string | null;
   expiresAt: string;
@@ -259,6 +275,10 @@ export interface RouteStop {
   orderId: number;
   sequence: number;
   eta: string | null;
+  etaLow: string | null;
+  etaHigh: string | null;
+  etaBasis: string | null;
+  confidence: EtaConfidence | null;
   durationFromPrevS: number | null;
   distanceFromPrevM: number | null;
   lat: number | null;
@@ -275,8 +295,38 @@ export interface ReassignmentSuggestion {
   toDriverName: string;
   reason: string;
   etaGainMinutes: number | null;
+  analysis: DecisionAnalysis | null;
   status: 'open' | 'applied' | 'dismissed';
   createdAt: string;
+}
+
+/** Økonomisk begrundelse for en tildeling/ruteændring (alle beløb i øre). */
+export interface DecisionAnalysis {
+  score: number;
+  revenueOre: number;
+  contributionOre: number;
+  contributionEstimated: boolean;
+  extraDriveMinutes: number;
+  newOrderEtaMinutes: number;
+  routeRevenueOre: number;
+  routeContributionOre: number;
+  routeDriveMinutes: number;
+  deliveriesPerHour: number;
+  maxExistingDelayMinutes: number;
+  lateRiskMinutes: number;
+  reassignmentCostOre: number;
+  nearby: boolean;
+  significantChange: boolean;
+  explanation: string[];
+}
+
+export interface RoutePlanSummary {
+  sequence: number[];
+  insertIndex: number;
+  newOrderId: number;
+  etas: Record<string, string>;
+  analysis: DecisionAnalysis;
+  alternatives: { driverId: number; driverName: string; score: number; feasible: boolean; reason: string }[];
 }
 
 export type EventLevel = 'info' | 'warn' | 'error' | 'critical';
@@ -395,7 +445,52 @@ export interface Settings {
     offerTimeoutSeconds: number;
     requireDriverAcceptance: boolean;
     allowCentralPickup: boolean;
-    maxPositionAgeMinutes: number;
+  };
+  logistics: {
+    /** Minutter uden status fra chaufføren, før ETA'er betragtes som usikre. */
+    statusStaleMinutes: number;
+    /** Bed chaufføren om status efter så mange minutter uden opdatering. */
+    statusRequestAfterMinutes: number;
+    /** Eskalér til medarbejder, hvis chaufføren stadig ikke har svaret. */
+    escalateNoStatusMinutes: number;
+    serviceMinutesPerStop: number;
+    /** Maks. historisk tillæg pr. stop (minutter) beregnet ud fra tidligere forsinkelser. */
+    historicalBufferMaxMinutes: number;
+    /** Hvor længe "jeg kan tage en ekstra ordre" gælder. */
+    extraCapacityMinutes: number;
+  };
+  notifications: {
+    lateThresholdMinutes: number;
+    earlyThresholdMinutes: number;
+    minMinutesBetweenUpdates: number;
+    maxUpdatesPerOrder: number;
+    arrivalSoonMaxMinutes: number;
+    arrivalSoonTemplate: string;
+    delayTemplate: string;
+    delayNoTimeTemplate: string;
+  };
+  economics: {
+    /** Avance (%) for varer uden registreret vareomkostning. */
+    defaultMarginPct: number;
+    driveCostPerMinuteOre: number;
+    waitCostPerMinuteOre: number;
+    /** Værdivægt: ordrens vægt = 1 + dækningsbidrag / denne skala. */
+    valueWeightScaleOre: number;
+    latePenaltyPerMinuteOre: number;
+    riskPenaltyPerMinuteOre: number;
+    /** Ekstra omkostning pr. eksisterende kunde, hvis levering rykkes (forstyrrelse). */
+    disruptionCostOre: number;
+    reassignmentCostOre: number;
+    nearbyThresholdMinutes: number;
+    nearbyBonusOre: number;
+    /** HÅRD grænse: et givet leveringsløfte må højst overskrides så meget. */
+    promiseToleranceMinutes: number;
+    /** HÅRD grænse: maks. leveringstid for en ny ordre. */
+    maxDeliveryMinutes: number;
+    /** Ændringer i en accepteret rute over dette kræver chaufførens accept. */
+    significantChangeMinutes: number;
+    /** Mindste gevinst for at foreslå omfordeling. */
+    minReassignmentGainOre: number;
   };
   openingHours: Record<'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun', OpeningHoursDay>;
   messages: {
