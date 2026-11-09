@@ -29,7 +29,7 @@
 - ⬜ Prompt-tuning efter evaluering
 
 ## Etape 4 – Chauffører og logistik
-- 🟡 Telegram-integration (long polling, knapper, tilknytning, live-position)
+- 🟡 Telegram-integration (long polling, knapper, tilknytning, statusmeldinger – ingen live-GPS)
 - ✅ Chaufførstyring
 - 🟡 Google Maps (Geocoding, Routes Matrix) + caching
 - ✅ Ruteoptimering: økonomisk indsættelsesmodel med hårde løftebegrænsninger, bindende ruter, ruteplaner i tilbud
