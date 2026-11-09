@@ -39,7 +39,7 @@ export function menuText(products: Product[], availability: Map<number, number>,
 
 export function priceFacts(products: Product[], availability: Map<number, number>): string {
   return products
-    .map((p) => `${p.name}${p.variant ? ` ${p.variant}` : ''} koster ${formatDkk(p.priceOre)}${(availability.get(p.id) ?? 0) > 0 ? '' : ' (udsolgt lige nu)'}.`)
+    .map((p) => `${p.name}${p.variant ? ` ${p.variant}` : ''} koster ${formatDkk(p.priceOre)}${(availability.get(p.id) ?? 0) > 0 ? '' : ' (udsolgt lige nu)'}`)
     .join('\n');
 }
 
