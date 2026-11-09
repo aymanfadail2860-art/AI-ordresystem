@@ -49,6 +49,8 @@ app.whenReady().then(async () => {
       app.relaunch();
       app.exit(0);
     },
+    // Medfølgende imsg i app-pakken, ellers Homebrew-installation
+    imsgCandidates: [path.join(process.resourcesPath, 'imsg', 'imsg'), '/opt/homebrew/bin/imsg', '/usr/local/bin/imsg'],
     log: (level, msg) => console[level === 'error' ? 'error' : level === 'warn' ? 'warn' : 'log'](msg),
   });
   ipcMain.handle('invoke', async (_e, method: unknown, params: unknown) => {

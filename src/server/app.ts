@@ -59,6 +59,8 @@ export interface AppOptions {
   /** Demo: opret ikke demodata (tests). */
   skipSeed?: boolean;
   log?: (level: 'info' | 'warn' | 'error', msg: string) => void;
+  /** Mulige placeringer af imsg (medfølgende kopi, Homebrew), hvis ingen sti er angivet. */
+  imsgCandidates?: string[];
   /** Til tests: styr jobkøens ur. */
   now?: () => number;
 }
@@ -134,8 +136,10 @@ export async function createApp(opts: AppOptions): Promise<App> {
     if (opts.overrides && 'sms' in opts.overrides) return opts.overrides.sms ?? null;
     if (isDemo) return new SimulatedSmsAdapter();
     const s = settings.get().sms;
-    if (s.backend !== 'imsg' || !s.imsgPath) return null;
-    return new ImsgRpcSmsAdapter({ binaryPath: s.imsgPath, region: s.region, service: s.service, log: opts.log });
+    if (s.backend !== 'imsg') return null;
+    const binaryPath = s.imsgPath || (opts.imsgCandidates ?? []).find((p) => fs.existsSync(p));
+    if (!binaryPath) return null;
+    return new ImsgRpcSmsAdapter({ binaryPath, region: s.region, service: s.service, log: opts.log });
   };
   const buildTelegram = (): TelegramAdapter | null => {
     if (opts.overrides && 'telegram' in opts.overrides) return opts.overrides.telegram ?? null;

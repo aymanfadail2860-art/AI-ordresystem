@@ -19,7 +19,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "rebuild:electron": "electron-builder install-app-deps",
-    "dist:mac": "npm run build && electron-builder --mac"
+    "dist:mac": "npm run build && electron-builder --mac --config electron-builder.yml"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.6.0",

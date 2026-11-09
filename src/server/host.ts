@@ -19,6 +19,7 @@ export interface HostOptions {
   onLive: (topics: LiveTopic[]) => void;
   onRestartRequested: () => void;
   log?: (level: 'info' | 'warn' | 'error', msg: string) => void;
+  imsgCandidates?: string[];
 }
 
 interface HostConfig {
@@ -69,6 +70,7 @@ export class AppHostImpl implements AppHost {
       backupDir: path.join(dir, 'backups'),
       secrets: this.opts.secrets,
       log: this.opts.log,
+      imsgCandidates: this.opts.imsgCandidates,
     });
     app.ctx.bus.on('live', (topics: LiveTopic[]) => this.opts.onLive(topics));
     await app.start();
