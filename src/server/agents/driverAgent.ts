@@ -217,7 +217,7 @@ export class DriverAgent {
         this.recordStatus(driver, 'capacity', text);
         this.routing.touchAnchor(driver.id);
         const waiting = ctx.orders.list({ status: ['awaiting_driver'] });
-        for (const o of waiting) this.dispatch.enqueue(o.id);
+        this.dispatch.dispatchWaiting();
         this.reply(driver.id, waiting.length ? `Tak! Vi vurderer ${waiting.length} ventende ordre(r) til dig – du får et tilbud, hvis det passer på din rute.` : 'Tak! Du får et tilbud, hvis der kommer en ordre på din rute.', replyKey);
         return;
       }
@@ -415,6 +415,6 @@ export class DriverAgent {
   /** Efter en ruteændring: ventende ordrer kan nu passe ind. */
   private afterRouteChange(driverId: number): void {
     void driverId;
-    for (const o of this.ctx.orders.list({ status: ['awaiting_driver'] })) this.dispatch.enqueue(o.id);
+    this.dispatch.dispatchWaiting();
   }
 }

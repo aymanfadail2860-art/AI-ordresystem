@@ -101,3 +101,45 @@ export class FakeLlm {
 export function convFor(ctx: Ctx, phone: string) {
   return ctx.conversations.list().find((c) => c.customerPhone === phone)!;
 }
+
+import { haversineMeters, type LatLng } from '../src/core/geo';
+import type { MapsAdapter, GeocodeResult, TravelEstimate } from '../src/server/adapters/maps/types';
+
+/** Deterministisk testkort: 30 km/t uden trafikvariation (500 m pr. minut). */
+export class TestMaps implements MapsAdapter {
+  readonly kind = 'simulator' as const;
+  readonly simulated = true;
+  async geocode(address: string): Promise<GeocodeResult> {
+    return { found: true, lat: 55.68, lng: 12.56, formatted: address, postalCode: '2200' };
+  }
+  async travelMatrix(origins: LatLng[], destinations: LatLng[]): Promise<TravelEstimate[][]> {
+    return origins.map((o) => destinations.map((d) => {
+      const m = haversineMeters(o, d);
+      return { distanceM: Math.round(m), durationS: Math.round((m / 500) * 60) };
+    }));
+  }
+  async test() {
+    return { ok: true, message: 'test' };
+  }
+}
+
+/** Kilometer-koordinater omkring et fast udgangspunkt (55.68, 12.56). */
+export const ORIGIN = { lat: 55.68, lng: 12.56 };
+export function km(north: number, east: number): LatLng {
+  return { lat: ORIGIN.lat + north / 110.574, lng: ORIGIN.lng + east / (111.32 * Math.cos((ORIGIN.lat * Math.PI) / 180)) };
+}
+
+/** Opret en ordre direkte i status "Afventer chauffør" (med kundesamtale og lagerreservation). */
+export function placeOrder(ctx: Ctx, o: { phone: string; at: LatLng; lines: { productId: number; quantity: number }[]; locationId: number }): number {
+  const c = ctx.conversations.upsertCustomer(o.phone);
+  const conv = ctx.conversations.getOrCreateConversation(c.id);
+  const { id } = ctx.orders.createDraft({ customerId: c.id, conversationId: conv, idempotencyKey: `test:${o.phone}:${Math.random()}`, actor: 'staff' });
+  ctx.orders.setLines(id, o.lines, ctx.settings.get().pricing, 'staff');
+  ctx.orders.updateFields(id, { addressText: `Testadresse ${id}`, addressLat: o.at.lat, addressLng: o.at.lng, addressValidated: true }, 'staff');
+  ctx.orders.transition(id, 'awaiting_stock_check', 'system');
+  ctx.inventory.reserveForOrder(id, o.locationId);
+  ctx.orders.transition(id, 'awaiting_confirmation', 'system');
+  ctx.orders.transition(id, 'confirmed', 'customer');
+  ctx.orders.transition(id, 'awaiting_driver', 'system');
+  return id;
+}

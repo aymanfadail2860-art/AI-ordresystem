@@ -43,6 +43,24 @@ export class DispatchAgent {
     this.ctx.jobs.enqueue('dispatch_order', { orderId }, { dedupeKey: `dispatch:${orderId}`, lane: 'dispatch', delayMs });
   }
 
+  /**
+   * Planlæg ventende ordrer igen, højeste dækningsbidrag først (med tillæg for
+   * ventetid), fx når en chauffør har svaret på et tilbud eller fået plads.
+   */
+  dispatchWaiting(): void {
+    const { ctx } = this;
+    const margin = ctx.settings.get().economics.defaultMarginPct;
+    const waiting = ctx.orders
+      .list({ status: ['awaiting_driver'] })
+      .filter((o) => !ctx.drivers.offers(o.id).some((x) => x.status === 'pending'))
+      .map((o) => {
+        const waitedMin = o.confirmedAt ? (Date.now() - new Date(o.confirmedAt).getTime()) / 60000 : 0;
+        return { id: o.id, prio: this.routing.valueOf(o.id, o.deliveryFeeOre, margin).contributionOre + waitedMin * 500 };
+      })
+      .sort((a, b) => b.prio - a.prio);
+    waiting.forEach((w, i) => this.enqueue(w.id, i * 5));
+  }
+
   private async handleDispatch(job: JobRow): Promise<void> {
     await this.dispatch(job.payload.orderId as number);
   }
@@ -88,6 +106,11 @@ export class DispatchAgent {
       }
       if (this.capacityLeft(d) <= 0 && d.id !== order.driverId) {
         reject('Ingen ledig kapacitet');
+        continue;
+      }
+      // Ét ventende tilbud ad gangen pr. chauffør – så ruteplaner ikke modsiger hinanden
+      if (d.pendingOfferCount > 0) {
+        reject('Har allerede et ubesvaret tilbud');
         continue;
       }
       const plan = this.stockPlanFor(d, order);
@@ -247,6 +270,7 @@ export class DispatchAgent {
       return;
     }
     await this.dispatch(offer.order_id);
+    this.dispatchWaiting();
   }
 
   /** Chaufførens svar på et tilbud (knap eller tekst). */
@@ -264,7 +288,7 @@ export class DispatchAgent {
       ctx.db.prepare(`UPDATE dispatch_offers SET status = 'rejected', responded_at = ? WHERE id = ?`).run(new Date().toISOString(), offerId);
       ctx.orders.addEvent(offer.order_id, 'offer_rejected', 'driver', { driverId, kind: offer.kind });
       ctx.bus.touch('logistics', 'drivers');
-      if (offer.kind !== 'reassignment') this.enqueue(offer.order_id);
+      this.dispatchWaiting();
       return `Ok, ordre #${offer.order_id} er afvist. Din rute er uændret.`;
     }
     return this.acceptOffer(offerId, driverId);
@@ -351,6 +375,7 @@ export class DispatchAgent {
       await this.routing.refreshEtas(offer.from_driver_id, 'omfordeling');
     }
     await this.afterAssignment(order.id, driverId);
+    this.dispatchWaiting();
     return `Tak! Ordre #${order.id} er din.`;
   }
 
