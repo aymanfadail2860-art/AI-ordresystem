@@ -42,7 +42,7 @@ export function seedDemo(ctx: Ctx): void {
         ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].map((d) => [d, { open: '00:00', close: '00:00', closed: false }]),
       ) as never,
     });
-    const products = DEMO_PRODUCTS.map((p) => ctx.catalog.create(p));
+    const products = DEMO_PRODUCTS.map((p) => ctx.catalog.create({ ...p, costOre: Math.round(p.priceOre * (p.category === 'Snacks' || p.category === 'Slik' ? 0.45 : 0.55)) }));
     const central = ctx.inventory.createLocation('Centrallager (demo)', 'central', null, 55.6863, 12.5610);
     for (const p of products) ctx.inventory.adjust(central, p.id, 60 + Math.floor(Math.random() * 60), 'Demo-startlager', 'system');
     DEMO_DRIVERS.forEach((d, i) => {

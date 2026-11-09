@@ -3,7 +3,7 @@ import { act, call, toast, useQuery } from '../api';
 import { Card, Empty, Field, IntegrationBadge, Modal, PageHeader, dateTime } from '../components/ui';
 import type { BackupInfo, IntegrationStatus, Settings } from '../../shared/types';
 
-type Tab = 'company' | 'integrations' | 'delivery' | 'messages' | 'security' | 'system';
+type Tab = 'company' | 'integrations' | 'delivery' | 'logistics' | 'messages' | 'security' | 'system';
 
 export function SettingsPage() {
   const [tab, setTab] = useState<Tab>('company');
@@ -13,6 +13,7 @@ export function SettingsPage() {
     ['company', 'Virksomhed'],
     ['integrations', 'Integrationer'],
     ['delivery', 'Levering og priser'],
+    ['logistics', 'Logistik og økonomi'],
     ['messages', 'Standardbeskeder'],
     ['security', 'Sikkerhed, backup og GDPR'],
     ['system', 'System'],
@@ -28,6 +29,7 @@ export function SettingsPage() {
       {tab === 'company' && <CompanyTab s={s} onSaved={reload} />}
       {tab === 'integrations' && <IntegrationsTab s={s} />}
       {tab === 'delivery' && <DeliveryTab s={s} />}
+      {tab === 'logistics' && <LogisticsTab s={s} />}
       {tab === 'messages' && <MessagesTab s={s} />}
       {tab === 'security' && <SecurityTab s={s} />}
       {tab === 'system' && <SystemTab />}
@@ -297,6 +299,108 @@ function SystemTab() {
           <dt>Jobkø</dt><dd>{info.jobs.pending} ventende · {info.jobs.running} kører · {info.jobs.dead} fejlede</dd>
           <dt>Nøglelagring</dt><dd>{info.secretsSecure ? 'macOS Keychain (krypteret)' : 'Ikke sikker (kun hukommelse)'}</dd>
         </dl>
+      </Card>
+    </div>
+  );
+}
+
+type NumField<T> = { key: keyof T; label: string; hint?: string; unit?: 'kr' | 'min' | 'pct' | 'n' };
+
+function NumGrid<T extends Record<string, unknown>>({ value, fields, onChange }: { value: T; fields: NumField<T>[]; onChange: (v: T) => void }) {
+  return (
+    <div className="form-grid">
+      {fields.map((f) => {
+        const raw = Number(value[f.key]);
+        const shown = f.unit === 'kr' ? raw / 100 : raw;
+        return (
+          <Field key={String(f.key)} label={`${f.label}${f.unit === 'kr' ? ' (kr.)' : f.unit === 'min' ? ' (min)' : f.unit === 'pct' ? ' (%)' : ''}`} hint={f.hint}>
+            <input
+              type="number"
+              step={f.unit === 'kr' ? 0.5 : 1}
+              min={0}
+              value={shown}
+              onChange={(e) => onChange({ ...value, [f.key]: f.unit === 'kr' ? Math.round(Number(e.target.value) * 100) : Number(e.target.value) })}
+            />
+          </Field>
+        );
+      })}
+    </div>
+  );
+}
+
+function LogisticsTab({ s }: { s: Settings }) {
+  const [l, setL] = useState(s.logistics);
+  const [n, setN] = useState(s.notifications);
+  const [e, setE] = useState(s.economics);
+  return (
+    <div className="stack">
+      <div className="callout">
+        AI Dispatch bruger ikke live-GPS. ETA'er beregnes ud fra chaufførernes Telegram-meldinger, bekræftede leveringer, planlagte ruter, køretider og tidligere forsinkelser.
+        Beslutningsmodellen er deterministisk – Claude bruges kun til at forstå beskeder.
+      </div>
+      <Card title="Chaufførstatus og ETA" actions={<button className="primary" onClick={() => void save({ logistics: l })}>Gem</button>}>
+        <NumGrid
+          value={l}
+          onChange={setL}
+          fields={[
+            { key: 'statusStaleMinutes', label: 'Status forældet efter', unit: 'min', hint: "Herefter er ETA'er usikre og loves ikke til kunder" },
+            { key: 'statusRequestAfterMinutes', label: 'Bed om status efter', unit: 'min' },
+            { key: 'escalateNoStatusMinutes', label: 'Eskalér til medarbejder efter', unit: 'min' },
+            { key: 'serviceMinutesPerStop', label: 'Tid pr. aflevering', unit: 'min' },
+            { key: 'historicalBufferMaxMinutes', label: 'Maks. historisk tillæg pr. stop', unit: 'min', hint: 'Beregnes af tidligere forsinkelser' },
+            { key: 'extraCapacityMinutes', label: '"Kan tage ekstra ordre" gælder i', unit: 'min' },
+          ]}
+        />
+      </Card>
+      <Card title="Kundeopdateringer om ETA" actions={<button className="primary" onClick={() => void save({ notifications: n })}>Gem</button>}>
+        <NumGrid
+          value={n as unknown as Record<string, unknown>}
+          onChange={(v) => setN(v as unknown as typeof n)}
+          fields={[
+            { key: 'lateThresholdMinutes', label: 'Opdatér kunden ved forsinkelse på mindst', unit: 'min' },
+            { key: 'earlyThresholdMinutes', label: 'Opdatér kunden ved fremrykning på mindst', unit: 'min' },
+            { key: 'minMinutesBetweenUpdates', label: 'Mindst tid mellem opdateringer', unit: 'min' },
+            { key: 'maxUpdatesPerOrder', label: 'Maks. opdateringer pr. ordre', unit: 'n' },
+            { key: 'arrivalSoonMaxMinutes', label: '"Stå klar"-besked når chaufføren melder højst', unit: 'min' },
+          ]}
+        />
+        <Field label='"Stå klar"-besked' hint="{minutes} erstattes af antal minutter"><textarea value={n.arrivalSoonTemplate} onChange={(ev) => setN({ ...n, arrivalSoonTemplate: ev.target.value })} /></Field>
+        <Field label="Forsinkelse med ny tid" hint="{orderId} og {time}"><textarea value={n.delayTemplate} onChange={(ev) => setN({ ...n, delayTemplate: ev.target.value })} /></Field>
+        <Field label="Forsinkelse uden pålidelig tid" hint="Bruges når ETA er usikker – der opgives aldrig et opdigtet tidspunkt"><textarea value={n.delayNoTimeTemplate} onChange={(ev) => setN({ ...n, delayNoTimeTemplate: ev.target.value })} /></Field>
+      </Card>
+      <Card title="Økonomisk beslutningsmodel" actions={<button className="primary" onClick={() => void save({ economics: e })}>Gem</button>}>
+        <p className="muted small">
+          Score = dækningsbidrag − kørselsomkostning − ventetid (vægtet efter ordreværdi) − forsinkelse af andre kunder − risiko − omfordeling + nærhedsbonus.
+          Hårde grænser (leveringsløfter, maks. leveringstid, lager, kapacitet) kan aldrig opvejes af omsætning.
+        </p>
+        <h4>Hårde begrænsninger</h4>
+        <NumGrid
+          value={e as unknown as Record<string, unknown>}
+          onChange={(v) => setE(v as unknown as typeof e)}
+          fields={[
+            { key: 'promiseToleranceMinutes', label: 'Tolerance på givne løfter', unit: 'min', hint: 'En bekræftet levering må højst blive så meget senere end lovet' },
+            { key: 'maxDeliveryMinutes', label: 'Maks. leveringstid for ny ordre', unit: 'min' },
+            { key: 'significantChangeMinutes', label: 'Væsentlig ruteændring fra', unit: 'min', hint: 'Kræver altid chaufførens accept' },
+          ]}
+        />
+        <h4>Vægte</h4>
+        <NumGrid
+          value={e as unknown as Record<string, unknown>}
+          onChange={(v) => setE(v as unknown as typeof e)}
+          fields={[
+            { key: 'defaultMarginPct', label: 'Standard-avance uden vareomkostning', unit: 'pct' },
+            { key: 'driveCostPerMinuteOre', label: 'Kørselsomkostning pr. minut', unit: 'kr' },
+            { key: 'waitCostPerMinuteOre', label: 'Ventetidsomkostning pr. minut', unit: 'kr' },
+            { key: 'valueWeightScaleOre', label: 'Værdiskala (højere = mindre prioritet til store ordrer)', unit: 'kr' },
+            { key: 'latePenaltyPerMinuteOre', label: 'Straf pr. minut over løfte', unit: 'kr' },
+            { key: 'riskPenaltyPerMinuteOre', label: 'Risikostraf pr. minuts usikkerhed', unit: 'kr' },
+            { key: 'disruptionCostOre', label: 'Omkostning pr. kunde der rykkes', unit: 'kr' },
+            { key: 'reassignmentCostOre', label: 'Omkostning ved omfordeling', unit: 'kr' },
+            { key: 'nearbyThresholdMinutes', label: 'Nærhed: højst', unit: 'min', hint: 'fra et eksisterende stop' },
+            { key: 'nearbyBonusOre', label: 'Nærhedsbonus', unit: 'kr' },
+            { key: 'minReassignmentGainOre', label: 'Mindste gevinst for omfordelingsforslag', unit: 'kr' },
+          ]}
+        />
       </Card>
     </div>
   );

@@ -32,7 +32,7 @@ function Catalog() {
   return (
     <Card title="Produkter" actions={<button className="primary" onClick={() => setEdit({ active: true, synonyms: [] })}>+ Nyt produkt</button>}>
       <table>
-        <thead><tr><th>SKU</th><th>Navn</th><th>Kategori</th><th className="num">Pris</th><th>Aktiv</th><th /></tr></thead>
+        <thead><tr><th>SKU</th><th>Navn</th><th>Kategori</th><th className="num">Pris</th><th className="num">Dækningsbidrag</th><th>Aktiv</th><th /></tr></thead>
         <tbody>
           {products?.map((p) => (
             <tr key={p.id} style={{ opacity: p.active ? 1 : 0.5 }}>
@@ -40,6 +40,7 @@ function Catalog() {
               <td>{p.name} {p.variant && <span className="muted">{p.variant}</span>}</td>
               <td>{p.category}</td>
               <td className="num">{kr(p.priceOre)}</td>
+              <td className="num">{p.costOre != null ? `${kr(p.priceOre - p.costOre)} (${Math.round(((p.priceOre - p.costOre) / Math.max(1, p.priceOre)) * 100)} %)` : <span className="muted">estimeret</span>}</td>
               <td><input type="checkbox" checked={p.active} onChange={(e) => void act(() => call('products.setActive', { id: p.id, active: e.target.checked }))} /></td>
               <td><button className="link" onClick={() => setEdit(p)}>Redigér</button></td>
             </tr>
@@ -59,6 +60,7 @@ function ProductModal({ p, onClose }: { p: Partial<Product>; onClose: () => void
     category: p.category ?? '',
     variant: p.variant ?? '',
     priceKr: p.priceOre != null ? p.priceOre / 100 : 0,
+    costKr: p.costOre != null ? String(p.costOre / 100) : '',
     description: p.description ?? '',
     synonyms: (p.synonyms ?? []).join(', '),
     active: p.active ?? true,
@@ -70,6 +72,7 @@ function ProductModal({ p, onClose }: { p: Partial<Product>; onClose: () => void
       <div className="form-grid">
         <Field label="SKU (varenummer)"><input value={f.sku} onChange={(e) => setF({ ...f, sku: e.target.value })} /></Field>
         <Field label="Pris (kr.)"><input type="number" step="0.5" min={0} value={f.priceKr} onChange={(e) => setF({ ...f, priceKr: Number(e.target.value) })} /></Field>
+        <Field label="Vareomkostning (kr.)" hint="Indkøbspris – bruges til dækningsbidrag. Tom = standard-avance."><input type="number" step="0.5" min={0} value={f.costKr} onChange={(e) => setF({ ...f, costKr: e.target.value })} /></Field>
         <Field label="Navn"><input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} /></Field>
         <Field label="Variant"><input value={f.variant} placeholder="fx 50 cl" onChange={(e) => setF({ ...f, variant: e.target.value })} /></Field>
         <Field label="Kategori"><input value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })} /></Field>

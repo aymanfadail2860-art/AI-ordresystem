@@ -229,3 +229,8 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 td.clickable:hover { background: var(--accent-soft); }
 ol { margin: 0; padding-left: 20px; line-height: 1.7; }
 .bubble.out .sim-tag { color: #fff; border-color: rgba(255,255,255,0.7); }
+.color-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.status-line { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; border-radius: 8px; background: var(--bg); margin-bottom: 10px; }
+.status-line.stale { background: var(--warn-soft); }
+.status-icon { font-size: 16px; }
+ul { margin: 6px 0 0; padding-left: 18px; line-height: 1.6; }

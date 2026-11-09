@@ -291,17 +291,64 @@ export function createApi(host: AppHost): Record<string, Handler> {
 
     // ---------------- Logistik ----------------
     'logistics.overview': () => {
-      const c = C();
+      const app = A();
+      const c = app.ctx;
       const s = c.settings.get();
+      const today = startOfToday();
+      const margin = s.economics.defaultMarginPct;
+      const allStops = c.drivers.routeStops();
+      const orders = c.orders.list({ activeOnly: true });
+      const byId = new Map(orders.map((o) => [o.id, o]));
+      const drivers = c.drivers.list().map((d) => {
+        const stops = allStops.filter((x) => x.driverId === d.id);
+        const delivered = c.db
+          .prepare(`SELECT COUNT(*) AS n, COALESCE(SUM(total_ore),0) AS rev, MIN(confirmed_at) AS first FROM orders WHERE driver_id = ? AND delivered_at >= ?`)
+          .get(d.id, today) as { n: number; rev: number; first: string | null };
+        const hours = delivered.first ? Math.max(0.5, (Date.now() - new Date(delivered.first).getTime()) / 3600000) : 0;
+        const planned = stops.map((x) => {
+          const o = byId.get(x.orderId);
+          return o ? app.agents.routing.valueOf(o.id, o.deliveryFeeOre, margin) : { revenueOre: 0, contributionOre: 0, contributionEstimated: false };
+        });
+        const anchor = app.agents.routing.getAnchor(d.id);
+        const lastInfo = Math.max(anchor?.reportedAtMs ?? 0, d.lastStatusAt ? new Date(d.lastStatusAt).getTime() : 0);
+        const statusAgeMin = lastInfo ? Math.round((Date.now() - lastInfo) / 60000) : null;
+        return {
+          driver: d,
+          stops: stops.map((x, i) => ({ ...x, totalOre: byId.get(x.orderId)?.totalOre ?? 0, contributionOre: planned[i].contributionOre })),
+          statusAgeMin,
+          statusStale: stops.length > 0 && (statusAgeMin === null || statusAgeMin > s.logistics.statusStaleMinutes),
+          anchorKind: anchor?.kind ?? null,
+          deliveredToday: delivered.n,
+          revenueTodayOre: delivered.rev,
+          deliveriesPerHour: hours ? Math.round((delivered.n / hours) * 10) / 10 : 0,
+          plannedRevenueOre: planned.reduce((a, x) => a + x.revenueOre, 0),
+          plannedContributionOre: planned.reduce((a, x) => a + x.contributionOre, 0),
+          contributionEstimated: planned.some((x) => x.contributionEstimated),
+          extraCapacity: !!d.extraCapacityUntil && new Date(d.extraCapacityUntil).getTime() > Date.now(),
+        };
+      });
+      const deliveredAll = c.db.prepare(`SELECT COUNT(*) AS n, COALESCE(SUM(total_ore),0) AS rev, MIN(confirmed_at) AS first FROM orders WHERE delivered_at >= ?`).get(today) as {
+        n: number;
+        rev: number;
+        first: string | null;
+      };
+      const hoursAll = deliveredAll.first ? Math.max(0.5, (Date.now() - new Date(deliveredAll.first).getTime()) / 3600000) : 0;
       return {
-        drivers: c.drivers.list(),
-        stops: c.drivers.routeStops(),
-        orders: c.orders.list({ activeOnly: true }),
+        drivers,
+        orders,
         offers: c.drivers.offers(),
         suggestions: c.drivers.suggestions(true),
         central: c.inventory.centralLocation(),
         area: { lat: s.delivery.centerLat, lng: s.delivery.centerLng, radiusKm: s.delivery.radiusKm },
         mapsSimulated: c.maps.simulated,
+        totals: {
+          deliveredToday: deliveredAll.n,
+          revenueTodayOre: deliveredAll.rev,
+          deliveriesPerHour: hoursAll ? Math.round((deliveredAll.n / hoursAll) * 10) / 10 : 0,
+          plannedRevenueOre: drivers.reduce((a, d) => a + d.plannedRevenueOre, 0),
+          awaitingDriver: orders.filter((o) => o.status === 'awaiting_driver').length,
+        },
+        statusStaleMinutes: s.logistics.statusStaleMinutes,
       };
     },
     'logistics.applySuggestion': async (p) => {
@@ -328,6 +375,7 @@ export function createApi(host: AppHost): Record<string, Handler> {
         category: typeof p.category === 'string' ? p.category : 'Andet',
         variant: typeof p.variant === 'string' && p.variant ? p.variant : null,
         priceOre: p.priceKr !== undefined ? krToOre(num(p.priceKr, 'pris')) : num(p.priceOre, 'pris'),
+        costOre: p.costKr === undefined || p.costKr === null || p.costKr === '' ? null : krToOre(num(p.costKr, 'vareomkostning')),
         active: p.active !== false,
         description: typeof p.description === 'string' && p.description ? p.description : null,
         synonyms: Array.isArray(p.synonyms) ? p.synonyms.filter((x): x is string => typeof x === 'string') : [],
@@ -379,7 +427,7 @@ export function createApi(host: AppHost): Record<string, Handler> {
     'settings.get': () => C().settings.get(),
     'settings.update': async (p) => {
       const patch = (p.patch ?? {}) as DeepPartial<Settings>;
-      const sensitive = ['ai', 'sms', 'telegram', 'maps', 'retention', 'backup', 'installation', 'pricing'];
+      const sensitive = ['ai', 'sms', 'telegram', 'maps', 'retention', 'backup', 'installation', 'pricing', 'economics'];
       if (Object.keys(patch).some((k) => sensitive.includes(k))) guard();
       if (patch.installation && 'mode' in patch.installation) delete (patch.installation as Record<string, unknown>).mode;
       const res = C().settings.update(patch);

@@ -84,10 +84,14 @@ function DriverDetail({ id, nav }: { id: number; nav: Nav }) {
               </>
             )}
           </dd>
-          <dt>Position</dt>
+          <dt>Seneste status</dt>
           <dd>
-            {d.lastPositionAt ? `${d.lastLat?.toFixed(4)}, ${d.lastLng?.toFixed(4)} · ${ago(d.lastPositionAt)} (${d.lastPositionSource})` : 'Ingen position'}
-            <div className="muted small">Positioner kommer kun fra chaufførens delte Telegram-live-position – der bruges aldrig fiktive GPS-data i drift.</div>
+            {d.lastStatusText ? `“${d.lastStatusText}” · ${ago(d.lastStatusAt)}` : 'Ingen Telegram-status endnu'}
+          </dd>
+          <dt>Senest kendte stop</dt>
+          <dd>
+            {d.lastPositionAt ? `${{ delivered_stop: 'Seneste levering', central: 'Centrallager', manual: 'Startsted' }[d.lastPositionSource ?? ''] ?? d.lastPositionSource} · ${ago(d.lastPositionAt)}` : 'Ukendt'}
+            <div className="muted small">AI Dispatch bruger ikke live-GPS. ETA'er beregnes ud fra chaufførens Telegram-meldinger, bekræftede leveringer og køretider.</div>
           </dd>
         </dl>
       </Card>

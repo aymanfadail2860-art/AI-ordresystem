@@ -210,33 +210,42 @@ export class DemoSimulator {
     void text;
   }
 
+  /**
+   * Simulerer en chauffør via Telegram-beskeder (ingen GPS): kører mod
+   * ordren, melder ETA undervejs, af og til trafik/forsinkelse, er fremme
+   * og bekræfter levering.
+   */
   private simulateDelivery(driverId: number, chatId: string, name: string, orderId: number): void {
     const order = this.ctx.orders.get(orderId);
-    if (!order || order.addressLat == null) return;
+    if (!order) return;
     const speed = Math.max(1, this.ctx.settings.get().demo.speedFactor);
-    const travelMs = order.eta ? Math.max(30000, new Date(order.eta).getTime() - Date.now()) : 10 * 60000;
+    const travelMs = order.eta ? Math.max(60000, new Date(order.eta).getTime() - Date.now()) : 10 * 60000;
     const simMs = travelMs / speed;
     const roll = Math.random();
-    this.later(4000, () => this.telegram.injectCallback(chatId, name, `ord:${orderId}:pickup`));
-    // Flyt chaufføren gradvist mod adressen (simulerede positioner)
-    const d0 = this.ctx.drivers.get(driverId);
-    const from = { lat: d0?.lastLat ?? order.addressLat, lng: d0?.lastLng ?? order.addressLng! };
-    const steps = 6;
-    for (let i = 1; i <= steps; i++) {
-      this.later(4000 + (simMs * i) / steps, () => {
-        const f = i / steps;
-        this.telegram.injectLocation(chatId, name, from.lat + (order.addressLat! - from.lat) * f, from.lng + (order.addressLng! - from.lng) * f);
+    const busy = () => {
+      // Kør kun mod denne ordre, hvis den er først på ruten
+      const first = this.ctx.drivers.routeStops(driverId)[0];
+      return first && first.orderId !== orderId;
+    };
+    const step = (ms: number, fn: () => void) =>
+      this.later(ms, () => {
+        const o = this.ctx.orders.get(orderId);
+        if (!o || !['driver_assigned', 'out_for_delivery'].includes(o.status)) return;
+        if (busy()) {
+          this.later(15000, () => step(0, fn));
+          return;
+        }
+        fn();
       });
-    }
-    if (roll < 0.15) {
-      this.later(4000 + simMs / 2, () => this.telegram.injectText(chatId, name, `Jeg bliver 15 minutter forsinket med ordre ${orderId}`));
-    }
-    this.later(5000 + simMs, () => this.telegram.injectCallback(chatId, name, `ord:${orderId}:arrived`));
+    step(4000, () => this.telegram.injectCallback(chatId, name, `ord:${orderId}:pickup`));
+    if (roll < 0.2) step(4000 + simMs * 0.4, () => this.telegram.injectText(chatId, name, 'Der er trafik, bliver nok 10 min senere'));
+    step(4000 + simMs * 0.7, () => this.telegram.injectText(chatId, name, `Ordre ${orderId}, jeg er der om 5 min`));
+    step(5000 + simMs, () => this.telegram.injectCallback(chatId, name, `ord:${orderId}:arrived`));
     if (roll > 0.92) {
-      this.later(9000 + simMs, () => this.telegram.injectText(chatId, name, 'Kunden svarer ikke'));
-      this.later(20000 + simMs, () => this.telegram.injectText(chatId, name, `Ordre ${orderId} er leveret`));
+      step(9000 + simMs, () => this.telegram.injectText(chatId, name, 'Kunden svarer ikke'));
+      step(20000 + simMs, () => this.telegram.injectText(chatId, name, `Ordre ${orderId} er leveret`));
     } else {
-      this.later(9000 + simMs, () => this.telegram.injectText(chatId, name, `Ordre ${orderId} er leveret`));
+      step(9000 + simMs, () => this.telegram.injectText(chatId, name, `Ordre ${orderId} er leveret`));
     }
   }
 

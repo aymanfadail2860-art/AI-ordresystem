@@ -115,7 +115,8 @@ export function OrderDetail({ id, nav }: { id: number; nav: Nav }) {
           <dd>{o.driverName ?? '–'}</dd>
           <dt>ETA</dt>
           <dd>
-            {time(o.eta)}{' '}
+            {time(o.eta)}{o.etaLow && o.etaHigh ? ` (${time(o.etaLow)}–${time(o.etaHigh)})` : ''}{' '}
+            {o.etaConfidence && <span className={`badge ${o.etaConfidence === 'high' ? 'ok' : o.etaConfidence === 'medium' ? 'info' : 'warn'}`}>{{ high: 'sikker', medium: 'middel', low: 'usikker' }[o.etaConfidence]}</span>}{' '}
             {o.etaSource && <span className="muted small">({{ route_live: 'trafikdata', route_simulated: 'simuleret', estimate: 'estimat – loves ikke til kunden' }[o.etaSource] ?? o.etaSource})</span>}
           </dd>
           <dt>Bestilt</dt>
@@ -188,7 +189,11 @@ function eventLabel(e: OrderEvent): string {
     case 'offer_rejected': return 'Chaufføren afviste';
     case 'offer_expired': return 'Tilbud udløb';
     case 'driver_arrived': return 'Chauffør fremme';
-    case 'driver_delay': return `Chauffør melder ${d.minutes} min forsinkelse`;
+    case 'driver_delay': return `Chauffør melder ${d.minutes} min forsinkelse${d.reason ? ` (${d.reason})` : ''}`;
+    case 'driver_eta': return `Chauffør: fremme om ca. ${d.minutes} min`;
+    case 'eta_changed': return `ETA ændret ${time(String(d.from))} → ${time(String(d.to))} (${d.reason ?? ''})`;
+    case 'customer_notified': return d.kind === 'arrival_soon' ? `Kunden fik "stå klar"-besked (${d.minutes} min)` : `Kunden fik ETA-opdatering (${Number(d.deltaMinutes) > 0 ? '+' : ''}${d.deltaMinutes} min)`;
+    case 'plan_revalidated': return 'Ruteplan genberegnet før accept';
     case 'updated': {
       const names: Record<string, string> = { addressText: 'adresse', deliveryInstructions: 'bemærkning', requestedTime: 'ønsket tid', driverId: 'chauffør', paymentStatus: 'betaling', needsAttention: 'opmærksomhed', eta: 'ETA' };
       const keys = [...new Set(Object.keys(d).map((k) => names[k]).filter(Boolean))];
