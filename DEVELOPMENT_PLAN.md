@@ -65,6 +65,16 @@
 - ⬜ Planlagte daglige rapporter til ledelsesgruppen
 - ⬜ Opfyldning fra flere lagre i samme tur / delvis opfyldning
 
+## Etape 4 (udvidelse) – Rapporter, overvågning og driftssimulering (v0.4.0)
+- ✅ Automatiske timerapporter (Europe/Copenhagen, idempotente, uden AI)
+- ✅ Proaktiv ledelsesassistent (A/B/C/D, dedupe, eskalering, beslutningslog)
+- ✅ Dispatchstrategier til sammenligning (først-til-mølle, korteste omvej, økonomisk)
+- ✅ Hel-dags-driftssimulering med fast seed (300 ordrer, 8 chauffører, fejlvinduer)
+- ✅ Robusthedstests for 14 fejlscenarier; rettede fejl i periodiske jobs, opfyldningsløkke og Telegram-udfald
+- ✅ Kontrolpanel: Drift og overvågning
+- ⬜ Kalibrering af den økonomiske model, så den ikke øger andelen af forsinkede leverancer
+- ⬜ Simulering med medarbejder-bot og rigtige historiske ordredata (anonymiserede)
+
 ## Næste etape (forslag)
 
 1. **SMS Proof of Concept på rigtig iPhone + Mac** (blokerende for drift).

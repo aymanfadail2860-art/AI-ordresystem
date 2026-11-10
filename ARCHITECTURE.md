@@ -34,7 +34,8 @@ Ingen Supabase, Sentry, Vercel, Twilio, n8n eller SaaS-backend.
 │   │      └─ Regelbaserede fortolkere (demo)                 │
 │   ├─ Agenter: Customer/Order, Dispatch, Routing,            │
 │   │           Driver, Logistics/Monitoring,                 │
-│   │           Management (ledelsesgruppe), Replenishment    │
+│   │           Management (ledelsesgruppe), Replenishment,   │
+│   │           Rapporter, Proaktiv overvågning               │
 │   └─ Backup, GDPR-opbevaring, PIN-adgangskontrol            │
 │  API (createApi) ◄── IPC (preload, contextIsolation)        │
 └─────────────────────────────────────────────────────────────┘
@@ -62,6 +63,7 @@ køres af dev-webserveren (`src/devserver`). Kun `src/main` importerer Electron.
 | `src/server/ai` | Skemaer, AI-gateway, fortolkere |
 | `src/server/agents` | Agentmodulerne |
 | `src/server/demo` | Demodata og simulator |
+| `src/server/sim` | Hel-dags-driftssimulering, strategisammenligning, CLI og worker |
 | `src/main` | Electron main/preload, Keychain-nøglelager |
 | `src/renderer` | React-UI |
 | `tests` | Vitest-tests |
@@ -80,6 +82,8 @@ den tilfører værdi (fortolkning af fri tekst). Alt andet er deterministisk kod
 | E. Driver Communication Agent | `agents/driverAgent.ts` | Ja (kun fritekst) | Status/ETA/forsinkelser fra Telegram; knapper deterministisk; fritekst fortolkes; uklarhed → opklarende spørgsmål |
 | F. Monitoring Agent | `logisticsAgent.monitor`, `IntegrationRegistry`, `EventLog` | Nej | Integrationsstatus, usikre beskeder, ventende kunder, fejlede jobs, budget |
 | G. Management Agent | `agents/managementAgent.ts`, `services/management.ts`, `ai/managementInterpreter.ts` | Ja (kun fortolkning af intention) | Ledelsesgruppen i Telegram: spørgsmål besvares fra databasen; handlinger udføres via de eksisterende services efter rolle- og bekræftelseskontrol |
+| I. Rapporter | `agents/reports.ts` | Nej | Timerapporter og rapporter på forespørgsel – alle tal fra databasen |
+| J. Proaktiv overvågning | `agents/monitor.ts` | Nej | Hændelsesbaseret vurdering (A/B/C/D), dedupe, eskalering, beslutningslog |
 | H. Replenishment Agent | `agents/replenishment.ts`, `core/replenishment.ts` | Nej | Billagerprognose efter hvert stop, underskud, valg af opfyldningspunkt, godkendelse, chaufførkoordinering, påmindelse/eskalering |
 
 ### AI-sikkerhedsregler
@@ -243,6 +247,87 @@ udløb og genberegning.
 til de dækkede ordrer – atomisk og idempotent). Indtil da står berørte stop med
 lav ETA-sikkerhed og begrundelsen "afventer lageropfyldning".
 
+## Ur og tidszone
+
+Al backend-kode læser tiden via `src/server/clock.ts` (i drift systemets ur).
+Driftssimuleringen sætter et virtuelt ur i sin egen worker-tråd, så en hel dag
+afvikles på sekunder. Åbningstider, "i dag", månedsbudget og rapporttitler
+beregnes i virksomhedens tidszone (`company.timezone`, standard
+`Europe/Copenhagen`) med `src/core/time.ts` (Intl) – uafhængigt af maskinens
+tidszone og korrekt ved sommer-/vintertid (23- og 25-timers døgn).
+
+## Ledelsesrapporter (`agents/reports.ts`)
+
+- **Timerapport** lige efter hver hele time, hvis virksomheden var åben i den
+  forløbne time. UTC-timegrænser er også hele timer i Europe/Copenhagen; ved
+  skift til vintertid giver de to forekomster af kl. 02–03 to forskellige rapporter.
+- **Indhold:** omsætning og dækningsbidrag (seneste time og dagen), nye/leverede/
+  aktive/afventende ordrer, gennemsnitlig ordreværdi, aktive chauffører og
+  leveringer pr. chaufførtime, gennemsnitlig leveringstid og andel til tiden,
+  forsinkede ordrer og usikre ETA'er, lagerunderskud og opfyldninger, afventende
+  godkendelser, Claude-forbrug/budget, integrationsfejl og en kort regelbaseret
+  driftsvurdering. Ingen AI – rapporten virker uden Claude API.
+- **Ingen dobbeltrapporter:** unikt indeks pr. periode (`management_reports`),
+  rapporten lægges i Telegram-udbakken i samme transaktion med idempotensnøglen
+  `report:hourly:<periode>`. En rapport der var oprettet men ikke afsendt ved et
+  nedbrud, genoptages; en afsendelse der var i gang, markeres *usikker* og
+  gensendes aldrig. Efter længere nedetid sendes kun den seneste periode –
+  de mellemliggende registreres som *sprunget over*.
+- **På forespørgsel:** "Rapport" i ledelsesgruppen eller knappen i kontrolpanelet.
+  Uden Claude bruges den regelbaserede fortolker som reserve.
+- Chaufførtimer er en tilnærmelse: aktive chauffører pr. time (summeret over dagens timerapporter).
+
+## Proaktiv ledelsesassistent (`agents/monitor.ts`)
+
+Evalueres hvert minut og ved ændret integrationsstatus. Deterministisk, ingen AI.
+
+| Regel | A automatisk | B orientering | C godkendelse | D overtagelse |
+|---|---|---|---|---|
+| Kritisk forsinkelse | over tolerance: kunden opdateres automatisk | ≥ `criticalDelayMinutes` | – | ≥ `takeoverDelayMinutes`: ordren markeres |
+| Risiko for løftebrud | usikker ETA tæt på løftet | ≥ 3 ordrer hos samme chauffør | et omfordelingsforslag afventer | – |
+| Chauffør svarer ikke | (statusforespørgsel sendes af logistikken) | ≥ `unresponsiveMinutes` | – | ≥ 2 × grænsen |
+| Manglende kapacitet | dispatch prøver igen hvert minut | ordrer har ventet ≥ `capacityWaitMinutes` | – | ≥ 2 × grænsen |
+| Lagerunderskud | opfyldning beregnes/er i gang | ingen opfyldning efter 5 min | opfyldning afventer ledelsen | – |
+| Godkendelse udløber | – | – | opfyldning/instruktion udløber inden for `approvalWarnMinutes` | – |
+| Ordretilgang | – | 30 min mod gns. af de foregående 2 timer (faktor) | – | – |
+| Integration fejler | forringet | Maps/Claude nede (fallback) | – | SMS/Telegram nede |
+
+- **Ingen gentagne advarsler:** én åben advarsel pr. problem (`alert_key`, unikt
+  indeks). Nye beskeder til ledelsen kun ved eskalering til en højere kategori.
+  En kvitteret advarsel forbliver tavs, indtil den eskalerer eller løses; en
+  advarsel der genopstår inden 15 min, genåbnes i stedet for at blive ny.
+- Advarsler lukkes automatisk, når tilstanden ophører. Alle beslutninger og
+  handlinger logges i `monitor_decisions` og i hændelsesloggen.
+- Hvor et andet modul allerede sender beskeden (opfyldningsforslag med knapper,
+  påmindelser/eskalering), sender overvågningen ikke en ekstra besked.
+
+## Dispatchstrategier
+
+`economics.strategy`: `economic` (standard – AI Dispatchs økonomiske model),
+`shortest_detour` (mindst ekstra køretid) og `fifo` (først-til-mølle: ordren
+sættes bagerst i ruten; chaufføren der kan levere først vælges). Alle tre bruger
+samme hårde begrænsninger (løfter, maks. leveringstid, lager, kapacitet, låste
+stop, chaufføraccept). Sammenligningsstrategierne findes kun for at kunne måle
+den økonomiske model objektivt i driftssimuleringen.
+
+## Driftssimulering (`src/server/sim/`)
+
+- `daySimulation.ts` opretter en isoleret in-memory-installation (Demo Mode,
+  simulerede adaptere) og afvikler en hel arbejdsdag i virtuel tid: seeded kunder
+  (SMS, inkl. ændringer, annulleringer, afslag og ubesvarede tilbud), chauffører
+  (Telegram: accept/afvis/ignorér tilbud, kørsel, forsinkelser, "kunden svarer
+  ikke", lagerbesøg, svar på statusforespørgsler), ledere (godkender/afviser/
+  ignorerer opfyldninger) og fejlvinduer (Telegram-udfald, Google Maps-udfald,
+  en chauffør uden svar).
+- Al tilfældighed er nøglet til faste enheder (ordre, chauffør+ordre,
+  opfyldning), ikke til hændelsesrækkefølgen – så alle strategier møder samme
+  kunder og samme adfærd.
+- Kørsel: `npm run simulate` (CLI → `docs/simulation/`), worker-tråd fra
+  kontrolpanelet (Drift og overvågning → Driftssimulering) eller i tests.
+- Simuleringen bruger de rigtige agenter, regler, jobkø og database, men
+  simulerede integrationer; den beviser ikke ydeevne mod Apple Messages,
+  Telegram eller Google Maps.
+
 ## Ordretilstandsmaskine
 
 `src/core/orderStateMachine.ts`. Statusser: Ny henvendelse, Afventer kundeoplysninger,
@@ -269,6 +354,10 @@ annullering, fradrag ved levering) udføres i samme transaktion.
 | Tilbud med ruteplan + ruteversion overlever genstart; accept efter ruteændring planlægges igen | `DispatchAgent.acceptOffer` |
 | Dispatch serialiseres i én kø (`lane: dispatch`) – ingen dobbeltbooking ved samtidige ordrer | `DispatchAgent` |
 | Hændelsesdrevet; kun ét let deterministisk tjek pr. minut (ingen AI-polling) | `LogisticsAgent.tick` |
+| Gentagende jobs planlægges af jobkøen efter afslutning (også efter fejl) | `JobQueue.registerRecurring` |
+| Telegram-udfald: bevist ikke-afsendte beskeder prøves igen i ca. 35 min (op til 60 s mellem forsøg) | `TelegramGateway` |
+| Ledelseshandlinger overtages atomisk ved bekræftelse; afbrudt udførelse markeres *usikker* og gentages aldrig | `ManagementAgent` |
+| Timerapporter: én pr. periode, usikker afsendelse gensendes ikke | `ReportService` |
 
 ## Omkostningsstyring (AI)
 

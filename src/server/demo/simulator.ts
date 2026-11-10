@@ -275,6 +275,15 @@ export class DemoSimulator {
     }
   }
 
+  /** Simulér et Telegram-udfald (til afprøvning af overvågning og udbakke). */
+  setTelegramOutage(on: boolean): void {
+    this.telegram.setOutage(on);
+  }
+
+  get telegramOutage(): boolean {
+    return this.telegram.inOutage;
+  }
+
   status(): { activeBots: number; autoTraffic: boolean } {
     return { activeBots: this.bots.size, autoTraffic: this.ctx.settings.get().demo.autoTraffic };
   }

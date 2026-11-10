@@ -23,6 +23,8 @@ const DECISION: Record<string, { label: string; tone: string }> = {
   failed: { label: 'Kunne ikke udføres', tone: 'danger' },
   rejected: { label: 'Ikke mulig', tone: 'warn' },
   clarify: { label: 'Opklarende spørgsmål', tone: 'neutral' },
+  executing: { label: 'Udføres', tone: 'info' },
+  uncertain: { label: 'Afbrudt – kontrollér', tone: 'danger' },
 };
 
 /** Ledelsescenter: Telegram-ledelsesgruppen, godkendelser, kommandolog og rettigheder. */

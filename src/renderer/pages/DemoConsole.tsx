@@ -94,6 +94,15 @@ export function DemoConsole({ nav }: { nav: Nav }) {
             Start opfyldningsscenarie
           </button>
         </Card>
+        <Card title="Rapporter og proaktiv overvågning" actions={<button onClick={() => nav.go('operations')}>Åbn Drift og overvågning</button>}>
+          <p className="muted small">Timerapporter sendes automatisk hver hele time i åbningstiden. Overvågningen klassificerer hændelser som A (automatisk), B (orientering), C (godkendelse) eller D (overtagelse).</p>
+          <div className="row wrap" style={{ marginTop: 8 }}>
+            <button onClick={() => askAs('Rapport')}>Bed om rapport i gruppen</button>
+            <button onClick={() => void act(() => call('reports.sendNow')).then((ok) => ok && toast('Rapport sendt til ledelsesgruppen (simuleret)'))}>Send timerapport nu</button>
+            <button onClick={() => void act(() => call('demo.telegramOutage', { on: true }).then(() => call('monitoring.evaluate'))).then((ok) => ok && toast('Telegram-udfald simuleret'))}>Simulér Telegram-udfald</button>
+            <button onClick={() => void act(() => call('demo.telegramOutage', { on: false }).then(() => call('monitoring.evaluate'))).then((ok) => ok && toast('Telegram er tilbage'))}>Afslut udfald</button>
+          </div>
+        </Card>
         <Card title="Skriv som chauffør (Telegram)">
           <Field label="Chauffør">
             <select value={driverId} onChange={(e) => setDriverId(Number(e.target.value))}>

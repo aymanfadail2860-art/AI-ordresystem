@@ -699,6 +699,11 @@ export function createApi(host: AppHost): Record<string, Handler> {
         drivers: Math.trunc(num(p.drivers ?? 8, 'drivers')),
         strategies: strategies(p.strategies),
       }),
+    'demo.telegramOutage': (p) => {
+      const d = demoOnly(A());
+      d.setTelegramOutage(!!p.on);
+      return { on: d.telegramOutage };
+    },
     'demo.setAutoTraffic': (p) => {
       demoOnly(A());
       C().settings.update({ demo: { autoTraffic: !!p.enabled } });

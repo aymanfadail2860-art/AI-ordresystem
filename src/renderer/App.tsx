@@ -14,6 +14,7 @@ import { SettingsPage } from './pages/Settings';
 import { SetupWizard } from './pages/SetupWizard';
 import { DemoConsole } from './pages/DemoConsole';
 import { ManagementCenter } from './pages/ManagementCenter';
+import { Operations } from './pages/Operations';
 
 export type PageId =
   | 'dashboard'
@@ -26,6 +27,7 @@ export type PageId =
   | 'events'
   | 'settings'
   | 'management'
+  | 'operations'
   | 'setup'
   | 'demo';
 
@@ -43,6 +45,7 @@ const NAV: { id: PageId; label: string; icon: string }[] = [
   { id: 'products', label: 'Produkter og lager', icon: '▦' },
   { id: 'ai', label: 'AI Control Center', icon: '✦' },
   { id: 'management', label: 'Ledelsescenter', icon: '♛' },
+  { id: 'operations', label: 'Drift og overvågning', icon: '◉' },
   { id: 'events', label: 'Hændelser', icon: '⚑' },
   { id: 'settings', label: 'Indstillinger', icon: '⚙' },
 ];
@@ -55,6 +58,8 @@ export function App() {
   const { data: info } = useQuery<{ mode: string; setupCompleted: boolean; version: string }>('system.info', {}, ['settings']);
   const { data: repData } = useQuery<{ active: { status: string }[] }>('replenishment.overview', {}, ['replenishment']);
   const pending = repData?.active.filter((r) => r.status === 'awaiting_management').length ?? 0;
+  const { data: ops } = useQuery<{ openAlerts: { category: string; status: string }[] }>('operations.overview', {}, ['monitoring']);
+  const urgent = ops?.openAlerts.filter((a) => a.status === 'open' && (a.category === 'takeover' || a.category === 'approval')).length ?? 0;
 
   useEffect(() => {
     setLockHandler(() => new Promise<boolean>((resolve) => setPinPrompt(() => resolve)));
@@ -92,6 +97,7 @@ export function App() {
               {n.id === 'events' && stats && stats.openAlerts > 0 && <span className="nav-count danger">{stats.openAlerts}</span>}
               {n.id === 'orders' && stats && stats.needsManual > 0 && <span className="nav-count warn">{stats.needsManual}</span>}
               {n.id === 'management' && pending && pending > 0 ? <span className="nav-count warn">{pending}</span> : null}
+              {n.id === 'operations' && urgent > 0 ? <span className="nav-count danger">{urgent}</span> : null}
             </button>
           ))}
           {isDemo && (
@@ -148,6 +154,7 @@ export function App() {
           {page === 'events' && <Events nav={nav} />}
           {page === 'settings' && <SettingsPage />}
           {page === 'management' && <ManagementCenter />}
+          {page === 'operations' && <Operations />}
           {page === 'setup' && <SetupWizard nav={nav} />}
           {page === 'demo' && <DemoConsole nav={nav} />}
         </div>

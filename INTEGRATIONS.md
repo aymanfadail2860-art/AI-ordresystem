@@ -117,12 +117,19 @@ chat.db-læser + AppleScript i egen kode, eller en dedikeret Mac + iPhone).
 
 Opsætning: @BotFather → `/newbot` → token → Indstillinger → Integrationer.
 
+### Udfald og genforbindelse
+
+- Beskeder, der bevisligt ikke blev afsendt (netværksfejl, 5xx, rate limit), ligger i udbakken og prøves igen med stigende pause (1 s … 60 s) i ca. 35 minutter, før de markeres som fejlet. Usikre afsendelser gensendes aldrig.
+- Under et udfald markeres Telegram som *Fejl*; den proaktive overvågning klassificerer det som **D – kræver menneskelig overtagelse** (ring til chaufførerne), og hændelsen vises i kontrolpanelet, da ledelsesgruppen ikke kan nås via Telegram.
+- Tilbud, der udløber under et udfald, kan ikke accepteres bagefter; ordren planlægges igen.
+
 ### Ledelsesgruppe
 
 - Opret en Telegram-gruppe og tilføj botten. Slå *Group Privacy* fra hos @BotFather (`/setprivacy` → Disable), så botten modtager almindelige beskeder i gruppen – ellers kun kommandoer og svar til botten.
 - Indsæt gruppens chat-ID (negativt tal, fx `-100…`) i Ledelsescenter → Ledere og rettigheder. Botten reagerer kun på beskeder fra præcis den gruppe (og evt. private chats, hvis det er slået til).
 - Opret hver leder med rolle (Administrator / Leder / Observatør). Lederen skriver `/leder KODE` i gruppen eller privat til botten; derefter genkendes brugeren på Telegram-bruger-ID – **både chat-ID og bruger-ID verificeres** for hver besked.
 - Handlinger bekræftes med inline-knapper i gruppen. Opfyldningsforslag har knapperne Godkend / Vis alternativer / Afvis.
+- **Timerapporter** sendes automatisk hver hele time i åbningstiden og indeholder kun nøgletal, ordrenumre og chaufførnavne. Slå dem fra under `management.hourlyReports`. Proaktive advarsler (B/C/D) sendes også til gruppen (`monitoring.notifyGroup`).
 - Gruppen er ikke en sikker kanal for følsomme kundedata: svarene indeholder ordrenumre, adresser i forkortet form og beløb, men aldrig telefonnumre.
 
 ## 3. Google Maps Platform
@@ -145,5 +152,17 @@ Nøgle: aktivér Geocoding API og Routes API; begræns nøglen til disse.
 - Standardmodeller: `claude-haiku-5-5` (kundebeskeder, chaufførbeskeder), `claude-opus-5-5` (eskalering ved lav sikkerhed), fallback `claude-sonnet-5-5`. Alt kan ændres i AI Control Center; "Hent tilgængelige modeller" kalder Models API.
 - `stop_reason: refusal` → beskeden sendes til en medarbejder (ingen server-side fallback; en afvist kundebesked bør altid ses af et menneske).
 - SDK'et gentager automatisk 408/409/429/5xx; derudover gentager jobkøen og overdrager til medarbejder efter 3 forsøg.
+- Ledelsesrapporter og proaktive advarsler bruger **ikke** Claude. Er Claude utilgængelig, fortolkes ledelsesbeskeder regelbaseret (fx "Rapport", "Hvad har vi omsat for i dag?"); handlinger kræver stadig bekræftelse.
 - Virksomheden bruger sin egen nøgle – programmet afhænger ikke af udviklerens konto.
 - **Før drift:** kør et evalueringssæt med rigtige (anonymiserede) danske kundebeskeder for at måle fortolkningskvalitet og omkostning pr. ordre.
+
+## 5. Driftssimulering og integrationerne
+
+Driftssimuleringen (`npm run simulate`) bruger udelukkende simulerede adaptere:
+SMS-simulator, Telegram-simulator (med udfaldsvindue), simuleret kort (luftlinje ×
+1,35, 28 km/t, myldretidstillæg, med udfaldsvindue) og regelbaseret fortolkning.
+Den kan derfor ikke vise, hvordan imsg/Apple Messages, Telegram Bot API eller
+Google Maps opfører sig i drift (forsinkelser, rate limits, afsendelsesstatus,
+geokodningskvalitet, rigtige køretider). Disse skal stadig afprøves på rigtig
+hardware og med rigtige konti – se Proof of Concept ovenfor.
+
