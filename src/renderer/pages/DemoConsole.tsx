@@ -20,6 +20,9 @@ export function DemoConsole({ nav }: { nav: Nav }) {
   const [staffText, setStaffText] = useState('Hej, det er Lise fra kontoret – jeg hjælper dig videre.');
   const [driverId, setDriverId] = useState<number | ''>('');
   const [driverText, setDriverText] = useState('Jeg bliver 15 minutter forsinket');
+  const [mgr, setMgr] = useState('sim-mgr-leder');
+  const [mgrText, setMgrText] = useState('Hvad har vi omsat for i dag?');
+  const askAs = (text: string, who = mgr) => void act(() => call('demo.sendAsManager', { who, text })).then((ok) => ok && toast('Sendt til ledelsesgruppen (simuleret)'));
   if (!st) return null;
 
   return (
@@ -56,6 +59,40 @@ export function DemoConsole({ nav }: { nav: Nav }) {
           <Field label="Til nummer"><input value={phone} onChange={(e) => setPhone(e.target.value)} /></Field>
           <Field label="Besked"><textarea value={staffText} onChange={(e) => setStaffText(e.target.value)} /></Field>
           <button style={{ marginTop: 8 }} onClick={() => void act(() => call('demo.sendAsStaffFromPhone', { phone, text: staffText })).then((ok) => ok && toast('Manuel besked registreret'))}>Send fra "iPhone"</button>
+        </Card>
+        <Card title="Ledelsesgruppe (Telegram, simuleret)" actions={<button onClick={() => nav.go('management')}>Åbn Ledelsescenter</button>}>
+          <Field label="Skriv som">
+            <select value={mgr} onChange={(e) => setMgr(e.target.value)}>
+              <option value="sim-mgr-admin">Lise – administrator</option>
+              <option value="sim-mgr-leder">Omar – leder</option>
+              <option value="sim-mgr-obs">Jonas – observatør</option>
+            </select>
+          </Field>
+          <Field label="Besked"><input value={mgrText} onChange={(e) => setMgrText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && askAs(mgrText)} /></Field>
+          <div className="row wrap" style={{ marginTop: 8 }}>
+            <button className="primary" onClick={() => askAs(mgrText)}>Send</button>
+            {['Hvad har vi omsat for i dag?', 'Hvor mange ordrer mangler vi?', 'Hvem er mest forsinket?', 'Vis mig alle lagerproblemer', 'Rapport'].map((q) => (
+              <button key={q} onClick={() => askAs(q)}>{q}</button>
+            ))}
+          </div>
+          <div className="row wrap" style={{ marginTop: 8 }}>
+            {drivers?.slice(0, 3).map((d) => (
+              <button key={d.id} onClick={() => askAs(`Hvordan går det med chauffør ${d.id}?`)}>Status chauffør {d.id}</button>
+            ))}
+            <button onClick={() => askAs('Flyt ordre 4 til chauffør 2', 'sim-mgr-obs')}>Observatør forsøger handling</button>
+          </div>
+          <p className="muted small" style={{ marginTop: 8 }}>Handlinger kræver bekræftelse via knappen, som vises i gruppechatten under Ledelsescenter → Gruppechat. I demo kan du bekræfte ved at skrive her som samme leder og trykke i Ledelsescenteret.</p>
+        </Card>
+        <Card title="Lageropfyldning (scenarie)">
+          <p>Opretter 7 fiktive ordrer til én chauffør, som kun har cola nok til 5 stop. Systemet beregner lager efter hvert stop, finder det bedste opfyldningspunkt og sender et forslag til ledelsesgruppen.</p>
+          <ol className="small">
+            <li>Godkend forslaget (Ledelsescenter → Godkendelser, eller i Lageret).</li>
+            <li>Den simulerede chauffør accepterer, kører til lageret efter det valgte stop og bekræfter afhentningen.</li>
+            <li>Bilens lager øges først ved bekræftet afhentning (se Produkter og lager → Billager og opfyldning).</li>
+          </ol>
+          <button className="primary" style={{ marginTop: 8 }} onClick={() => void act(() => call<{ driverName: string; orderIds: number[] }>('demo.replenishmentScenario').then((r) => toast(`Scenarie startet for ${r.driverName}: ordrer ${r.orderIds.map((x) => '#' + x).join(', ')}`)))}>
+            Start opfyldningsscenarie
+          </button>
         </Card>
         <Card title="Skriv som chauffør (Telegram)">
           <Field label="Chauffør">

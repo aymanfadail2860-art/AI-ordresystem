@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { act, call, useQuery } from '../api';
 import { Card, DriverStatusBadge, Empty, Modal, OrderStatusBadge, PageHeader, Stat, ago, kr, time } from '../components/ui';
-import type { DecisionAnalysis, DispatchOffer, Driver, EtaConfidence, Order, ReassignmentSuggestion, RouteStop } from '../../shared/types';
+import type { DecisionAnalysis, DispatchOffer, Driver, EtaConfidence, Order, ReassignmentSuggestion, Replenishment, RouteStop } from '../../shared/types';
+import { ReplenishmentStatus } from './Replenishment';
 import type { Nav } from '../App';
 
 interface DriverRoute {
@@ -40,6 +41,11 @@ const CONF: Record<EtaConfidence, { label: string; tone: string }> = {
 
 export function Logistics({ nav }: { nav: Nav }) {
   const { data } = useQuery<Overview>('logistics.overview', {}, ['logistics', 'drivers', 'orders']);
+  const { data: reps } = useQuery<{ active: Replenishment[]; forecasts: { driverId: number; shortages: { productName: string; missing: number; firstStopOrderId: number }[] }[] }>(
+    'replenishment.overview',
+    {},
+    ['replenishment', 'inventory', 'logistics'],
+  );
   const [why, setWhy] = useState<{ title: string; analysis: DecisionAnalysis } | null>(null);
   if (!data) return <Empty>Indlæser…</Empty>;
   const active = data.drivers.filter((d) => d.stops.length || d.driver.status !== 'offline');
@@ -89,6 +95,24 @@ export function Logistics({ nav }: { nav: Nav }) {
                 </div>
               </div>
             </div>
+            {(() => {
+              const rep = reps?.active.find((x) => x.driverId === r.driver.id);
+              const fc = reps?.forecasts.find((x) => x.driverId === r.driver.id);
+              return (
+                <>
+                  {fc && fc.shortages.length > 0 && !rep && (
+                    <div className="callout danger" style={{ marginBottom: 8 }}>Forventet vareunderskud: {fc.shortages.map((s) => `${s.missing}× ${s.productName} fra #${s.firstStopOrderId}`).join(', ')}</div>
+                  )}
+                  {rep && (
+                    <div className="callout" style={{ marginBottom: 8 }}>
+                      🔄 Lagerbesøg #{rep.id} <ReplenishmentStatus status={rep.status} /> – {rep.items.map((i) => `${i.quantity}× ${i.productName}`).join(', ')} på {rep.locationName}
+                      {rep.afterOrderId ? ` efter #${rep.afterOrderId}` : ' før næste stop'}
+                      {rep.analysis ? ` · +${rep.analysis.chosen.extraDriveMinutes + rep.analysis.chosen.pickupMinutes} min · ca. ${kr(rep.analysis.chosen.costOre)}` : ''}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
             {r.stops.length ? (
               <table>
                 <thead>

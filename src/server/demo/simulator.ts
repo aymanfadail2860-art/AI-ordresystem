@@ -202,6 +202,28 @@ export class DemoSimulator {
       this.later(3000 + Math.random() * 5000, () => this.telegram.injectCallback(chatId, d.name, yes ? accept.data : reject.data));
       return;
     }
+    // Lagerbesøg: acceptér, kør til lageret når stoppet før er leveret, og bekræft afhentning
+    const repAccept = flat.find((b) => /^rep:\d+:driver_accept$/.test(b.data));
+    if (repAccept) {
+      const repId = parseInt(repAccept.data.split(':')[1], 10);
+      this.later(5000, () => this.telegram.injectCallback(chatId, d.name, repAccept.data));
+      const waitForPoint = () => {
+        const r = this.ctx.db.prepare(`SELECT status, after_order_id FROM replenishments WHERE id = ?`).get(repId) as { status: string; after_order_id: number | null } | undefined;
+        if (!r || !['en_route', 'awaiting_pickup'].includes(r.status)) {
+          if (r && ['awaiting_driver', 'approved'].includes(r.status)) this.later(8000, waitForPoint);
+          return;
+        }
+        const after = r.after_order_id ? this.ctx.orders.get(r.after_order_id) : null;
+        if (after && !['delivered', 'cancelled'].includes(after.status)) {
+          this.later(8000, waitForPoint);
+          return;
+        }
+        this.telegram.injectCallback(chatId, d.name, `rep:${repId}:arrived`);
+        this.later(6000, () => this.telegram.injectText(chatId, d.name, 'Afhentet – varerne er i bilen'));
+      };
+      this.later(9000, waitForPoint);
+      return;
+    }
     const pickup = flat.find((b) => b.data.endsWith(':pickup'));
     if (pickup) {
       const orderId = parseInt(pickup.data.split(':')[1], 10);
@@ -223,9 +245,12 @@ export class DemoSimulator {
     const simMs = travelMs / speed;
     const roll = Math.random();
     const busy = () => {
-      // Kør kun mod denne ordre, hvis den er først på ruten
+      // Kør kun mod denne ordre, hvis den er først på ruten og varerne er i bilen
       const first = this.ctx.drivers.routeStops(driverId)[0];
-      return first && first.orderId !== orderId;
+      if (first && first.orderId !== orderId) return true;
+      const o = this.ctx.orders.get(orderId);
+      const vehicle = this.ctx.drivers.get(driverId)?.vehicleLocationId;
+      return !!o && !!vehicle && o.stockLocationId !== vehicle;
     };
     const step = (ms: number, fn: () => void) =>
       this.later(ms, () => {

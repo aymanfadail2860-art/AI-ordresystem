@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { act, call, useQuery } from '../api';
 import { Card, Empty, Field, Modal, PageHeader, dateTime, kr } from '../components/ui';
 import type { Product, StockLevel, StockLocation, StockMovement } from '../../shared/types';
+import { VehicleStock } from './Replenishment';
 
 interface Inv {
   locations: StockLocation[];
@@ -10,17 +11,19 @@ interface Inv {
 }
 
 export function Products() {
-  const [tab, setTab] = useState<'catalog' | 'stock' | 'movements'>('catalog');
+  const [tab, setTab] = useState<'catalog' | 'stock' | 'vehicles' | 'movements'>('catalog');
   return (
     <>
       <PageHeader title="Produkter og lager" subtitle="Produktkatalog, priser, lagerlokationer (centrallager og biler) og lagerbevægelser." />
       <div className="tabs">
         <button className={`tab ${tab === 'catalog' ? 'active' : ''}`} onClick={() => setTab('catalog')}>Katalog og priser</button>
         <button className={`tab ${tab === 'stock' ? 'active' : ''}`} onClick={() => setTab('stock')}>Lagerbeholdning</button>
+        <button className={`tab ${tab === 'vehicles' ? 'active' : ''}`} onClick={() => setTab('vehicles')}>Billager og opfyldning</button>
         <button className={`tab ${tab === 'movements' ? 'active' : ''}`} onClick={() => setTab('movements')}>Lagerbevægelser</button>
       </div>
       {tab === 'catalog' && <Catalog />}
       {tab === 'stock' && <Stock />}
+      {tab === 'vehicles' && <VehicleStock embedded />}
       {tab === 'movements' && <Movements />}
     </>
   );

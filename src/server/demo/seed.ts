@@ -29,6 +29,12 @@ export const DEMO_DRIVERS = [
   { name: 'Nadia Demo', vehicle: 'Cargobike (demo)', lat: 55.6790, lng: 12.5900, status: 'offline' as const },
 ];
 
+export const DEMO_MANAGERS: [string, 'admin' | 'manager' | 'observer', string][] = [
+  ['Lise (admin, demo)', 'admin', 'sim-mgr-admin'],
+  ['Omar (leder, demo)', 'manager', 'sim-mgr-leder'],
+  ['Jonas (observatør, demo)', 'observer', 'sim-mgr-obs'],
+];
+
 export function seedDemo(ctx: Ctx): void {
   const existing = (ctx.db.prepare(`SELECT COUNT(*) AS c FROM products`).get() as { c: number }).c;
   if (existing > 0) return;
@@ -58,6 +64,11 @@ export function seedDemo(ctx: Ctx): void {
       }
     });
     seedHistory(ctx);
+    // Simuleret ledelsesgruppe med tre roller
+    ctx.settings.update({ management: { groupChatId: 'sim-mgmt-group', allowPrivateChats: true } });
+    for (const [name, role, uid] of DEMO_MANAGERS) {
+      ctx.db.prepare(`INSERT INTO management_users (name, role, telegram_user_id) VALUES (?, ?, ?)`).run(name, role, uid);
+    }
   })();
   ctx.events.log('info', 'demo', 'seeded', 'Demodata oprettet (fiktive kunder, chauffører og produkter)');
 }

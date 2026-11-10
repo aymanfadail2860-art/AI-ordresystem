@@ -347,6 +347,7 @@ export interface ManagementUser {
 export interface ManagementCommand {
   id: number;
   userName: string | null;
+  userTelegramId?: string | null;
   instruction: string;
   intent: string | null;
   params: Record<string, unknown> | null;

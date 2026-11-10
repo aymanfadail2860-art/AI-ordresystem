@@ -3,6 +3,8 @@ import { schemaVersion } from './db/database';
 import { SECRET_NAMES, maskSecret, type SecretName } from './secrets';
 import { startOfToday } from './services/orders';
 import { demoScenarios } from './demo/simulator';
+import { replenishmentScenario } from './demo/scenarios';
+import type { ManagementRole } from '../shared/types';
 import type {
   AiMode,
   DashboardStats,
@@ -552,6 +554,69 @@ export function createApi(host: AppHost): Record<string, Handler> {
       return { ok: true };
     },
 
+    // ---------------- Ledelsescenter ----------------
+    'management.overview': () => {
+      const app = A();
+      return {
+        users: app.management.users(),
+        commands: app.management.commands(200),
+        messages: app.management.messages(150),
+        pendingConfirmations: app.management.commands(200).filter((x) => x.decision === 'needs_confirmation'),
+        settings: app.ctx.settings.get().management,
+      };
+    },
+    'management.createUser': (p) => {
+      guard();
+      const role = str(p.role, 'rolle') as ManagementRole;
+      return A().management.createUser(str(p.name, 'navn', 100), role, 'staff');
+    },
+    'management.updateUser': (p) => {
+      guard();
+      return A().management.updateUser(num(p.id, 'id'), { role: typeof p.role === 'string' ? (p.role as ManagementRole) : undefined, active: typeof p.active === 'boolean' ? p.active : undefined }, 'staff');
+    },
+    'management.regenerateCode': (p) => {
+      guard();
+      return { code: A().management.regenerateCode(num(p.id, 'id'), 'staff') };
+    },
+    'management.setGroup': (p) => {
+      guard();
+      C().settings.update({ management: { groupChatId: str(p.groupChatId ?? '', 'chat-ID', 64).trim(), allowPrivateChats: !!p.allowPrivateChats } });
+      C().audit.record('staff', 'management_group', 'settings', String(p.groupChatId));
+      return { ok: true };
+    },
+
+    // ---------------- Lageropfyldning ----------------
+    'replenishment.overview': () => {
+      const app = A();
+      const c = app.ctx;
+      const forecasts = c.drivers
+        .list()
+        .filter((d) => d.vehicleLocationId)
+        .map((d) => {
+          const f = app.agents.replenishment.forecast(d.id);
+          return { driverId: f.driverId, driverName: f.driverName, vehicleLocationId: f.vehicleLocationId, start: f.start, stops: f.stops, shortages: f.shortages, activeReplenishmentId: f.activeReplenishmentId };
+        });
+      const reps = app.agents.replenishment.list({ limit: 100 });
+      return {
+        forecasts,
+        active: reps.filter((r) => !['completed', 'rejected', 'cancelled', 'expired'].includes(r.status)),
+        history: reps.filter((r) => ['completed', 'rejected', 'cancelled', 'expired'].includes(r.status)),
+        locations: c.inventory.locations(),
+        levels: c.inventory.levels(),
+        products: c.catalog.list({ includeInactive: true }),
+      };
+    },
+    'replenishment.events': (p) => A().agents.replenishment.events(num(p.id, 'id')),
+    'replenishment.approve': (p) => ({ message: A().agents.replenishment.approve(num(p.id, 'id'), { name: 'Kontoret (kontrolpanel)', source: 'staff' }) }),
+    'replenishment.reject': async (p) => ({
+      message: await A().agents.replenishment.reject(num(p.id, 'id'), { name: 'Kontoret (kontrolpanel)', source: 'staff' }, typeof p.reason === 'string' && p.reason ? p.reason : 'Afvist i kontrolpanelet'),
+    }),
+    'replenishment.cancel': (p) => ({ message: A().agents.replenishment.cancel(num(p.id, 'id'), 'staff', 'Annulleret i kontrolpanelet') }),
+    'replenishment.recompute': async (p) => {
+      await A().agents.replenishment.evaluate(num(p.driverId, 'chauffør'), 'manuel genberegning');
+      return { ok: true };
+    },
+
     // ---------------- Demo ----------------
     'demo.status': () => {
       const app = A();
@@ -572,6 +637,22 @@ export function createApi(host: AppHost): Record<string, Handler> {
     'demo.sendAsDriver': (p) => {
       demoOnly(A()).sendAsDriver(num(p.driverId, 'chauffør'), str(p.text, 'tekst', 1000));
       return { ok: true };
+    },
+    'demo.sendAsManager': (p) => {
+      const app = A();
+      demoOnly(app);
+      const who = str(p.who, 'bruger');
+      const u = app.management.users().find((x) => x.telegramUserId === who);
+      if (!u) throw new Error('Ukendt demo-leder');
+      const group = app.ctx.settings.get().management.groupChatId;
+      const tg = app.ctx.telegram.current as unknown as { injectGroupText(c: string, u: string, n: string, t: string): void; injectGroupCallback(c: string, u: string, n: string, d: string): void };
+      if (typeof p.data === 'string') tg.injectGroupCallback(group, who, u.name, p.data);
+      else tg.injectGroupText(group, who, u.name, str(p.text, 'tekst', 1000));
+      return { ok: true };
+    },
+    'demo.replenishmentScenario': async () => {
+      demoOnly(A());
+      return replenishmentScenario(A());
     },
     'demo.setAutoTraffic': (p) => {
       demoOnly(A());

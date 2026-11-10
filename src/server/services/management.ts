@@ -141,6 +141,7 @@ export class ManagementService {
     return (this.db.prepare(`SELECT * FROM management_commands ORDER BY id DESC LIMIT ?`).all(limit) as Record<string, unknown>[]).map((r) => ({
       id: r.id as number,
       userName: (r.user_name as string) ?? null,
+      userTelegramId: (r.telegram_user_id as string) ?? null,
       instruction: r.instruction as string,
       intent: (r.intent as string) ?? null,
       params: parseJson(r.params as string | null, null),

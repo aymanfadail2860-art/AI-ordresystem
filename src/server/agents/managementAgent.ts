@@ -363,7 +363,7 @@ export class ManagementAgent {
       contribution += v.contributionOre;
       estimated ||= v.contributionEstimated;
     }
-    return `💰 Omsætning i dag (leveret): ${formatDkk(d.rev)} fra ${d.n} ordrer.\nDækningsbidrag: ${formatDkk(contribution)}${estimated ? ' (delvist estimeret – vareomkostning mangler på nogle varer)' : ''}.\nUnder levering/bekræftet: ${open.n} ordrer for ${formatDkk(open.rev)} (ikke medregnet).\n(data kl. ${this.now()})`;
+    return `💰 Omsætning i dag (leveret): ${formatDkk(d.rev)} fra ${d.n} ordrer\nDækningsbidrag: ${formatDkk(contribution)}${estimated ? ' (delvist estimeret – vareomkostning mangler på nogle varer)' : ''}\nUnder levering/bekræftet: ${open.n} ordrer for ${formatDkk(open.rev)} (ikke medregnet).\n(data kl. ${this.now()})`;
   }
 
   private outstandingText(): string {
