@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.4.0] – 2026-11-10
+
+Etape 4: automatiske ledelsesrapporter, proaktiv overvågning og fuld driftssimulering. Arkitektur, Demo Mode og sikkerhedsregler er bevaret.
+
+### Tilføjet
+- **Timerapporter** til ledelsesgruppen hver hele time i åbningstiden (omsætning, dækningsbidrag, ordrer, leveringstid, forsinkelser, lager, godkendelser, AI-budget, driftsvurdering). Alle tal fra databasen, ingen AI. Idempotente (én pr. periode), crash-sikre, Europe/Copenhagen med sommer-/vintertid. Rapport på forespørgsel i gruppen og fra kontrolpanelet.
+- **Proaktiv ledelsesassistent**: kritiske forsinkelser, chauffører der ikke svarer, manglende kapacitet, lagerunderskud, godkendelser der udløber, ændringer i ordretilgang, integrationsfejl og risiko for løftebrud – klassificeret A/B/C/D, uden gentagne advarsler, med beslutningslog.
+- **Dispatchstrategier** til sammenligning: først-til-mølle, korteste ekstra køretid, økonomisk (standard).
+- **Hel-dags-driftssimulering** med fast seed (300 ordrer, 8 chauffører, fejlvinduer), `npm run simulate`, worker-tråd og resultater i `docs/simulation/`.
+- Kontrolpanel: **Drift og overvågning** (oversigt, timerapporter, advarsler, kritiske hændelser, integrationer, simulering og strategisammenligning – markeret som simuleret). Demo-konsol: rapport og simuleret Telegram-udfald.
+- Virtuelt ur (`clock.ts`) og tidszonehjælpere (`core/time.ts`); `company.timezone`.
+- Migration 4 (`management_reports`, `monitor_alerts`, `monitor_decisions`, `simulation_runs`), indstillinger `monitoring`, `management.hourlyReports`, `economics.strategy`.
+- 34 nye tests (i alt 147).
+
+### Rettet (fundet i Etape 4)
+- **Periodiske jobs stoppede efter første kørsel** (logistikkens minuttjek, opfyldningstjek, backup, dataopbevaring): de gen-planlagde sig selv, mens de kørte, og blev afvist af dedupe-indekset. Nyt `JobQueue.registerRecurring`.
+- **Opfyldningsforslag udløb straks og blev genskabt i en løkke**, når det sikre punkt var "før første stop" (deadline = nu). Ledelsen har nu altid mindst 10 min; hastende forslag markeres.
+- **Telegram-beskeder blev opgivet efter ca. 30 s udfald**; de venter nu op til ca. 35 min og markeres fejlet bagefter i stedet for at stå som "i kø".
+- Ledelsesbesked i "sending" ved nedbrud markeres nu usikker (gensendes aldrig).
+- **Ledelseshandlinger** overtages atomisk ved bekræftelse; en afbrudt udførelse markeres usikker og gentages ikke.
+- Ledelsen kunne ikke få rapport/svar uden Claude API – regelbaseret reserve.
+- Demo-fortolkeren fandt ikke adressen i "Kan I levere 2 … til Lærkevej 12" (kun første mønster blev prøvet), og vejnavne som "Egeallé"/"Rosenvænget" blev ikke genkendt ved afgrænsning.
+- "I dag", månedsbudget og åbningstider brugte maskinens tidszone – nu virksomhedens.
+- Dispatch-job døde efter 5 forsøg ved midlertidig mangel på chauffør (skabte støj i fejllisten).
+
+
 ## [0.3.0] – 2026-11-10
 
 Udvidelse: interaktiv ledelsesagent og proaktiv lageropfyldning. Arkitektur, Demo Mode og eksisterende tests er bevaret.

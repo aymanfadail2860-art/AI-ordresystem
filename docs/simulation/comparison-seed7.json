@@ -1,0 +1,230 @@
+{
+  "simulated": true,
+  "seed": 7,
+  "orders": 300,
+  "drivers": 8,
+  "results": [
+    {
+      "strategy": "fifo",
+      "seed": 7,
+      "ordersGenerated": 300,
+      "ordersAccepted": 266,
+      "delivered": 219,
+      "cancelled": 10,
+      "unresolved": 37,
+      "revenueOre": 2446300,
+      "contributionOre": 1740850,
+      "operatingHours": 12,
+      "deliveriesPerHour": 18.3,
+      "deliveriesPerDriverHour": 2.4,
+      "avgDeliveryMinutes": 93,
+      "p90DeliveryMinutes": 153,
+      "lateShare": 24.7,
+      "lateCount": 54,
+      "driveMinutes": 2605,
+      "driveMinutesPerDelivery": 11.9,
+      "extraDriveMinutes": 2695,
+      "depotDriveMinutes": 282,
+      "stockProblems": 65,
+      "replenishments": 40,
+      "replenishmentsCompleted": 30,
+      "managementInterventions": 131,
+      "failedOrUnresolvedActions": 120,
+      "offersRejectedOrExpired": 63,
+      "conversationsNeedingStaff": 9,
+      "integrationFailures": 2,
+      "hourlyReportsSent": 12,
+      "alertsRaised": 285,
+      "alertsByCategory": {
+        "auto": 162,
+        "inform": 26,
+        "approval": 94,
+        "takeover": 3
+      },
+      "driverHours": 92.5,
+      "simulatedEndAt": "2026-06-16T21:50:00.000Z",
+      "wallClockMs": 90498
+    },
+    {
+      "strategy": "shortest_detour",
+      "seed": 7,
+      "ordersGenerated": 300,
+      "ordersAccepted": 266,
+      "delivered": 230,
+      "cancelled": 8,
+      "unresolved": 28,
+      "revenueOre": 2532500,
+      "contributionOre": 1804550,
+      "operatingHours": 12,
+      "deliveriesPerHour": 19.2,
+      "deliveriesPerDriverHour": 2.4,
+      "avgDeliveryMinutes": 92.2,
+      "p90DeliveryMinutes": 170.5,
+      "lateShare": 40.9,
+      "lateCount": 94,
+      "driveMinutes": 2221,
+      "driveMinutesPerDelivery": 9.7,
+      "extraDriveMinutes": 2188,
+      "depotDriveMinutes": 286,
+      "stockProblems": 82,
+      "replenishments": 47,
+      "replenishmentsCompleted": 32,
+      "managementInterventions": 168,
+      "failedOrUnresolvedActions": 97,
+      "offersRejectedOrExpired": 51,
+      "conversationsNeedingStaff": 11,
+      "integrationFailures": 2,
+      "hourlyReportsSent": 12,
+      "alertsRaised": 397,
+      "alertsByCategory": {
+        "auto": 233,
+        "inform": 32,
+        "approval": 127,
+        "takeover": 5
+      },
+      "driverHours": 94.3,
+      "simulatedEndAt": "2026-06-16T23:00:00.000Z",
+      "wallClockMs": 93655
+    },
+    {
+      "strategy": "economic",
+      "seed": 7,
+      "ordersGenerated": 300,
+      "ordersAccepted": 266,
+      "delivered": 232,
+      "cancelled": 9,
+      "unresolved": 25,
+      "revenueOre": 2585800,
+      "contributionOre": 1834350,
+      "operatingHours": 12,
+      "deliveriesPerHour": 19.3,
+      "deliveriesPerDriverHour": 2.5,
+      "avgDeliveryMinutes": 83.6,
+      "p90DeliveryMinutes": 168,
+      "lateShare": 33.6,
+      "lateCount": 78,
+      "driveMinutes": 2255,
+      "driveMinutesPerDelivery": 9.7,
+      "extraDriveMinutes": 2237,
+      "depotDriveMinutes": 277,
+      "stockProblems": 87,
+      "replenishments": 47,
+      "replenishmentsCompleted": 31,
+      "managementInterventions": 148,
+      "failedOrUnresolvedActions": 84,
+      "offersRejectedOrExpired": 62,
+      "conversationsNeedingStaff": 10,
+      "integrationFailures": 2,
+      "hourlyReportsSent": 12,
+      "alertsRaised": 367,
+      "alertsByCategory": {
+        "auto": 225,
+        "inform": 31,
+        "approval": 107,
+        "takeover": 4
+      },
+      "driverHours": 93.6,
+      "simulatedEndAt": "2026-06-16T22:40:00.000Z",
+      "wallClockMs": 88635
+    }
+  ],
+  "best": {
+    "delivered": [
+      "economic"
+    ],
+    "revenueOre": [
+      "economic"
+    ],
+    "contributionOre": [
+      "economic"
+    ],
+    "deliveriesPerDriverHour": [
+      "economic"
+    ],
+    "avgDeliveryMinutes": [
+      "economic"
+    ],
+    "p90DeliveryMinutes": [
+      "fifo"
+    ],
+    "lateShare": [
+      "fifo"
+    ],
+    "driveMinutesPerDelivery": [
+      "shortest_detour",
+      "economic"
+    ],
+    "depotDriveMinutes": [
+      "economic"
+    ],
+    "stockProblems": [
+      "fifo"
+    ],
+    "managementInterventions": [
+      "fifo"
+    ],
+    "failedOrUnresolvedActions": [
+      "economic"
+    ]
+  },
+  "economicNotBest": [
+    "90 %-fraktil leveringstid (min)",
+    "Andel forsinkede (%)",
+    "Lagerproblemer",
+    "Ledelsesindgreb"
+  ],
+  "summary": [
+    "AI Dispatch mod A. Først-til-mølle: dækningsbidrag +935 kr., leverede 232 mod 219, forsinkede 33,6 % mod 24,7 %, gns. leveringstid 83,6 mod 93 min.",
+    "AI Dispatch mod B. Korteste ekstra køretid: dækningsbidrag +298 kr., leverede 232 mod 230, forsinkede 33,6 % mod 40,9 %, gns. leveringstid 83,6 mod 92,2 min.",
+    "AI Dispatch er IKKE bedst på: 90 %-fraktil leveringstid (min), Andel forsinkede (%), Lagerproblemer, Ledelsesindgreb."
+  ],
+  "logs": {
+    "fifo": [
+      "08:12Z Ledelsen reagerer ikke på opfyldning #3",
+      "08:27Z Chauffør 3 venter ikke længere på opfyldning #4 – henter selv ordre #3 på lageret",
+      "10:06Z Ledelsen reagerer ikke på opfyldning #14",
+      "11:40Z Telegram-udfald starter",
+      "11:52Z Telegram-udfald slutter",
+      "12:16Z Ledelsen reagerer ikke på opfyldning #22",
+      "14:10Z Google Maps-udfald starter",
+      "14:30Z Google Maps-udfald slutter",
+      "16:57Z Ledelsen reagerer ikke på opfyldning #36",
+      "21:50Z Udnyttelse: kørsel/levering 4304 min, venter på opfyldning 62 min, online 5550 min",
+      "21:50Z Ordrestatus ved dagens slutning: cancelled=35, delivered=219, needs_manual=37, new_inquiry=9"
+    ],
+    "shortest_detour": [
+      "08:12Z Ledelsen reagerer ikke på opfyldning #3",
+      "08:27Z Chauffør 3 venter ikke længere på opfyldning #4 – henter selv ordre #3 på lageret",
+      "09:43Z Chauffør 7 venter ikke længere på opfyldning #11 – henter selv ordre #26 på lageret",
+      "10:08Z Ledelsen reagerer ikke på opfyldning #14",
+      "10:24Z Chauffør 6 venter ikke længere på opfyldning #18 – henter selv ordre #39 på lageret",
+      "11:29Z Ledelsen reagerer ikke på opfyldning #22",
+      "11:40Z Telegram-udfald starter",
+      "11:52Z Telegram-udfald slutter",
+      "11:55Z Chauffør 3 venter ikke længere på opfyldning #24 – henter selv ordre #85 på lageret",
+      "14:10Z Google Maps-udfald starter",
+      "14:30Z Google Maps-udfald slutter",
+      "16:38Z Ledelsen reagerer ikke på opfyldning #36",
+      "18:15Z Chauffør 1 venter ikke længere på opfyldning #40 – henter selv ordre #239 på lageret",
+      "18:58Z Ledelsen reagerer ikke på opfyldning #44",
+      "19:16Z Chauffør 8 venter ikke længere på opfyldning #45 – henter selv ordre #288 på lageret",
+      "23:00Z Udnyttelse: kørsel/levering 4012 min, venter på opfyldning 132 min, online 5658 min",
+      "23:00Z Ordrestatus ved dagens slutning: cancelled=33, delivered=230, needs_manual=27, new_inquiry=9, out_for_delivery=1"
+    ],
+    "economic": [
+      "08:12Z Ledelsen reagerer ikke på opfyldning #3",
+      "08:27Z Chauffør 3 venter ikke længere på opfyldning #4 – henter selv ordre #3 på lageret",
+      "09:32Z Chauffør 6 venter ikke længere på opfyldning #12 – henter selv ordre #16 på lageret",
+      "10:06Z Ledelsen reagerer ikke på opfyldning #14",
+      "11:40Z Telegram-udfald starter",
+      "11:52Z Telegram-udfald slutter",
+      "13:33Z Ledelsen reagerer ikke på opfyldning #22",
+      "14:10Z Google Maps-udfald starter",
+      "14:30Z Google Maps-udfald slutter",
+      "16:29Z Ledelsen reagerer ikke på opfyldning #36",
+      "18:52Z Ledelsen reagerer ikke på opfyldning #44",
+      "22:40Z Udnyttelse: kørsel/levering 4191 min, venter på opfyldning 85 min, online 5617 min",
+      "22:40Z Ordrestatus ved dagens slutning: cancelled=34, delivered=232, needs_manual=25, new_inquiry=9"
+    ]
+  }
+}
