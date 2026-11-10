@@ -10,6 +10,8 @@ export class SimulatedTelegramAdapter implements TelegramAdapter {
   readonly simulated = true;
   readonly outbox = new EventEmitter(); // 'sent' (chatId, text, buttons)
   private handlers: TelegramHandlers | null = null;
+  /** Simuleret netværksudfald (driftssimulering/tests): intet sendes eller modtages. */
+  private outage = false;
   private updateId = 0;
   private messageId = 0;
 
@@ -23,7 +25,19 @@ export class SimulatedTelegramAdapter implements TelegramAdapter {
     this.handlers = null;
   }
 
+  /** Slå et simuleret netværksudfald til/fra. */
+  setOutage(on: boolean): void {
+    if (this.outage === on) return;
+    this.outage = on;
+    this.handlers?.onHealth(on ? 'error' : 'ok', on ? 'Simuleret netværksudfald – Telegram kan ikke nås' : 'Simuleret Telegram-bot (Demo Mode)');
+  }
+
+  get inOutage(): boolean {
+    return this.outage;
+  }
+
   async sendMessage(chatId: string, text: string, buttons?: TelegramButton[][]): Promise<TelegramSendResult> {
+    if (this.outage) return { disposition: 'not_started', error: 'Simuleret netværksudfald' };
     this.messageId++;
     setImmediate(() => this.outbox.emit('sent', chatId, text, buttons ?? []));
     return { disposition: 'sent', messageId: String(this.messageId) };
@@ -54,6 +68,7 @@ export class SimulatedTelegramAdapter implements TelegramAdapter {
 
   private push(u: Omit<Parameters<TelegramHandlers['onUpdate']>[0], 'updateId' | 'at'>): void {
     if (!this.handlers) throw new Error('Telegram-simulator er ikke startet');
+    if (this.outage) throw new Error('Simuleret netværksudfald – beskeden kan ikke modtages');
     this.updateId++;
     this.handlers.onUpdate({ ...u, updateId: `sim-${this.updateId}`, at: clock.date().toISOString() });
     this.handlers.saveOffset(this.updateId);

@@ -64,6 +64,9 @@ interface Row {
  * - Bilens lager øges FØRST ved bekræftet fysisk afhentning.
  * - Påmindelse og eskalering før sidste sikre opfyldningspunkt.
  */
+/** Mindste beslutningsvindue for ledelsen (minutter). */
+const MIN_DECISION_MINUTES = 10;
+
 export class ReplenishmentService {
   /** Sættes efter konstruktion (undgår cirkulær afhængighed). */
   onUncoverable: ((orderIds: number[], driverId: number) => Promise<void>) | null = null;
@@ -75,13 +78,7 @@ export class ReplenishmentService {
     ctx.jobs.register('replenishment_check', async (job) => {
       await this.evaluate(job.payload.driverId as number, (job.payload.reason as string) ?? 'genberegning');
     });
-    ctx.jobs.register('replenishment_tick', async () => {
-      try {
-        await this.tick();
-      } finally {
-        ctx.jobs.enqueue('replenishment_tick', {}, { delayMs: 60_000, dedupeKey: 'replenishment_tick' });
-      }
-    });
+    ctx.jobs.registerRecurring('replenishment_tick', 60_000, async () => this.tick());
     ctx.bus.on('route_refreshed', ({ driverId }: { driverId: number }) => this.scheduleCheck(driverId, 'rute genberegnet'));
   }
 
@@ -385,7 +382,12 @@ export class ReplenishmentService {
       return null;
     }
     const chosen = feasible[0];
-    const deadline = Math.max(...feasible.filter((r) => r.locationId === chosen.locationId).map((r) => r.safeUntilMs));
+    // Ledelsen skal altid have et reelt beslutningsvindue – ellers udløber forslaget straks og
+    // genskabes i en løkke (fundet i driftssimuleringen). Er det sikre punkt nærmere, markeres det som hastende.
+    const window = MIN_DECISION_MINUTES * 60_000;
+    const safe = Math.max(...feasible.filter((r) => r.locationId === chosen.locationId).map((r) => r.safeUntilMs));
+    const deadline = Math.max(safe, clock.now() + window);
+    if (safe < clock.now() + window) intro = `${intro ?? '🔄 Forslag til lageropfyldning'} – HASTER: beslut hurtigst muligt`;
     const reasoning = this.reasoning(chosen, feasible, results);
     const analysis = { chosen: this.toOption(chosen), alternatives: results.filter((r) => r !== chosen).slice(0, 6).map((r) => this.toOption(r)), reasoning, rejectedOptions: excluded };
     let id: number;

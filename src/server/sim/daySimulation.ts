@@ -1,0 +1,774 @@
+import os from 'node:os';
+import path from 'node:path';
+import { clock } from '../clock';
+import { createApp, type App } from '../app';
+import { MemorySecretStore } from '../secrets';
+import { SimulatedSmsAdapter } from '../adapters/sms/simulator';
+import { SimulatedTelegramAdapter } from '../adapters/telegram/simulator';
+import { SimulatedMapsAdapter, simulatedTravel } from '../adapters/maps/simulator';
+import type { LatLng } from '../../core/geo';
+import { DEFAULT_TZ, localToUtc, zonedParts } from '../../core/time';
+import { DISPATCH_STRATEGY_LABELS, type DispatchStrategy, type SimulationMetrics } from '../../shared/types';
+
+/**
+ * DRIFTSSIMULERING – en hel arbejdsdag i Demo Mode.
+ *
+ * Kører hele AI Dispatch (samme agenter, jobkø, database og regler som i drift)
+ * i en isoleret in-memory-installation med simulerede adaptere og et virtuelt
+ * ur. Kunder (SMS), chauffører (Telegram) og ledere (Telegram-gruppe) er
+ * deterministiske bots styret af et fast random seed. Der sendes ALDRIG rigtige
+ * beskeder eller API-kald, og resultaterne er simulerede – de beviser ikke
+ * ydeevne mod rigtige Apple Messages-, Telegram- eller Google Maps-integrationer.
+ *
+ * Fair sammenligning af strategier: alle tilfældige valg er nøglet til faste
+ * enheder (ordre, chauffør+ordre, opfyldning), ikke til rækkefølgen af
+ * hændelser, så den samme ordre/chauffør opfører sig ens i alle strategier.
+ */
+
+export interface SimConfig {
+  seed: number;
+  orders: number;
+  drivers: number;
+  strategy: DispatchStrategy;
+  /** Lokal dato (YYYY-MM-DD) i Europe/Copenhagen. */
+  date?: string;
+  openHour?: number;
+  closeHour?: number;
+  /** Midlertidige integrationsfejl og en chauffør der ikke svarer. */
+  failures?: boolean;
+  stepSeconds?: number;
+  onProgress?: (pct: number) => void;
+  /** Fejlfinding: undersøg simuleringens database før den lukkes. */
+  inspect?: (app: App) => void;
+}
+
+// ---------------- Deterministisk tilfældighed ----------------
+
+export function mulberry32(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function hash(...parts: (string | number)[]): number {
+  let h = 2166136261;
+  for (const ch of parts.join('|')) {
+    h ^= ch.charCodeAt(0);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+/** Tilfældighed nøglet til en enhed – uafhængig af hændelsesrækkefølge. */
+function keyed(seed: number, ...parts: (string | number)[]): () => number {
+  return mulberry32(hash(seed, ...parts));
+}
+
+// ---------------- Testdata ----------------
+
+const PRODUCTS = [
+  { sku: 'RB', name: 'Red Bull', category: 'Energidrik', price: 2500, cost: 1250, weight: 14, syn: ['redbull'] },
+  { sku: 'MON', name: 'Monster', category: 'Energidrik', price: 2500, cost: 1300, weight: 9, syn: [] },
+  { sku: 'COLA', name: 'Coca-Cola', category: 'Sodavand', price: 2000, cost: 800, weight: 14, syn: ['cola'] },
+  { sku: 'FAXE', name: 'Faxe Kondi', category: 'Sodavand', price: 1800, cost: 700, weight: 8, syn: ['faxe'] },
+  { sku: 'VAND', name: 'Danskvand', category: 'Vand', price: 1200, cost: 300, weight: 7, syn: [] },
+  { sku: 'CHIPS', name: 'Kartoffelchips', category: 'Snacks', price: 3000, cost: 1400, weight: 12, syn: ['chips'] },
+  { sku: 'POP', name: 'Popcorn', category: 'Snacks', price: 2500, cost: 900, weight: 5, syn: [] },
+  { sku: 'VING', name: 'Vingummi', category: 'Slik', price: 2200, cost: 800, weight: 8, syn: [] },
+  { sku: 'CHOK', name: 'Chokoladebar', category: 'Slik', price: 2000, cost: 1000, weight: 7, syn: ['chokolade'] },
+  { sku: 'IS', name: 'Isbæger', category: 'Is', price: 4500, cost: 2200, weight: 5, syn: ['is'] },
+  { sku: 'KAFFE', name: 'Iskaffe', category: 'Kaffe', price: 3500, cost: 1000, weight: 5, syn: [] },
+  { sku: 'MAELK', name: 'Letmælk', category: 'Dagligvarer', price: 1800, cost: 1100, weight: 3, syn: ['mælk'] },
+  { sku: 'BATT', name: 'Batterier', category: 'Husholdning', price: 7900, cost: 3500, weight: 2, syn: [] },
+  { sku: 'TOILET', name: 'Toiletpapir', category: 'Husholdning', price: 5000, cost: 3000, weight: 2, syn: [] },
+  { sku: 'OPLADER', name: 'Telefonoplader', category: 'Elektronik', price: 14900, cost: 6000, weight: 1, syn: ['oplader'] },
+];
+/** Varer der starter i bilerne (resten ligger kun på centrallageret). */
+const VEHICLE_SKUS = ['RB', 'MON', 'COLA', 'FAXE', 'VAND', 'CHIPS', 'VING', 'CHOK'];
+const STREETS = ['Lærkevej', 'Birkegade', 'Egeallé', 'Solsikkevej', 'Havnegade', 'Skovvej', 'Rosenvænget', 'Kastanjevej', 'Mølleparken', 'Strandvej', 'Bøgevej', 'Engvej'];
+const POSTS = ['2200 København N', '2100 København Ø', '2300 København S', '2000 Frederiksberg', '2400 København NV', '2500 Valby'];
+/** Relativ efterspørgsel pr. lokal time (frokost- og aftenspids). */
+const DEMAND: Record<number, number> = { 10: 3, 11: 6, 12: 8, 13: 6, 14: 4, 15: 4, 16: 6, 17: 9, 18: 10, 19: 9, 20: 8, 21: 5 };
+
+type CustomerKind = 'normal' | 'ignore_quote' | 'modify' | 'cancel_after' | 'decline';
+
+interface PlannedOrder {
+  i: number;
+  at: number;
+  phone: string;
+  text: string;
+  kind: CustomerKind;
+  replyDelayS: number;
+  addSku: string;
+}
+
+function planOrders(cfg: Required<Omit<SimConfig, 'onProgress' | 'inspect'>>, openMs: number): PlannedOrder[] {
+  const rng = mulberry32(cfg.seed);
+  const hours: number[] = [];
+  for (let h = cfg.openHour; h < cfg.closeHour; h++) hours.push(h);
+  const weights = hours.map((h) => DEMAND[h] ?? 3);
+  const total = weights.reduce((a, b) => a + b, 0);
+  const pick = <T>(arr: T[]) => arr[Math.floor(rng() * arr.length)];
+  const pickProduct = () => {
+    const sum = PRODUCTS.reduce((a, p) => a + p.weight, 0);
+    let x = rng() * sum;
+    for (const p of PRODUCTS) if ((x -= p.weight) <= 0) return p;
+    return PRODUCTS[0];
+  };
+  const out: PlannedOrder[] = [];
+  for (let i = 0; i < cfg.orders; i++) {
+    // Ankomsttid: vælg time efter efterspørgsel, derefter tilfældigt minut (undgå sidste 10 min)
+    let x = rng() * total;
+    let hi = 0;
+    while ((x -= weights[hi]) > 0) hi++;
+    const at = openMs + (hours[hi] - cfg.openHour) * 3_600_000 + Math.floor(rng() * 50 * 60_000);
+    const n = 1 + Math.floor(rng() * rng() * 4);
+    const items = new Map<string, number>();
+    for (let k = 0; k < n; k++) {
+      const p = pickProduct();
+      items.set(p.name, (items.get(p.name) ?? 0) + 1 + Math.floor(rng() * rng() * 4));
+    }
+    const address = `${pick(STREETS)} ${1 + Math.floor(rng() * 140)}, ${pick(POSTS)}`;
+    const list = [...items].map(([name, q]) => `${q} ${name}`);
+    const itemsText = list.length > 1 ? `${list.slice(0, -1).join(', ')} og ${list.at(-1)}` : list[0];
+    const greet = pick(['Hej! Kan jeg få', 'Hej, jeg vil gerne bestille', 'Kan I levere', 'Hej, må jeg få']);
+    const r = rng();
+    const kind: CustomerKind = r < 0.04 ? 'ignore_quote' : r < 0.07 ? 'decline' : r < 0.13 ? 'modify' : r < 0.17 ? 'cancel_after' : 'normal';
+    out.push({
+      i,
+      at,
+      phone: `+4561${String(100000 + i).slice(-6)}`,
+      text: `${greet} ${itemsText} til ${address}?`,
+      kind,
+      replyDelayS: 20 + Math.floor(rng() * 120),
+      addSku: pick(['Coca-Cola', 'Kartoffelchips', 'Red Bull', 'Vingummi']),
+    });
+  }
+  return out.sort((a, b) => a.at - b.at);
+}
+
+// ---------------- Simuleret kort med fejlvinduer ----------------
+
+class SimMaps extends SimulatedMapsAdapter {
+  failing = false;
+  constructor(private c: LatLng) {
+    super(c);
+  }
+  /** Leveringsområde ca. ±3,5 km omkring centrum (en tæt bydel). */
+  override async geocode(address: string) {
+    if (this.failing) throw new Error('Simuleret kortfejl (HTTP 503)');
+    const g = await super.geocode(address);
+    if (!g.found || g.lat == null || g.lng == null) return g;
+    return { ...g, lat: this.c.lat + (g.lat - this.c.lat) * 0.5, lng: this.c.lng + (g.lng - this.c.lng) * 0.5 };
+  }
+  override async travelMatrix(o: LatLng[], d: LatLng[]) {
+    if (this.failing) throw new Error('Simuleret kortfejl (HTTP 503)');
+    return super.travelMatrix(o, d);
+  }
+}
+
+// ---------------- Chauffør-bot ----------------
+
+interface Step {
+  at: number;
+  act: () => void;
+}
+
+interface DriverBot {
+  id: number;
+  uid: string;
+  name: string;
+  vehicleLoc: number;
+  pos: LatLng;
+  shiftStart: number;
+  shiftEnd: number;
+  online: boolean;
+  onlineSince: number | null;
+  onlineMs: number;
+  plan: Step[];
+  busyWith: string | null;
+  decided: Set<number>;
+  repDecided: Set<number>;
+  doneUnreported: Set<number>;
+  waitingSince: number | null;
+  silentFrom: number | null;
+  silentTo: number | null;
+}
+
+export interface SimResult {
+  metrics: SimulationMetrics;
+  config: Omit<SimConfig, 'onProgress' | 'inspect'>;
+  /** Hændelser undervejs (til fejlfinding og dokumentation). */
+  log: string[];
+}
+
+export async function runDaySimulation(input: SimConfig): Promise<SimResult> {
+  const cfg = {
+    date: '2026-06-16',
+    openHour: 10,
+    closeHour: 22,
+    failures: true,
+    stepSeconds: 30,
+    ...input,
+  } as Required<SimConfig>;
+  const wallStart = Date.now();
+  const [Y, M, D] = cfg.date.split('-').map(Number);
+  const openMs = localToUtc(Y, M, D, cfg.openHour, 0, DEFAULT_TZ);
+  const closeMs = localToUtc(Y, M, D, cfg.closeHour, 0, DEFAULT_TZ);
+  const at = (h: number, m = 0) => localToUtc(Y, M, D, h, m, DEFAULT_TZ);
+  let now = openMs - 20 * 60_000;
+  clock.set(() => now);
+  const log: string[] = [];
+  const note = (msg: string) => log.push(`${new Date(now).toISOString().slice(11, 16)}Z ${msg}`);
+
+  const sms = new SimulatedSmsAdapter();
+  const tg = new SimulatedTelegramAdapter();
+  const maps = new SimMaps({ lat: 55.6761, lng: 12.5683 });
+  let app: App | null = null;
+  try {
+    app = await createApp({
+      mode: 'demo',
+      dbFile: ':memory:',
+      backupDir: path.join(os.tmpdir(), 'ai-dispatch-sim'),
+      secrets: new MemorySecretStore(),
+      manualJobs: true,
+      skipSeed: true,
+      now: () => now,
+      overrides: { sms, telegram: tg, maps, llm: null },
+    });
+    await app.start();
+    app.demo?.stop();
+    const ctx = app.ctx;
+    const GROUP = 'sim-mgmt-group';
+    ctx.settings.update({
+      company: { name: 'Simuleret Kiosk ApS (fiktiv)', phone: '+4570000000', timezone: DEFAULT_TZ },
+      installation: { automationEnabled: true },
+      openingHours: Object.fromEntries(
+        ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].map((d) => [d, { open: `${String(cfg.openHour).padStart(2, '0')}:00`, close: `${String(cfg.closeHour).padStart(2, '0')}:00`, closed: false }]),
+      ) as never,
+      pricing: { deliveryFeeOre: 3900, freeDeliveryThresholdOre: 30000, minimumOrderOre: 0 },
+      management: { groupChatId: GROUP, allowPrivateChats: false, hourlyReports: true },
+      delivery: { requireDriverAcceptance: true, offerTimeoutSeconds: 120 },
+      economics: { strategy: cfg.strategy },
+      demo: { autoTraffic: false },
+    });
+    // Katalog og lager
+    const products = new Map<string, number>();
+    for (const p of PRODUCTS) products.set(p.sku, ctx.catalog.create({ sku: p.sku, name: p.name, category: p.category, priceOre: p.price, costOre: p.cost, synonyms: p.syn }).id);
+    const depot = { lat: 55.6815, lng: 12.5545 };
+    const central = ctx.inventory.createLocation('Centrallager (simuleret)', 'central', null, depot.lat, depot.lng);
+    for (const id of products.values()) ctx.inventory.adjust(central, id, 600, 'simulering', 'system');
+    // Ledelse
+    const managers = [
+      { name: 'Lise (admin, simuleret)', role: 'admin' as const, uid: 'sim-mgr-1' },
+      { name: 'Omar (leder, simuleret)', role: 'manager' as const, uid: 'sim-mgr-2' },
+    ];
+    for (const m of managers) {
+      const u = app.management.createUser(m.name, m.role, 'simulering');
+      app.management.link(u.linkCode!, m.uid);
+    }
+    // Chauffører: de fleste hele dagen, to på spidsbelastningsvagter
+    const bots: DriverBot[] = [];
+    for (let k = 0; k < cfg.drivers; k++) {
+      const d = ctx.drivers.create({ name: `Chauffør ${k + 1}`, vehicleName: `Bil ${k + 1}`, maxActiveOrders: 6 });
+      const uid = `sim-driver-${d.id}`;
+      ctx.db.prepare(`UPDATE drivers SET telegram_user_id = ?, telegram_chat_id = ? WHERE id = ?`).run(uid, uid, d.id);
+      ctx.drivers.setStatus(d.id, 'offline');
+      const vloc = ctx.drivers.get(d.id)!.vehicleLocationId!;
+      for (const sku of VEHICLE_SKUS) ctx.inventory.adjust(vloc, products.get(sku)!, 18, 'bil – startlager', 'system');
+      const peak = k >= Math.max(2, cfg.drivers - 2);
+      const lunch = k % 2 === 0;
+      bots.push({
+        id: d.id,
+        uid,
+        name: d.name,
+        vehicleLoc: vloc,
+        pos: depot,
+        shiftStart: peak ? (lunch ? at(11) : at(16, 30)) : openMs,
+        shiftEnd: peak ? (lunch ? at(14, 30) : closeMs) : closeMs,
+        online: false,
+        onlineSince: null,
+        onlineMs: 0,
+        plan: [],
+        busyWith: null,
+        decided: new Set(),
+        repDecided: new Set(),
+        doneUnreported: new Set(),
+        waitingSince: null,
+        silentFrom: null,
+        silentTo: null,
+      });
+    }
+    if (cfg.failures && bots.length >= 3) {
+      bots[2].silentFrom = at(18);
+      bots[2].silentTo = at(18, 35);
+    }
+    const tgOutage = cfg.failures ? [at(13, 40), at(13, 52)] : null;
+    const mapsOutage = cfg.failures ? [at(16, 10), at(16, 30)] : null;
+    let integrationFailures = 0;
+
+    app.agents.logistics.start();
+    app.agents.replenishment.start();
+    app.agents.reports.start();
+    app.agents.monitor.start();
+
+    // ---------------- Hjælpere ----------------
+    const timed: Step[] = [];
+    const later = (ms: number, act: () => void) => timed.push({ at: now + ms, act });
+    const tgPending: (() => void)[] = [];
+    const counters = { driveMs: 0, depotDriveMs: 0, mgmtActions: 0, offersIgnored: 0, stockReplies: 0, busyMs: 0, waitRepMs: 0, idleWithStopsMs: 0 };
+    /** Telegram-handling fra en chauffør/leder; under udfald afventer den forbindelsen. */
+    const viaTelegram = (fn: () => void) => {
+      if (tg.inOutage) tgPending.push(fn);
+      else fn();
+    };
+    const travelMs = (a: LatLng, b: LatLng, r: () => number) => {
+      const base = simulatedTravel(a, b, zonedParts(now).hour).durationS * 1000;
+      return Math.round(base * (0.9 + r() * 0.3));
+    };
+    const runJobs = async () => {
+      for (let i = 0; i < 30; i++) {
+        await ctx.jobs.drain();
+        await new Promise((r) => setImmediate(r));
+        if (ctx.jobs.tick() === 0) break;
+      }
+      await ctx.jobs.drain();
+    };
+
+    // ---------------- Kunder ----------------
+    const planned = planOrders(cfg as never, openMs);
+    const byPhone = new Map(planned.map((p) => [p.phone, { p, modified: false, cancelled: false, confirmed: false, answeredQuote: 0 }]));
+    let nextOrder = 0;
+    let smsIndex = 0;
+    const handleSms = () => {
+      while (smsIndex < sms.sentLog.length) {
+        const m = sms.sentLog[smsIndex++];
+        const c = byPhone.get(m.to);
+        if (!c) continue;
+        const r = keyed(cfg.seed, 'cust', c.p.i, smsIndex);
+        if (/Svar JA/i.test(m.text)) {
+          c.answeredQuote++;
+          if (c.p.kind === 'ignore_quote') continue;
+          if (c.p.kind === 'decline') {
+            later(c.p.replyDelayS * 1000, () => sms.injectInbound(m.to, 'Nej tak, det er for dyrt. Glem det'));
+            continue;
+          }
+          if (c.p.kind === 'modify' && !c.modified) {
+            c.modified = true;
+            later(c.p.replyDelayS * 1000, () => sms.injectInbound(m.to, `Tilføj også 1 ${c.p.addSku}`));
+            continue;
+          }
+          if (c.answeredQuote > 3) continue;
+          later(c.p.replyDelayS * 1000, () => sms.injectInbound(m.to, 'Ja tak'));
+        } else if (/ikke nok af|udsolgt/i.test(m.text)) {
+          counters.stockReplies++;
+          later(60_000, () => sms.injectInbound(m.to, 'Ok, så annuller'));
+        } else if (/bekræftet/i.test(m.text) && !c.confirmed) {
+          c.confirmed = true;
+          if (c.p.kind === 'cancel_after' && !c.cancelled) {
+            c.cancelled = true;
+            later((60 + Math.floor(r() * 300)) * 1000, () => sms.injectInbound(m.to, 'Undskyld, annuller min ordre'));
+          }
+        }
+      }
+    };
+
+    // ---------------- Ledelse ----------------
+    const repHandled = new Set<number>();
+    const handleManagement = () => {
+      const reps = ctx.db.prepare(`SELECT id FROM replenishments WHERE status = 'awaiting_management'`).all() as { id: number }[];
+      for (const { id } of reps) {
+        if (repHandled.has(id)) continue;
+        repHandled.add(id);
+        const r = keyed(cfg.seed, 'rep', id);
+        const x = r();
+        const mgr = managers[Math.floor(r() * managers.length)];
+        if (x < 0.1) {
+          note(`Ledelsen reagerer ikke på opfyldning #${id}`);
+          continue;
+        }
+        const action = x < 0.15 ? 'reject' : 'approve';
+        later((2 + r() * 6) * 60_000, () =>
+          viaTelegram(() => {
+            const st = (ctx.db.prepare(`SELECT status FROM replenishments WHERE id = ?`).get(id) as { status: string }).status;
+            if (st !== 'awaiting_management') return;
+            counters.mgmtActions++;
+            tg.injectGroupCallback(GROUP, mgr.uid, mgr.name, `rep:${id}:${action}`);
+          }),
+        );
+      }
+    };
+
+    // ---------------- Chauffører ----------------
+    const stepMsRef = { v: 30_000 };
+    const press = (b: DriverBot, data: string) => viaTelegram(() => tg.injectCallback(b.uid, b.name, data));
+    const text = (b: DriverBot, t: string) => viaTelegram(() => tg.injectText(b.uid, b.name, t));
+    const silent = (b: DriverBot) => b.silentFrom != null && now >= b.silentFrom && now < b.silentTo!;
+
+    const startDelivery = (b: DriverBot, orderId: number, viaDepot: boolean) => {
+      const o = ctx.orders.get(orderId)!;
+      const dest = { lat: o.addressLat!, lng: o.addressLng! };
+      const r = keyed(cfg.seed, 'leg', b.id, orderId);
+      let t = now;
+      b.busyWith = `ordre #${orderId}`;
+      b.plan.push({ at: t, act: () => press(b, `ord:${orderId}:pickup`) });
+      if (viaDepot) {
+        const toDepot = travelMs(b.pos, depot, r);
+        counters.depotDriveMs += toDepot;
+        counters.driveMs += toDepot;
+        t += toDepot + 3 * 60_000;
+        b.pos = depot;
+      }
+      let leg = travelMs(b.pos, dest, r);
+      counters.driveMs += leg;
+      if (r() < 0.08) {
+        const extra = (8 + Math.floor(r() * 13)) * 60_000;
+        if (r() < 0.7) b.plan.push({ at: t + leg / 2, act: () => text(b, `Jeg bliver ${Math.max(5, Math.round(extra / 300_000) * 5)} minutter forsinket`) });
+        leg += extra;
+      }
+      if (leg > 7 * 60_000 && r() < 0.3) b.plan.push({ at: t + leg - 5 * 60_000, act: () => text(b, `Ordre ${orderId}, jeg er der om 5 min`) });
+      t += leg;
+      b.plan.push({ at: t, act: () => press(b, `ord:${orderId}:arrived`) });
+      let service = (2 + r() * 2) * 60_000;
+      if (r() < 0.04) {
+        b.plan.push({ at: t + 3 * 60_000, act: () => press(b, `ord:${orderId}:unreachable`) });
+        service += 6 * 60_000;
+      }
+      t += service;
+      b.plan.push({
+        at: t,
+        act: () => {
+          b.doneUnreported.add(orderId);
+          viaTelegram(() => {
+            tg.injectCallback(b.uid, b.name, `ord:${orderId}:delivered`);
+            b.doneUnreported.delete(orderId);
+          });
+        },
+      });
+      b.plan.push({ at: t, act: () => (b.busyWith = null) });
+      counters.busyMs += t - now;
+      b.pos = dest;
+    };
+
+    const startDepot = (b: DriverBot, repId: number, locationId: number) => {
+      const loc = ctx.inventory.location(locationId)!;
+      const dest = { lat: loc.lat!, lng: loc.lng! };
+      const r = keyed(cfg.seed, 'depot', repId);
+      const leg = travelMs(b.pos, dest, r);
+      counters.depotDriveMs += leg;
+      counters.driveMs += leg;
+      b.busyWith = `lager (opfyldning #${repId})`;
+      b.plan.push({ at: now + leg, act: () => press(b, `rep:${repId}:arrived`) });
+      const pickupMs = ctx.settings.get().replenishment.pickupMinutes * 60_000;
+      b.plan.push({ at: now + leg + pickupMs, act: () => press(b, `rep:${repId}:picked_up`) });
+      b.plan.push({ at: now + leg + pickupMs, act: () => (b.busyWith = null) });
+      b.pos = dest;
+    };
+
+    const driverStep = (b: DriverBot) => {
+      // Vagt
+      if (!b.online && now >= b.shiftStart && now < b.shiftEnd) {
+        b.online = true;
+        b.onlineSince = now;
+        text(b, '/online');
+      }
+      if (!b.online) return;
+      if (silent(b)) return; // telefonen er død, chaufføren holder stille
+      // Planlagte handlinger
+      while (b.plan.length && b.plan[0].at <= now) b.plan.shift()!.act();
+      // Tilbud
+      const offers = ctx.db.prepare(`SELECT id, order_id FROM dispatch_offers WHERE driver_id = ? AND status = 'pending'`).all(b.id) as { id: number; order_id: number }[];
+      for (const o of offers) {
+        if (b.decided.has(o.id) || tg.inOutage) continue;
+        b.decided.add(o.id);
+        const r = keyed(cfg.seed, 'offer', b.id, o.order_id);
+        const x = r();
+        if (now >= b.shiftEnd) {
+          later(20_000, () => press(b, `offer:${o.id}:reject`));
+        } else if (x < 0.04) {
+          counters.offersIgnored++;
+        } else {
+          const action = x < 0.1 ? 'reject' : 'accept';
+          later((15 + r() * 75) * 1000, () => press(b, `offer:${o.id}:${action}`));
+        }
+      }
+      // Lagerbesøg
+      const reqs = ctx.db.prepare(`SELECT id FROM replenishments WHERE driver_id = ? AND status = 'awaiting_driver'`).all(b.id) as { id: number }[];
+      for (const q of reqs) {
+        if (b.repDecided.has(q.id) || tg.inOutage) continue;
+        b.repDecided.add(q.id);
+        const ok = keyed(cfg.seed, 'repdrv', q.id)() < 0.95;
+        later(45_000, () => press(b, `rep:${q.id}:${ok ? 'driver_accept' : 'driver_reject'}`));
+      }
+      if (b.busyWith) return;
+      // Næste opgave
+      const reps = app!.agents.replenishment.list({ driverId: b.id, activeOnly: true });
+      const rep = reps.find((x) => ['en_route', 'awaiting_pickup'].includes(x.status));
+      if (rep) {
+        const after = rep.afterOrderId ? ctx.orders.get(rep.afterOrderId) : null;
+        if (!after || ['delivered', 'cancelled'].includes(after.status) || b.doneUnreported.has(after.id) || after.driverId !== b.id) {
+          startDepot(b, rep.id, rep.locationId);
+          return;
+        }
+      }
+      const stops = ctx.drivers.routeStops(b.id).filter((s) => ['driver_assigned', 'out_for_delivery'].includes(s.status) && !b.doneUnreported.has(s.orderId));
+      if (!stops.length) {
+        b.waitingSince = null;
+        if (now >= b.shiftEnd && !offers.length && !reps.length) {
+          b.online = false;
+          b.onlineMs += now - (b.onlineSince ?? now);
+          text(b, '/offline');
+        }
+        return;
+      }
+      const first = ctx.orders.get(stops[0].orderId)!;
+      if (first.stockLocationId === b.vehicleLoc) {
+        b.waitingSince = null;
+        startDelivery(b, first.id, false);
+        return;
+      }
+      // Varerne ligger ikke i bilen: følg en aktiv opfyldning, ellers hent selv på centrallageret
+      const covering = reps.find((x) => x.coversOrders.includes(first.id) && !['picked_up', 'completed'].includes(x.status));
+      if (covering) {
+        counters.waitRepMs += stepMsRef.v;
+        b.waitingSince ??= now;
+        if (now - b.waitingSince < 15 * 60_000) return;
+        note(`${b.name} venter ikke længere på opfyldning #${covering.id} – henter selv ordre #${first.id} på lageret`);
+      }
+      b.waitingSince = null;
+      startDelivery(b, first.id, true);
+    };
+
+    // Chauffører svarer på botten statusforespørgsler (undtagen når telefonen er død)
+    tg.outbox.on('sent', (chatId: string, body: string) => {
+      const b = bots.find((x) => x.uid === chatId);
+      if (!b || !/hvordan går det/i.test(body)) return;
+      const r = keyed(cfg.seed, 'status', b.id, Math.floor(now / 600_000));
+      later((1 + r() * 3) * 60_000, () => {
+        if (silent(b)) return;
+        const current = b.busyWith?.match(/#(\d+)/)?.[1];
+        const next = b.plan.find((p) => p.at > now);
+        const mins = next ? Math.max(1, Math.round((next.at - now) / 60_000)) : 5;
+        text(b, current ? `Ordre ${current}, der om ${mins} min` : 'Jeg er klar og venter på næste opgave');
+      });
+    });
+
+    // ---------------- Hovedløkke ----------------
+    const endMs = closeMs + 3 * 3_600_000;
+    const stepMs = cfg.stepSeconds * 1000;
+    stepMsRef.v = stepMs;
+    const firstPromise = new Map<number, number>();
+    let lastPct = -1;
+    while (now < endMs) {
+      now += stepMs;
+      // Fejlvinduer
+      if (tgOutage) {
+        const inside = now >= tgOutage[0] && now < tgOutage[1];
+        if (inside !== tg.inOutage) {
+          tg.setOutage(inside);
+          note(inside ? 'Telegram-udfald starter' : 'Telegram-udfald slutter');
+          if (inside) integrationFailures++;
+          else while (tgPending.length) tgPending.shift()!();
+        }
+      }
+      if (mapsOutage) {
+        const inside = now >= mapsOutage[0] && now < mapsOutage[1];
+        if (inside !== maps.failing) {
+          maps.failing = inside;
+          note(inside ? 'Google Maps-udfald starter' : 'Google Maps-udfald slutter');
+          if (inside) integrationFailures++;
+        }
+      }
+      while (nextOrder < planned.length && planned[nextOrder].at <= now) {
+        const p = planned[nextOrder++];
+        sms.injectInbound(p.phone, p.text);
+      }
+      timed.sort((a, b) => a.at - b.at);
+      while (timed.length && timed[0].at <= now) timed.shift()!.act();
+      await runJobs();
+      handleSms();
+      handleManagement();
+      for (const b of bots) driverStep(b);
+      await runJobs();
+      handleSms();
+      for (const r of ctx.db.prepare(`SELECT id, eta_communicated FROM orders WHERE eta_communicated IS NOT NULL`).all() as { id: number; eta_communicated: string }[]) {
+        if (!firstPromise.has(r.id)) firstPromise.set(r.id, new Date(r.eta_communicated).getTime());
+      }
+      const pct = Math.floor(((now - openMs) / (closeMs - openMs)) * 100);
+      if (pct !== lastPct && pct % 5 === 0) {
+        lastPct = pct;
+        cfg.onProgress?.(Math.min(100, Math.max(0, pct)));
+      }
+      if (now > closeMs && nextOrder >= planned.length) {
+        const open = (
+          ctx.db.prepare(`SELECT COUNT(*) AS c FROM orders WHERE status IN ('confirmed','awaiting_driver','driver_assigned','out_for_delivery')`).get() as { c: number }
+        ).c;
+        const pendingQuotes = (ctx.db.prepare(`SELECT COUNT(*) AS c FROM orders WHERE status = 'awaiting_confirmation'`).get() as { c: number }).c;
+        if (open === 0 && pendingQuotes === 0 && bots.every((b) => !b.busyWith)) break;
+      }
+    }
+    for (const b of bots) if (b.online) b.onlineMs += now - (b.onlineSince ?? now);
+    app.agents.reports.syncStatuses();
+    const statusCounts = ctx.db.prepare(`SELECT status, COUNT(*) AS c FROM orders GROUP BY status`).all() as { status: string; c: number }[];
+    note(`Udnyttelse: kørsel/levering ${Math.round(counters.busyMs / 60000)} min, venter på opfyldning ${Math.round(counters.waitRepMs / 60000)} min, online ${Math.round(bots.reduce((a, b) => a + b.onlineMs, 0) / 60000)} min`);
+    note(`Ordrestatus ved dagens slutning: ${statusCounts.map((x) => `${x.status}=${x.c}`).join(', ')}`);
+    if (process.env.SIM_DEBUG) {
+      const unconfirmed = planned.filter((p) => !byPhone.get(p.phone)!.confirmed).slice(0, Number(process.env.SIM_DEBUG));
+      for (const p of unconfirmed) {
+        note(`Kunde ${p.phone} (${p.kind}): ${p.text}`);
+        for (const m of sms.sentLog.filter((x) => x.to === p.phone)) note(`  → ${m.text.replace(/\n/g, ' | ').slice(0, 200)}`);
+      }
+    }
+
+    // ---------------- Målinger (fra databasen) ----------------
+    const s = ctx.settings.get();
+    const tol = s.economics.promiseToleranceMinutes * 60_000;
+    const delivered = ctx.db.prepare(`SELECT id, total_ore, delivery_fee_ore, confirmed_at, delivered_at FROM orders WHERE status = 'delivered'`).all() as {
+      id: number;
+      total_ore: number;
+      delivery_fee_ore: number;
+      confirmed_at: string;
+      delivered_at: string;
+    }[];
+    const accepted = (ctx.db.prepare(`SELECT COUNT(*) AS c FROM orders WHERE confirmed_at IS NOT NULL`).get() as { c: number }).c;
+    const cancelled = (ctx.db.prepare(`SELECT COUNT(*) AS c FROM orders WHERE status = 'cancelled' AND confirmed_at IS NOT NULL`).get() as { c: number }).c;
+    const unresolved = (
+      ctx.db.prepare(`SELECT COUNT(*) AS c FROM orders WHERE confirmed_at IS NOT NULL AND status NOT IN ('delivered','cancelled')`).get() as { c: number }
+    ).c;
+    const margin = s.economics.defaultMarginPct;
+    const contribution = delivered.reduce((sum, o) => sum + app!.agents.routing.valueOf(o.id, o.delivery_fee_ore, margin).contributionOre, 0);
+    const durations = delivered.map((o) => (new Date(o.delivered_at).getTime() - new Date(o.confirmed_at).getTime()) / 60000).sort((a, b) => a - b);
+    const late = delivered.filter((o) => firstPromise.has(o.id) && new Date(o.delivered_at).getTime() > firstPromise.get(o.id)! + tol).length;
+    const planned_extra = ctx.db.prepare(`SELECT plan FROM dispatch_offers WHERE status = 'accepted' AND kind = 'new_order'`).all() as { plan: string }[];
+    const plannedExtra = planned_extra.reduce((sum, r) => sum + ((JSON.parse(r.plan)?.analysis?.extraDriveMinutes as number) ?? 0), 0);
+    const reps = (ctx.db.prepare(`SELECT COUNT(*) AS c FROM replenishments`).get() as { c: number }).c;
+    const repsDone = (ctx.db.prepare(`SELECT COUNT(*) AS c FROM replenishments WHERE status IN ('picked_up','completed')`).get() as { c: number }).c;
+    const outOfStockEvents = (ctx.db.prepare(`SELECT COUNT(*) AS c FROM events WHERE source = 'replenishment' AND type IN ('no_solution','escalated')`).get() as { c: number }).c;
+    const alerts = ctx.db.prepare(`SELECT category, COUNT(*) AS c FROM monitor_alerts GROUP BY category`).all() as { category: string; c: number }[];
+    const alertCount = (cat: string) => alerts.find((a) => a.category === cat)?.c ?? 0;
+    const deadJobs = (ctx.db.prepare(`SELECT COUNT(*) AS c FROM jobs WHERE status = 'dead'`).get() as { c: number }).c;
+    const badSms = (ctx.db.prepare(`SELECT COUNT(*) AS c FROM messages WHERE direction = 'out' AND status IN ('uncertain','failed')`).get() as { c: number }).c;
+    const badTg =
+      (ctx.db.prepare(`SELECT COUNT(*) AS c FROM driver_messages WHERE direction = 'out' AND status IN ('uncertain','failed')`).get() as { c: number }).c +
+      (ctx.db.prepare(`SELECT COUNT(*) AS c FROM management_messages WHERE direction = 'out' AND status IN ('uncertain','failed')`).get() as { c: number }).c;
+    const offersBad = (ctx.db.prepare(`SELECT COUNT(*) AS c FROM dispatch_offers WHERE status IN ('rejected','expired')`).get() as { c: number }).c;
+    const staffConversations = (
+      ctx.db.prepare(`SELECT COUNT(*) AS c FROM conversations WHERE ai_mode IN ('ai_paused','manual','integration_error')`).get() as { c: number }
+    ).c;
+    const reportsSent = (ctx.db.prepare(`SELECT COUNT(*) AS c FROM management_reports WHERE kind = 'hourly' AND status = 'sent'`).get() as { c: number }).c;
+    const driverHours = bots.reduce((sum, b) => sum + b.onlineMs, 0) / 3_600_000;
+    const hours = (closeMs - openMs) / 3_600_000;
+    const r1 = (x: number) => Math.round(x * 10) / 10;
+    const metrics: SimulationMetrics = {
+      strategy: cfg.strategy,
+      seed: cfg.seed,
+      ordersGenerated: planned.length,
+      ordersAccepted: accepted,
+      delivered: delivered.length,
+      cancelled,
+      unresolved,
+      revenueOre: delivered.reduce((sum, o) => sum + o.total_ore, 0),
+      contributionOre: contribution,
+      operatingHours: hours,
+      deliveriesPerHour: r1(delivered.length / hours),
+      deliveriesPerDriverHour: r1(delivered.length / Math.max(1, driverHours)),
+      avgDeliveryMinutes: r1(durations.reduce((a, b) => a + b, 0) / Math.max(1, durations.length)),
+      p90DeliveryMinutes: r1(durations[Math.floor(durations.length * 0.9)] ?? 0),
+      lateShare: r1((late / Math.max(1, delivered.length)) * 100),
+      lateCount: late,
+      driveMinutes: Math.round(counters.driveMs / 60000),
+      driveMinutesPerDelivery: r1(counters.driveMs / 60000 / Math.max(1, delivered.length)),
+      extraDriveMinutes: Math.round(plannedExtra),
+      depotDriveMinutes: Math.round(counters.depotDriveMs / 60000),
+      stockProblems: reps + counters.stockReplies + outOfStockEvents,
+      replenishments: reps,
+      replenishmentsCompleted: repsDone,
+      managementInterventions: counters.mgmtActions + alertCount('approval') + alertCount('takeover'),
+      failedOrUnresolvedActions: deadJobs + badSms + badTg + unresolved,
+      offersRejectedOrExpired: offersBad,
+      conversationsNeedingStaff: staffConversations,
+      integrationFailures,
+      hourlyReportsSent: reportsSent,
+      alertsRaised: alerts.reduce((a, x) => a + x.c, 0),
+      alertsByCategory: { auto: alertCount('auto'), inform: alertCount('inform'), approval: alertCount('approval'), takeover: alertCount('takeover') },
+      driverHours: r1(driverHours),
+      simulatedEndAt: new Date(now).toISOString(),
+      wallClockMs: Date.now() - wallStart,
+    };
+    cfg.onProgress?.(100);
+    cfg.inspect?.(app);
+    const { onProgress: _p, inspect: _i, ...config } = cfg;
+    void _p;
+    void _i;
+    return { metrics, config, log };
+  } finally {
+    if (app) await app.stop();
+    clock.reset();
+  }
+}
+
+// ---------------- Sammenligning ----------------
+
+export const STRATEGIES: DispatchStrategy[] = ['fifo', 'shortest_detour', 'economic'];
+
+/** Nøgletal der sammenlignes, og om højere eller lavere er bedst. */
+export const COMPARED: { key: keyof SimulationMetrics; label: string; better: 'higher' | 'lower'; unit?: string }[] = [
+  { key: 'delivered', label: 'Leverede ordrer', better: 'higher' },
+  { key: 'revenueOre', label: 'Omsætning', better: 'higher', unit: 'øre' },
+  { key: 'contributionOre', label: 'Dækningsbidrag', better: 'higher', unit: 'øre' },
+  { key: 'deliveriesPerDriverHour', label: 'Leveringer pr. chaufførtime', better: 'higher' },
+  { key: 'avgDeliveryMinutes', label: 'Gns. leveringstid (min)', better: 'lower' },
+  { key: 'p90DeliveryMinutes', label: '90 %-fraktil leveringstid (min)', better: 'lower' },
+  { key: 'lateShare', label: 'Andel forsinkede (%)', better: 'lower' },
+  { key: 'driveMinutesPerDelivery', label: 'Køretid pr. levering (min)', better: 'lower' },
+  { key: 'depotDriveMinutes', label: 'Køretid til lager (min)', better: 'lower' },
+  { key: 'stockProblems', label: 'Lagerproblemer', better: 'lower' },
+  { key: 'managementInterventions', label: 'Ledelsesindgreb', better: 'lower' },
+  { key: 'failedOrUnresolvedActions', label: 'Fejlede/uafklarede handlinger', better: 'lower' },
+];
+
+export interface StrategyComparison {
+  seed: number;
+  results: SimulationMetrics[];
+  /** Pr. nøgletal: strategi(er) med bedste værdi. */
+  best: Record<string, DispatchStrategy[]>;
+  /** Nøgletal hvor AI Dispatch (economic) IKKE er bedst. */
+  economicNotBest: string[];
+  summary: string[];
+}
+
+export function compareStrategies(results: SimulationMetrics[]): StrategyComparison {
+  const best: Record<string, DispatchStrategy[]> = {};
+  const notBest: string[] = [];
+  for (const c of COMPARED) {
+    const vals = results.map((r) => r[c.key] as number);
+    const target = c.better === 'higher' ? Math.max(...vals) : Math.min(...vals);
+    best[c.key] = results.filter((r) => (r[c.key] as number) === target).map((r) => r.strategy);
+    if (!best[c.key].includes('economic')) notBest.push(c.label);
+  }
+  const eco = results.find((r) => r.strategy === 'economic');
+  const summary: string[] = [];
+  if (eco) {
+    const n = (x: number) => x.toLocaleString('da-DK', { maximumFractionDigits: 1 });
+    for (const other of results.filter((r) => r.strategy !== 'economic')) {
+      const d = (eco.contributionOre - other.contributionOre) / 100;
+      summary.push(
+        `AI Dispatch mod ${DISPATCH_STRATEGY_LABELS[other.strategy]}: dækningsbidrag ${d >= 0 ? '+' : ''}${d.toLocaleString('da-DK', { maximumFractionDigits: 0 })} kr., ` +
+          `leverede ${eco.delivered} mod ${other.delivered}, forsinkede ${n(eco.lateShare)} % mod ${n(other.lateShare)} %, gns. leveringstid ${n(eco.avgDeliveryMinutes)} mod ${n(other.avgDeliveryMinutes)} min.`,
+      );
+    }
+    summary.push(notBest.length ? `AI Dispatch er IKKE bedst på: ${notBest.join(', ')}.` : 'AI Dispatch er bedst eller lige så god på alle sammenlignede nøgletal i dette scenarie.');
+  }
+  return { seed: results[0]?.seed ?? 0, results, best, economicNotBest: notBest, summary };
+}
+
+export async function runStrategyComparison(base: Omit<SimConfig, 'strategy'>, strategies = STRATEGIES): Promise<StrategyComparison & { runs: SimResult[] }> {
+  const runs: SimResult[] = [];
+  for (const strategy of strategies) runs.push(await runDaySimulation({ ...base, strategy }));
+  return { ...compareStrategies(runs.map((r) => r.metrics)), runs };
+}

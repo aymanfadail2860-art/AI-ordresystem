@@ -208,6 +208,8 @@ const NUMBER_WORDS: Record<string, number> = {
   par: 2,
 };
 
+/** Ord der ender som et vejnavn (også "Egeallé", "Rosenvænget"). */
+const STREET_WORD = /(vej|gade|allé|alle|plads|vænge|vænget|torv|torvet|stræde|boulevard|have|haven|park|parken|bakke|bakken|vang|vangen|sti|kaj|brygge|bryggen|mark|toft|høj|dal)[,.]?$/i;
 const STREET_HINT = /(vej|gade|allé|alle|plads|vænge|torv|stræde|boulevard|have|park|bakke|vang|sti|kaj|brygge|mark|toft|høj|dal)\b/i;
 
 function normalize(t: string): string {
@@ -217,11 +219,22 @@ function normalize(t: string): string {
 export function extractAddress(text: string): string | null {
   // Fx "Nørrebrogade 12, 2. th, 2200 København N" eller "adressen er Vesterbrogade 5"
   const re = /([A-ZÆØÅ][a-zæøåé]+(?:[ -][A-ZÆØÅa-zæøåé]+){0,3}\s\d{1,4}[A-Za-z]?(?:,?\s*\d{1,2}\.?\s*(?:sal|tv|th|mf)\.?(?:\s*(?:tv|th|mf)\.?)?)?(?:,?\s*\d{4}(?:\s+[A-ZÆØÅ][a-zæøå]+(?:\s+[A-ZÆØ]\.?)?)?)?)/;
-  const m = text.match(re);
-  if (!m) return null;
-  const candidate = m[1].trim().replace(/[.,]$/, '');
-  if (!STREET_HINT.test(candidate) && !/\d{4}/.test(candidate)) return null;
-  return candidate;
+  // Prøv alle kandidater – fx matcher "Kan I levere 2" før den egentlige adresse
+  const global = new RegExp(re.source, 'g');
+  for (const m of text.matchAll(global)) {
+    let candidate = m[1].trim().replace(/[.,]$/, '');
+    // Fjern ord før vejnavnet ("Isbæger til Lærkevej 12" → "Lærkevej 12"): klip efter sidste
+    // ord med lille begyndelsesbogstav før det ord, der ligner et vejnavn
+    const words = candidate.split(' ');
+    const streetIdx = words.findIndex((w) => STREET_WORD.test(w));
+    if (streetIdx > 0) {
+      let cut = -1;
+      for (let j = 0; j < streetIdx; j++) if (/^[a-zæøå]/.test(words[j])) cut = j;
+      if (cut >= 0) candidate = words.slice(cut + 1).join(' ');
+    }
+    if (STREET_HINT.test(candidate) || /\d{4}/.test(candidate)) return candidate;
+  }
+  return null;
 }
 
 export function extractItems(text: string, catalog: CatalogEntry[]): { sku: string; quantity: number }[] {

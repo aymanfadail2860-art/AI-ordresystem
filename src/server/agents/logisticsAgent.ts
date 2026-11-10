@@ -18,13 +18,7 @@ export class LogisticsAgent {
     private routing: RoutingService,
   ) {
     ctx.jobs.register('expire_quote', async (job) => this.expireQuote(job.payload.orderId as number));
-    ctx.jobs.register('logistics_tick', async () => {
-      try {
-        await this.tick();
-      } finally {
-        ctx.jobs.enqueue('logistics_tick', {}, { delayMs: 60_000, dedupeKey: 'logistics_tick' });
-      }
-    });
+    ctx.jobs.registerRecurring('logistics_tick', 60_000, async () => this.tick());
     ctx.bus.on('integration_state', ({ name, state }: { name: string; state: string }) => {
       if (state === 'error' && name === 'sms') {
         ctx.events.log('critical', 'monitoring', 'sms_down', 'SMS-forbindelsen er nede. Automatiske kundesvar er sat i bero, indtil forbindelsen er genoprettet.', {

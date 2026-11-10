@@ -30,22 +30,14 @@ export class ReportService {
     private routing: RoutingService,
     private replenishment: ReplenishmentService,
   ) {
-    ctx.jobs.register('report_tick', async () => {
-      try {
-        this.runDue();
-      } finally {
-        this.scheduleNext();
-      }
+    // Lige efter hver hele time
+    ctx.jobs.registerRecurring('report_tick', (n) => startOfHour(n) + HOUR + 10_000, async () => {
+      this.runDue();
     });
   }
 
   start(): void {
     this.ctx.jobs.enqueue('report_tick', {}, { delayMs: 5_000, dedupeKey: 'report_tick' });
-  }
-
-  private scheduleNext(): void {
-    const next = startOfHour(clock.now()) + HOUR + 10_000;
-    this.ctx.jobs.enqueue('report_tick', {}, { runAt: new Date(next), dedupeKey: 'report_tick' });
   }
 
   private tz(): string {

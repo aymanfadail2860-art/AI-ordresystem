@@ -16,6 +16,7 @@
     "start": "npm run build:main && npm run build:renderer && electron .",
     "dev:web": "node scripts/build-main.mjs --devserver && vite build && node dist/devserver/webServer.js",
     "typecheck": "tsc --noEmit -p tsconfig.json",
+    "simulate": "node scripts/build-main.mjs && node dist/sim/cli.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "rebuild:electron": "electron-builder install-app-deps",

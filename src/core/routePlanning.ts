@@ -1,6 +1,6 @@
 import { computeRouteEtas, type EtaAnchor, type EtaParams, type StopEta } from './eta';
 import { formatDkk } from './money';
-import type { DecisionAnalysis, Settings } from '../shared/types';
+import type { DecisionAnalysis, DispatchStrategy, Settings } from '../shared/types';
 
 /**
  * Økonomisk beslutningsmodel for ruteplanlægning (deterministisk).
@@ -202,6 +202,35 @@ export function evaluateInsertions(args: InsertionArgs): InsertionResult[] {
     });
   }
   return results.sort((a, b) => Number(b.feasible) - Number(a.feasible) || b.analysis.score - a.analysis.score);
+}
+
+/**
+ * Valg af placering i én chaufførs rute efter dispatchstrategi. Alle
+ * strategier bruger de samme hårde begrænsninger (kun gyldige løsninger).
+ *  - economic: højeste økonomiske score (AI Dispatch).
+ *  - shortest_detour: mindst ekstra køretid (klassisk indsættelsesheuristik).
+ *  - fifo: først-til-mølle – ordren sættes bagerst i ruten, aldrig foran andre.
+ */
+export function chooseInsertion(results: InsertionResult[], strategy: DispatchStrategy): InsertionResult | null {
+  const ok = results.filter((r) => r.feasible);
+  if (!ok.length) return null;
+  if (strategy === 'fifo') {
+    const last = Math.max(...results.map((r) => r.insertIndex));
+    return ok.find((r) => r.insertIndex === last) ?? null;
+  }
+  if (strategy === 'shortest_detour') {
+    return [...ok].sort((a, b) => a.analysis.extraDriveMinutes - b.analysis.extraDriveMinutes || a.analysis.newOrderEtaMinutes - b.analysis.newOrderEtaMinutes)[0];
+  }
+  return ok[0];
+}
+
+/** Rangering af chauffører (bedste først) efter strategi. */
+export function compareByStrategy(strategy: DispatchStrategy) {
+  return (a: InsertionResult, b: InsertionResult): number => {
+    if (strategy === 'fifo') return a.analysis.newOrderEtaMinutes - b.analysis.newOrderEtaMinutes || a.analysis.extraDriveMinutes - b.analysis.extraDriveMinutes;
+    if (strategy === 'shortest_detour') return a.analysis.extraDriveMinutes - b.analysis.extraDriveMinutes || a.analysis.newOrderEtaMinutes - b.analysis.newOrderEtaMinutes;
+    return b.analysis.score - a.analysis.score;
+  };
 }
 
 export interface SequenceEvaluation {

@@ -121,3 +121,25 @@ describe('Jobkø', () => {
     db.close();
   });
 });
+
+describe('Gentagende jobs', () => {
+  it('minuttjek og andre periodiske jobs planlægger næste kørsel – også efter fejl', async () => {
+    const t = await makeApp({ seed: false });
+    const { jobs } = t.app.ctx;
+    let runs = 0;
+    jobs.registerRecurring('test_tick', 60_000, async () => {
+      runs++;
+      if (runs === 2) throw new Error('midlertidig fejl');
+    });
+    jobs.ensureRecurring('test_tick');
+    for (let i = 0; i < 4; i++) await t.run(61_000);
+    expect(runs).toBe(4);
+    // Kun ét ventende job ad gangen
+    expect(t.app.ctx.db.prepare(`SELECT COUNT(*) AS c FROM jobs WHERE type = 'test_tick' AND status = 'pending'`).get()).toEqual({ c: 1 });
+    // Logistikkens minuttjek kører igen og igen (fejl i v0.3.0: kun første gang)
+    t.app.agents.logistics.start();
+    for (let i = 0; i < 3; i++) await t.run(61_000);
+    expect((t.app.ctx.db.prepare(`SELECT COUNT(*) AS c FROM jobs WHERE type = 'logistics_tick' AND status = 'done'`).get() as { c: number }).c).toBeGreaterThanOrEqual(3);
+    await t.app.stop();
+  });
+});

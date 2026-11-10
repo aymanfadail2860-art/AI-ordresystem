@@ -4,7 +4,7 @@ import { RetryLaterError } from '../jobs/jobQueue';
 import type { Driver, Order, RoutePlanSummary } from '../../shared/types';
 import type { RoutingService } from './routing';
 import type { CustomerNotifier } from './notifier';
-import type { InsertionResult } from '../../core/routePlanning';
+import { chooseInsertion, compareByStrategy, type InsertionResult } from '../../core/routePlanning';
 import { etaCommunicable } from '../../core/eta';
 import { InsufficientStockError } from '../services/inventory';
 import { formatDkk } from '../../core/money';
@@ -41,7 +41,7 @@ export class DispatchAgent {
   }
 
   enqueue(orderId: number, delayMs = 0): void {
-    this.ctx.jobs.enqueue('dispatch_order', { orderId }, { dedupeKey: `dispatch:${orderId}`, lane: 'dispatch', delayMs });
+    this.ctx.jobs.enqueue('dispatch_order', { orderId }, { dedupeKey: `dispatch:${orderId}`, lane: 'dispatch', delayMs, maxAttempts: 40 });
   }
 
   /**
@@ -51,12 +51,14 @@ export class DispatchAgent {
   dispatchWaiting(): void {
     const { ctx } = this;
     const margin = ctx.settings.get().economics.defaultMarginPct;
+    const economic = (ctx.settings.get().economics.strategy ?? 'economic') === 'economic';
     const waiting = ctx.orders
       .list({ status: ['awaiting_driver'] })
       .filter((o) => !ctx.drivers.offers(o.id).some((x) => x.status === 'pending'))
       .map((o) => {
         const waitedMin = o.confirmedAt ? (clock.now() - new Date(o.confirmedAt).getTime()) / 60000 : 0;
-        return { id: o.id, prio: this.routing.valueOf(o.id, o.deliveryFeeOre, margin).contributionOre + waitedMin * 500 };
+        // Sammenligningsstrategierne behandler ventende ordrer i ankomstrækkefølge
+        return { id: o.id, prio: economic ? this.routing.valueOf(o.id, o.deliveryFeeOre, margin).contributionOre + waitedMin * 500 : waitedMin };
       })
       .sort((a, b) => b.prio - a.prio);
     waiting.forEach((w, i) => this.enqueue(w.id, i * 5));
@@ -93,6 +95,7 @@ export class DispatchAgent {
     const { ctx } = this;
     const feasible: Candidate[] = [];
     const rejected: Candidate[] = [];
+    const strategy = ctx.settings.get().economics.strategy ?? 'economic';
     if (order.addressLat == null) return { feasible, rejected };
     const drivers = ctx.drivers.list().filter((d) => !(opts.exclude ?? []).includes(d.id));
     for (const d of drivers) {
@@ -124,14 +127,15 @@ export class DispatchAgent {
         { id: order.id, point: { lat: order.addressLat, lng: order.addressLng! }, needsPickup: plan === 'central_pickup' || plan === 'move_to_central', deliveryFeeOre: order.deliveryFeeOre },
         { reassignment: !!opts.reassignment },
       );
-      const best = results.find((r) => r.feasible) ?? null;
+      const best = chooseInsertion(results, opts.reassignment ? 'economic' : strategy);
       if (!best) {
         reject(results[0]?.violations[0] ?? 'Ingen gyldig placering i ruten');
         continue;
       }
       feasible.push({ driver: d, stockPlan: plan, best, reason: best.analysis.explanation[0] });
     }
-    feasible.sort((a, b) => b.best!.analysis.score - a.best!.analysis.score);
+    const cmp = compareByStrategy(opts.reassignment ? 'economic' : strategy);
+    feasible.sort((a, b) => cmp(a.best!, b.best!));
     return { feasible, rejected };
   }
 

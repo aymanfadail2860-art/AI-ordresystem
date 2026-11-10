@@ -31,6 +31,8 @@ export class AppHostImpl implements AppHost {
   readonly version: string;
   readonly platform: string;
   readonly dataDir: string;
+  /** Worker-filen bygges ved siden af main.js / webServer.js. */
+  readonly simWorkerPath = path.join(__dirname, 'simWorker.js');
   readonly api: ReturnType<typeof createApi>;
 
   constructor(private opts: HostOptions) {

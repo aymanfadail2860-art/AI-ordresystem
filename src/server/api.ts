@@ -4,7 +4,8 @@ import { SECRET_NAMES, maskSecret, type SecretName } from './secrets';
 import { startOfToday } from './services/orders';
 import { demoScenarios } from './demo/simulator';
 import { replenishmentScenario } from './demo/scenarios';
-import type { ManagementRole } from '../shared/types';
+import type { DispatchStrategy, ManagementRole } from '../shared/types';
+import { SimulationRunner } from './sim/runner';
 import type {
   AiMode,
   DashboardStats,
@@ -25,6 +26,8 @@ export interface AppHost {
   version: string;
   platform: string;
   dataDir: string;
+  /** Sti til den byggede simulerings-worker (null = ikke tilgængelig, fx i tests). */
+  simWorkerPath?: string | null;
 }
 
 type Handler = (params: Record<string, unknown>) => unknown | Promise<unknown>;
@@ -48,6 +51,9 @@ export function createApi(host: AppHost): Record<string, Handler> {
   const A = () => host.app();
   const C = () => host.app().ctx;
   const guard = () => A().auth.require();
+  const sim = new SimulationRunner(() => host.app().ctx, host.simWorkerPath ?? null);
+  const strategies = (v: unknown): DispatchStrategy[] | undefined =>
+    Array.isArray(v) ? (v.filter((x) => ['fifo', 'shortest_detour', 'economic'].includes(String(x))) as DispatchStrategy[]) : undefined;
 
   const api: Record<string, Handler> = {
     // ---------------- System ----------------
@@ -655,6 +661,44 @@ export function createApi(host: AppHost): Record<string, Handler> {
       demoOnly(A());
       return replenishmentScenario(A());
     },
+    // ---------------- Drift: rapporter, overvågning, simulering ----------------
+    'operations.overview': () => {
+      const app = A();
+      return {
+        integrations: app.ctx.integrations.list(),
+        mode: app.mode,
+        openAlerts: app.agents.monitor.list({ status: ['open', 'acknowledged'] }),
+        criticalEvents: app.ctx.events.list({ minLevel: 'error', limit: 50 }),
+        lastReport: app.agents.reports.list(1)[0] ?? null,
+        settings: { monitoring: app.ctx.settings.get().monitoring, hourlyReports: app.ctx.settings.get().management.hourlyReports, groupConfigured: !!app.ctx.settings.get().management.groupChatId },
+      };
+    },
+    'reports.list': (p) => A().agents.reports.list(p.limit ? num(p.limit, 'limit') : 100),
+    'reports.preview': () => A().agents.reports.preview(),
+    'reports.sendNow': () => {
+      const app = A();
+      const chat = app.ctx.settings.get().management.groupChatId;
+      if (!chat) throw new Error('Ledelsesgruppen er ikke konfigureret (Ledelsescenter → Ledere og rettigheder)');
+      const r = app.agents.reports.sendOnDemand(chat, 'kontrolpanel');
+      app.ctx.audit.record('staff', 'report_send', 'report', r.id);
+      return r;
+    },
+    'monitoring.alerts': (p) => A().agents.monitor.list({ status: Array.isArray(p.status) ? (p.status as never) : undefined, limit: 300 }),
+    'monitoring.decisions': (p) => A().agents.monitor.decisions(p.alertId ? num(p.alertId, 'alertId') : undefined),
+    'monitoring.acknowledge': (p) => {
+      A().agents.monitor.acknowledge(num(p.id, 'id'), 'kontrolpanel');
+      return { ok: true };
+    },
+    'monitoring.evaluate': async () => A().agents.monitor.evaluate(),
+    'simulation.status': () => sim.status(),
+    'simulation.list': () => ({ status: sim.status(), groups: sim.comparisons() }),
+    'simulation.run': (p) =>
+      sim.start({
+        seed: Math.trunc(num(p.seed ?? 42, 'seed')),
+        orders: Math.trunc(num(p.orders ?? 300, 'orders')),
+        drivers: Math.trunc(num(p.drivers ?? 8, 'drivers')),
+        strategies: strategies(p.strategies),
+      }),
     'demo.setAutoTraffic': (p) => {
       demoOnly(A());
       C().settings.update({ demo: { autoTraffic: !!p.enabled } });

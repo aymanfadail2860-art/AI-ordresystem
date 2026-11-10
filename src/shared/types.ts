@@ -875,15 +875,24 @@ export interface SimulationMetrics {
   lateCount: number;
   driveMinutes: number;
   driveMinutesPerDelivery: number;
+  /** Sum af planlagt ekstra køretid ved indsættelse af nye ordrer (dispatchens egen beregning). */
   extraDriveMinutes: number;
+  /** Simuleret køretid til lager (opfyldning og afhentning på centrallager). */
+  depotDriveMinutes: number;
   stockProblems: number;
   replenishments: number;
+  replenishmentsCompleted: number;
   managementInterventions: number;
   failedOrUnresolvedActions: number;
   offersRejectedOrExpired: number;
+  /** Kundesamtaler overdraget til medarbejder (fx under kortudfald) – simuleringen har ingen medarbejder. */
+  conversationsNeedingStaff: number;
   integrationFailures: number;
   hourlyReportsSent: number;
   alertsRaised: number;
+  alertsByCategory: Record<AlertCategory, number>;
+  driverHours: number;
+  simulatedEndAt: string;
   wallClockMs: number;
 }
 

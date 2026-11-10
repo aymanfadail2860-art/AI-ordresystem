@@ -17,6 +17,8 @@ import { DRAFT_STATUSES } from '../../core/orderStateMachine';
 import type { Driver, ManagementRole, ManagementUser, Order, OrderStatus } from '../../shared/types';
 import { DRIVER_STATUS_LABELS, MANAGEMENT_ROLE_LABELS, ORDER_STATUS_LABELS, REPLENISHMENT_STATUS_LABELS } from '../../shared/types';
 import type { ReportService } from './reports';
+import { nowIso } from '../db/database';
+import { RuleBasedManagementInterpreter } from '../ai/managementInterpreter';
 import { clock } from '../clock';
 
 /** Mindste rolle pr. intention. Observatører må kun se. */
@@ -87,6 +89,8 @@ interface Resolved {
 export class ManagementAgent {
   /** Sættes af app.ts (rapporttjenesten oprettes efter agenten). */
   reports: ReportService | null = null;
+  /** Deterministisk reserve, når Claude API ikke er tilgængelig. */
+  private fallback = new RuleBasedManagementInterpreter(null);
   constructor(
     private ctx: Ctx,
     private mgmt: ManagementService,
@@ -153,11 +157,15 @@ export class ManagementAgent {
       });
     } catch (e) {
       if (e instanceof AiDisabledError || e instanceof BudgetExceededError || e instanceof TransientAiError || e instanceof PermanentAiError) {
-        mgmt.logCommand({ user, telegramUserId: u.fromUserId, chatId: u.chatId, instruction: text, intent: null, decision: 'failed', result: `AI utilgængelig: ${(e as Error).message}` });
-        this.reply(u.chatId, 'AI-fortolkning er ikke tilgængelig lige nu. Brug kontrolpanelet, eller prøv igen om lidt.', key);
-        return;
-      }
-      throw e;
+        // Claude utilgængelig: brug den deterministiske regelbaserede fortolkning (fx "Rapport", "Hvad har vi omsat for i dag?").
+        // Handlinger kræver stadig eksplicit bekræftelse, og uklare beskeder udføres ikke.
+        interp = await this.fallback.interpret({ text, drivers: ctx.drivers.list().map((d) => ({ id: d.id, name: d.name })), products: ctx.catalog.list().map((p) => ({ sku: p.sku, name: p.name, synonyms: p.synonyms })) });
+        if (interp.ambiguous || interp.confidence < 0.5 || interp.intent === 'unknown') {
+          mgmt.logCommand({ user, telegramUserId: u.fromUserId, chatId: u.chatId, instruction: text, intent: null, decision: 'failed', result: `AI utilgængelig: ${(e as Error).message}` });
+          this.reply(u.chatId, 'AI-fortolkning er ikke tilgængelig lige nu, og beskeden kunne ikke forstås uden. Prøv fx "Rapport" eller "Hvad har vi omsat for i dag?", eller brug kontrolpanelet.', key);
+          return;
+        }
+      } else throw e;
     }
     if (interp.ambiguous || interp.confidence < 0.5 || interp.intent === 'unknown') {
       const q = interp.clarificationQuestion ?? 'Det forstod jeg ikke helt. Skriv "hjælp" for eksempler.';
@@ -277,6 +285,15 @@ export class ManagementAgent {
       return;
     }
     const params = JSON.parse((row.params as string) ?? '{}') as ManagementInterpretation & { driverId?: number | null };
+    // Gør bekræftelsen atomisk: kun ét tryk kan overtage handlingen. Går systemet ned under
+    // udførelsen, står den som "executing" og udføres aldrig automatisk igen.
+    const claimed = this.ctx.db
+      .prepare(`UPDATE management_commands SET decision = 'executing', confirmed_by = ?, updated_at = ? WHERE id = ? AND decision = 'needs_confirmation'`)
+      .run(user.name, nowIso(), id);
+    if (claimed.changes === 0) {
+      this.reply(u.chatId, 'Denne handling er allerede afgjort eller findes ikke.', key);
+      return;
+    }
     const res = await this.execute(intent, params, user);
     mgmt.updateCommand(id, { decision: res.ok ? 'executed' : 'failed', result: res.message, confirmedBy: user.name });
     this.ctx.audit.record(`telegram:${user.name}`, `management_${intent}`, 'management_command', id, { ok: res.ok });

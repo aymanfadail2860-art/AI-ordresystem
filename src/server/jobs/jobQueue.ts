@@ -65,6 +65,30 @@ export class JobQueue {
     this.handlers.set(type, handler);
   }
 
+  private recurring = new Map<string, (nowMs: number) => number>();
+
+  /**
+   * Gentagende job (fx minuttjek). Næste kørsel planlægges, efter at jobbet er
+   * afsluttet – også hvis det fejlede – med dedupe-nøgle = jobtype. (Et job kan
+   * ikke selv planlægge sin næste kørsel med samme dedupe-nøgle, mens det kører.)
+   */
+  registerRecurring(type: string, next: number | ((nowMs: number) => number), handler: JobHandler): void {
+    this.handlers.set(type, handler);
+    this.recurring.set(type, typeof next === 'number' ? (n) => n + next : next);
+  }
+
+  /** Sørg for at et gentagende job er planlagt (idempotent). */
+  ensureRecurring(type: string, delayMs = 0): void {
+    this.enqueue(type, {}, { delayMs, dedupeKey: type });
+  }
+
+  private scheduleRecurring(type: string): void {
+    const next = this.recurring.get(type);
+    if (!next) return;
+    const now = this.opts.now?.() ?? clock.now();
+    this.enqueue(type, {}, { runAt: new Date(next(now)), dedupeKey: type });
+  }
+
   enqueue(type: string, payload: Record<string, unknown>, o: EnqueueOptions = {}): number | null {
     const now = this.opts.now?.() ?? clock.now();
     const runAt = o.runAt ? o.runAt.toISOString() : new Date(now + (o.delayMs ?? 0)).toISOString();
@@ -178,10 +202,12 @@ export class JobQueue {
     try {
       await handler(job);
       this.finish(job, 'done', null);
+      this.scheduleRecurring(job.type);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      if (err instanceof PermanentJobError || job.attempts >= job.maxAttempts) {
+      if (err instanceof PermanentJobError || job.attempts >= job.maxAttempts || this.recurring.has(job.type)) {
         this.finish(job, 'dead', msg);
+        this.scheduleRecurring(job.type);
         this.events.log('error', 'jobs', 'job_failed', `Job ${job.type} fejlede permanent: ${msg}`, {
           data: { jobId: job.id, type: job.type, payload: job.payload },
           requiresAction: true,

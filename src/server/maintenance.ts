@@ -15,15 +15,11 @@ export class BackupService {
     private dbFile: string,
     private backupDir: string,
   ) {
-    ctx.jobs.register('backup_tick', async () => {
-      try {
-        const s = ctx.settings.get();
-        if (s.backup.enabled && this.dbFile !== ':memory:') {
-          const last = this.list()[0];
-          if (!last || clock.now() - new Date(last.createdAt).getTime() > s.backup.intervalHours * 3600000) await this.create('auto');
-        }
-      } finally {
-        ctx.jobs.enqueue('backup_tick', {}, { delayMs: 30 * 60000, dedupeKey: 'backup_tick' });
+    ctx.jobs.registerRecurring('backup_tick', 30 * 60000, async () => {
+      const s = ctx.settings.get();
+      if (s.backup.enabled && this.dbFile !== ':memory:') {
+        const last = this.list()[0];
+        if (!last || clock.now() - new Date(last.createdAt).getTime() > s.backup.intervalHours * 3600000) await this.create('auto');
       }
     });
   }
@@ -85,12 +81,8 @@ export class BackupService {
 /** GDPR: konfigurerbar dataopbevaring, eksport og sletning af kundedata. */
 export class RetentionService {
   constructor(private ctx: Ctx) {
-    ctx.jobs.register('retention_tick', async () => {
-      try {
-        this.run();
-      } finally {
-        ctx.jobs.enqueue('retention_tick', {}, { delayMs: 6 * 3600000, dedupeKey: 'retention_tick' });
-      }
+    ctx.jobs.registerRecurring('retention_tick', 6 * 3600000, async () => {
+      this.run();
     });
   }
 

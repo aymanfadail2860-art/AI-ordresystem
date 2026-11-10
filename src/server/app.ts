@@ -266,6 +266,11 @@ export async function createApp(opts: AppOptions): Promise<App> {
     secrets: opts.secrets,
     async start() {
       jobs.recoverAfterRestart();
+      // Ledelseshandlinger der var under udførelse ved et nedbrud udføres aldrig automatisk igen
+      const stuck = db
+        .prepare(`UPDATE management_commands SET decision = 'uncertain', result = 'Systemet stoppede under udførelsen – kontrollér resultatet manuelt', updated_at = ? WHERE decision = 'executing'`)
+        .run(clock.iso());
+      if (stuck.changes) events.log('warn', 'management', 'command_uncertain', `${stuck.changes} ledelseshandling(er) blev afbrudt af et nedbrud og skal kontrolleres`, { requiresAction: true });
       setStaticStatuses();
       await ctx.sms.start(smsAdapter);
       await ctx.telegram.start(tgAdapter);

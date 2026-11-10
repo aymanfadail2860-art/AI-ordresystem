@@ -1,7 +1,16 @@
 import { createHash } from 'node:crypto';
+import { zonedParts } from '../../../core/time';
 import { haversineMeters, type LatLng } from '../../../core/geo';
 import type { GeocodeResult, MapsAdapter, TravelEstimate } from './types';
 import { clock } from '../../clock';
+
+/** Simuleret køretid: luftlinje × 1,35, 28 km/t, myldretidstillæg (lokal time) + 1 min. */
+export function simulatedTravel(o: LatLng, d: LatLng, localHour: number): TravelEstimate {
+  const traffic = localHour >= 15 && localHour < 18 ? 1.35 : localHour >= 7 && localHour < 9 ? 1.25 : 1.0;
+  const meters = haversineMeters(o, d) * 1.35;
+  const speedMs = 28 / 3.6; // 28 km/t bykørsel
+  return { distanceM: Math.round(meters), durationS: Math.round((meters / speedMs) * traffic + 60) };
+}
 
 /**
  * SIMULERET kortadapter til Demo Mode og tests.
@@ -32,15 +41,8 @@ export class SimulatedMapsAdapter implements MapsAdapter {
   }
 
   async travelMatrix(origins: LatLng[], destinations: LatLng[]): Promise<TravelEstimate[][]> {
-    const hour = clock.date().getHours();
-    const traffic = hour >= 15 && hour < 18 ? 1.35 : hour >= 7 && hour < 9 ? 1.25 : 1.0;
-    return origins.map((o) =>
-      destinations.map((d) => {
-        const meters = haversineMeters(o, d) * 1.35;
-        const speedMs = 28 / 3.6; // 28 km/t bykørsel
-        return { distanceM: Math.round(meters), durationS: Math.round((meters / speedMs) * traffic + 60) };
-      }),
-    );
+    const hour = zonedParts(clock.now()).hour;
+    return origins.map((o) => destinations.map((d) => simulatedTravel(o, d, hour)));
   }
 
   async test(): Promise<{ ok: boolean; message: string }> {

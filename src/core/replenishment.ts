@@ -153,7 +153,8 @@ export function evaluateReplenishmentOptions(a: ReplenishmentArgs): Replenishmen
       const risk = e.riskPenaltyPerMinuteOre * (etas[n - 1]?.uncertaintyMinutes ?? 0);
       const cost = Math.round(pickupCost + waitCost + e.disruptionCostOre * disrupted + e.latePenaltyPerMinuteOre * late + risk);
       const hours = Math.max(0.25, ((etas[n - 1]?.etaMs ?? a.nowMs) - a.nowMs) / 3600000);
-      const safeUntilMs = k === -1 ? a.nowMs : baseline[k].etaMs + a.eta.serviceMinutes * 60000;
+      // Sidste sikre beslutning: før første stop = når chaufføren skal køre mod stop 1; ellers når stop k er afsluttet
+      const safeUntilMs = k === -1 ? Math.max(a.nowMs, n ? baseline[0].etaMs - a.travel(-1, 0) * 1000 : a.nowMs) : baseline[k].etaMs + a.eta.serviceMinutes * 60000;
       results.push({
         locationId: loc.id,
         locationName: loc.name,

@@ -11,6 +11,10 @@ import { clock } from '../clock';
  * - Indgående updates registreres én gang (unik update-ID) og sendes videre som domænehændelse.
  * - Udgående beskeder logges og sendes via jobkø; usikre udfald gensendes ikke.
  */
+/** Afsendelsesforsøg pr. besked: 1, 2, 4 … 60 s mellem forsøg ≈ 35 minutters udfald. */
+const SEND_ATTEMPTS = 40;
+const retryDelay = (attempt: number) => Math.min(60_000, 1000 * 2 ** Math.max(0, attempt - 1));
+
 export class TelegramGateway {
   private adapter: TelegramAdapter | null = null;
 
@@ -107,7 +111,7 @@ export class TelegramGateway {
       simulated: !!this.adapter?.simulated,
     });
     if (msgId === null) return;
-    this.jobs.enqueue('send_telegram', { messageId: msgId, driverId, text, buttons: opts.buttons ?? [] }, { lane: `driver:${driverId}`, maxAttempts: 6 });
+    this.jobs.enqueue('send_telegram', { messageId: msgId, driverId, text, buttons: opts.buttons ?? [] }, { lane: `driver:${driverId}`, maxAttempts: SEND_ATTEMPTS });
   }
 
   /** Send en besked til en vilkårlig chat (fx ledelsesgruppen). Idempotent via nøglen. */
@@ -123,7 +127,7 @@ export class TelegramGateway {
       .run(chatId, text, idempotencyKey, this.adapter?.simulated ? 1 : 0, clock.date().toISOString());
     if (r.changes === 0) return false;
     this.bus.touch('management');
-    this.jobs.enqueue('send_telegram_chat', { messageId: Number(r.lastInsertRowid), chatId, text, buttons: buttons ?? [] }, { lane: `chat:${chatId}`, maxAttempts: 6 });
+    this.jobs.enqueue('send_telegram_chat', { messageId: Number(r.lastInsertRowid), chatId, text, buttons: buttons ?? [] }, { lane: `chat:${chatId}`, maxAttempts: SEND_ATTEMPTS });
     return true;
   }
 
@@ -161,8 +165,7 @@ export class TelegramGateway {
     if (r.disposition === 'not_started') {
       this.db.prepare(`UPDATE management_messages SET status = 'queued' WHERE id = ?`).run(messageId);
       if (last) throw giveUp(r.error ?? 'Telegram-afsendelse fejlede');
-      if (r.retryAfterMs) throw new RetryLaterError(r.error ?? 'Telegram rate limit', r.retryAfterMs);
-      throw new Error(r.error ?? 'Telegram-afsendelse fejlede');
+      throw new RetryLaterError(r.error ?? 'Telegram-afsendelse fejlede', r.retryAfterMs ?? retryDelay(job.attempts));
     }
     this.db.prepare(`UPDATE management_messages SET status = 'uncertain' WHERE id = ?`).run(messageId);
   }
@@ -196,9 +199,13 @@ export class TelegramGateway {
       return;
     }
     if (r.disposition === 'not_started') {
+      // Bevist ikke afsendt → sikkert at prøve igen. Ved netværksudfald ventes op til ca. 35 min.
+      if (job.attempts >= job.maxAttempts) {
+        this.drivers.setMessageStatus(messageId, 'failed');
+        throw new PermanentJobError(r.error ?? 'Telegram-afsendelse fejlede');
+      }
       this.drivers.setMessageStatus(messageId, 'queued');
-      if (r.retryAfterMs) throw new RetryLaterError(r.error ?? 'Telegram rate limit', r.retryAfterMs);
-      throw new Error(r.error ?? 'Telegram-afsendelse fejlede');
+      throw new RetryLaterError(r.error ?? 'Telegram-afsendelse fejlede', r.retryAfterMs ?? retryDelay(job.attempts));
     }
     this.drivers.setMessageStatus(messageId, 'uncertain');
     this.events.log('warn', 'telegram', 'send_uncertain', `Telegram-besked til ${driver.name} har ukendt status (${r.error})`, {

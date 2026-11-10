@@ -58,12 +58,8 @@ export class MonitorService {
     private routing: RoutingService,
     private replenishment: ReplenishmentService,
   ) {
-    ctx.jobs.register('monitor_tick', async () => {
-      try {
-        await this.evaluate();
-      } finally {
-        ctx.jobs.enqueue('monitor_tick', {}, { delayMs: 60_000, dedupeKey: 'monitor_tick' });
-      }
+    ctx.jobs.registerRecurring('monitor_tick', 60_000, async () => {
+      await this.evaluate();
     });
     ctx.jobs.register('monitor_eval', async () => {
       await this.evaluate();
