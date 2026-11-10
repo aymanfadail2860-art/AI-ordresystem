@@ -155,6 +155,11 @@ export class DemoSimulator {
     return phone;
   }
 
+  /** Registrér en simuleret kunde, der svarer på systemets beskeder (bruges af demo-scenarier). */
+  registerBot(phone: string, steps: { when: RegExp; say: string }[]): void {
+    this.bots.set(phone, { phone, scenario: { id: 'custom', title: 'Demo', steps: [{ say: '' }, ...steps.map((x) => ({ ...x, delayMs: 4000 }))] }, next: 1 });
+  }
+
   sendAsCustomer(phone: string, text: string): void {
     const p = normalizePhone(phone);
     if (!p) throw new Error('Ugyldigt telefonnummer');

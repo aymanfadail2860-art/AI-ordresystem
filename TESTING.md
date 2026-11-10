@@ -29,9 +29,10 @@ rigtige beskeder**.
 | `tests/robustness.test.ts` | Genstart under aktiv ordre og under ledelsesgodkendelse (dobbelttryk, afbrudt udførelse → usikker), genstart efter 3 timers nedetid, Telegram-udfald (beskeder venter og sendes én gang), dublerede og forsinkede Telegram-opdateringer, samtidige ordreændringer (optimistisk låsning), 200 samtidige reservationer om 50 varer, udløbne knapper, manglende Claude API (regelbaseret reserve), ugyldige AI-svar, Google Maps-fejl |
 | `tests/simulation.test.ts` | Hel arbejdsdag (45 ordrer, 4 chauffører, fejlvinduer): ordrer forsvinder ikke, ingen negativt eller overreserveret lager, ingen dobbelt levering, højst én aktiv opfyldning pr. chauffør, kun simulerede adaptere, 12 timerapporter; reproducerbar med samme seed; strategierne får de samme ordrer; strategivalg og ærlig sammenligning (kerne) |
 | `tests/adaptive.test.ts` | Etape 4.1-regressioner: hysterese uden blafren, løftebeskyttelse pr. belastningsniveau, mindst skadelige fallback (ordren afvises ikke), lav = hurtigst / høj = mindst køretid, værdivægt højst 1,25×, lavværdiordre tildeles, belastning målt i kapacitet, påfyldning ved lagerbesøg, samme beslutning tælles én gang, adaptiv er standard, simuleringsbot genbesøger ikke og ETA-fejl er ikke systematisk |
+| `tests/alternatives.test.ts` | Etape 5: fortolkning af kundesvar (ja/nej/klokkeslæt/tidligste/uklart, lokal tid), accept → noteret (aldrig "bekræftet") → tildeling før tidsrummet, andet tidspunkt (for tidligt → nyt forslag), "tidligste", afslag → medarbejder, intet svar → udløb, flere samtidige accepter, kapacitet ændret før accept, intern kø, lavværdiordre afvises ikke, kapacitet ved overførsel (samlet/varetype/flex), næsten fuld bil, påfyldning over kapacitet (DB pr. lagerenhed), lager mangler vare, ny aftalt levering ændrer påfyldning, ordre der ikke kan være i nogen bil, QA-regressioner (løfte overskrives ikke, manuel overtagelse, overvågning), demo-scenarier |
 | `tests/e2e.test.ts` | Hele flowet: SMS → tilbud → bekræftelse → Telegram-accept → kører → leveret → lagerfradrag |
 
-Seneste kørsel: **17 testfiler, 159 tests, alle bestået** (kørt gentagne gange for at udelukke ustabile tests). Alle tests kører i cloudmiljøet uden API-nøgler.
+Seneste kørsel: **18 testfiler, 188 tests, alle bestået** (kørt gentagne gange for at udelukke ustabile tests). Alle tests kører i cloudmiljøet uden API-nøgler.
 
 ### De 14 fejlscenarier fra Etape 4
 
@@ -64,6 +65,8 @@ Kører 100/150/300/500/1.000 henvendelser × 4 seeds/profiler × strategier
 parallelt (ca. 7 min på 4 kerner). `--legacy-rules` kører med v0.4.0-reglerne.
 `node scripts/sim-report.mjs` laver før/efter-rapporten. Resultater og årsagsanalyse:
 `docs/simulation/v0.4.1/`.
+
+**Etape 5 (v0.5):** `docs/simulation/v0.5/` – hybridstrategien før/efter alternative leveringstider og fysisk kapacitet (`--v041`, `--no-alternatives`), rapport med `node scripts/sim-report-v05.mjs`.
 
 **Enkelt dag:**
 

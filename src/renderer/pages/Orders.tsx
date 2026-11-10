@@ -111,6 +111,14 @@ export function OrderDetail({ id, nav }: { id: number; nav: Nav }) {
           <dd>{o.deliveryInstructions ?? '–'}</dd>
           <dt>Ønsket tid</dt>
           <dd>{o.requestedTime ?? 'Hurtigst muligt'}</dd>
+          {o.windowEnd && (
+            <>
+              <dt>Aftalt tidsrum</dt>
+              <dd>
+                {time(o.windowStart)}–{time(o.windowEnd)} <span className="muted small">({o.windowKind === 'requested' ? 'kundens ønske' : 'tidligst muligt, accepteret af kunden'})</span>
+              </dd>
+            </>
+          )}
           <dt>Chauffør</dt>
           <dd>{o.driverName ?? '–'}</dd>
           <dt>ETA</dt>
@@ -194,6 +202,10 @@ function eventLabel(e: OrderEvent): string {
     case 'eta_changed': return `ETA ændret ${time(String(d.from))} → ${time(String(d.to))} (${d.reason ?? ''})`;
     case 'customer_notified': return d.kind === 'arrival_soon' ? `Kunden fik "stå klar"-besked (${d.minutes} min)` : `Kunden fik ETA-opdatering (${Number(d.deltaMinutes) > 0 ? '+' : ''}${d.deltaMinutes} min)`;
     case 'plan_revalidated': return 'Ruteplan genberegnet før accept';
+    case 'time_offer': return `Kunden fik tilbudt senere levering ${time(String(d.windowStart))}–${time(String(d.windowEnd))}`;
+    case 'time_window_agreed': return `Kunden accepterede levering ${time(String(d.windowStart))}–${time(String(d.windowEnd))}`;
+    case 'time_offer_unclear': return 'Kundens svar på leveringstid var uklart – spurgt igen';
+    case 'queued': return `Sat i kø hos chauffør (forventet ca. ${time(String(d.eta))})`;
     case 'updated': {
       const names: Record<string, string> = { addressText: 'adresse', deliveryInstructions: 'bemærkning', requestedTime: 'ønsket tid', driverId: 'chauffør', paymentStatus: 'betaling', needsAttention: 'opmærksomhed', eta: 'ETA' };
       const keys = [...new Set(Object.keys(d).map((k) => names[k]).filter(Boolean))];

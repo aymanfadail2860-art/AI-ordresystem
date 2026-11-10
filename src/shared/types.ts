@@ -692,6 +692,11 @@ export interface Settings {
     dispatchLeadMinutes: number;
     /** Seneste levering i forhold til lukketid (virksomheden skal have åbent så mange minutter før tidsrummet). */
     latestAfterCloseMinutes: number;
+    /**
+     * Intern køplads (uden kundekontakt), når ordren kan nås inden for den normale leveringstid, men
+     * alle chauffører er ved loftet for aktive ordrer. Ordren bliver ikke en manuel sag, mens køpladsen gælder.
+     */
+    queueWithinNormalTime: boolean;
   };
   replenishment: {
     enabled: boolean;
@@ -996,6 +1001,8 @@ export interface SimulationMetrics {
   altOffers: number;
   altOrdersOffered: number;
   altAccepted: number;
+  /** Ordrer sat i intern kø (inden for normal leveringstid, ingen kundekontakt). */
+  altQueued: number;
   altRequestedAccepted: number;
   altDeclined: number;
   altExpired: number;

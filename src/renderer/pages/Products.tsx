@@ -64,6 +64,7 @@ function ProductModal({ p, onClose }: { p: Partial<Product>; onClose: () => void
     variant: p.variant ?? '',
     priceKr: p.priceOre != null ? p.priceOre / 100 : 0,
     costKr: p.costOre != null ? String(p.costOre / 100) : '',
+    unitVolume: p.unitVolume ?? 1,
     description: p.description ?? '',
     synonyms: (p.synonyms ?? []).join(', '),
     active: p.active ?? true,
@@ -76,6 +77,7 @@ function ProductModal({ p, onClose }: { p: Partial<Product>; onClose: () => void
         <Field label="SKU (varenummer)"><input value={f.sku} onChange={(e) => setF({ ...f, sku: e.target.value })} /></Field>
         <Field label="Pris (kr.)"><input type="number" step="0.5" min={0} value={f.priceKr} onChange={(e) => setF({ ...f, priceKr: Number(e.target.value) })} /></Field>
         <Field label="Vareomkostning (kr.)" hint="Indkøbspris – bruges til dækningsbidrag. Tom = standard-avance."><input type="number" step="0.5" min={0} value={f.costKr} onChange={(e) => setF({ ...f, costKr: e.target.value })} /></Field>
+        <Field label="Plads (lagerenheder pr. stk.)" hint="1 = én dåse. Fx pose chips 3, pakke toiletpapir 8. Bruges til bilernes kapacitet."><input type="number" step="0.5" min={0.1} value={f.unitVolume} onChange={(e) => setF({ ...f, unitVolume: Number(e.target.value) })} /></Field>
         <Field label="Navn"><input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} /></Field>
         <Field label="Variant"><input value={f.variant} placeholder="fx 50 cl" onChange={(e) => setF({ ...f, variant: e.target.value })} /></Field>
         <Field label="Kategori"><input value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })} /></Field>

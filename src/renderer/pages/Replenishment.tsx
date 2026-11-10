@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { act, call, toast, useQuery } from '../api';
 import { Card, Empty, PageHeader, dateTime, kr, time } from '../components/ui';
-import type { Product, Replenishment, StockForecast, StockLevel, StockLocation } from '../../shared/types';
+import type { LocationCapacity, Product, Replenishment, StockForecast, StockLevel, StockLocation } from '../../shared/types';
 import { REPLENISHMENT_STATUS_LABELS } from '../../shared/types';
 
 interface Overview {
@@ -158,6 +158,7 @@ export function VehicleStock({ embedded }: { embedded?: boolean }) {
       <Card title="Kommende og afventende opfyldninger">
         {data.active.length ? <div className="stack">{data.active.map((r) => <ReplenishmentCard key={r.id} rep={r} />)}</div> : <Empty>Ingen aktive opfyldninger.</Empty>}
       </Card>
+      <VehicleCapacity />
       <Card title="Lagerlokationer">
         <table>
           <thead><tr><th>Lokation</th><th>Type</th><th className="num">Varer på lager</th><th className="num">Reserveret</th></tr></thead>
@@ -199,3 +200,71 @@ export function VehicleStock({ embedded }: { embedded?: boolean }) {
     </div>
   );
 }
+
+interface CapRow {
+  id: number;
+  name: string;
+  capacity: LocationCapacity;
+  config: { capacityUnits: number | null; categoryCaps: Record<string, number>; flexUnits: number | null };
+}
+
+/** Bilernes fysiske kapacitet (lagerenheder), pr. varetype og fast sortiment. */
+function VehicleCapacity() {
+  const { data } = useQuery<CapRow[]>('inventory.capacity', {}, ['inventory', 'products']);
+  const [edit, setEdit] = useState<number | null>(null);
+  const [form, setForm] = useState({ capacityUnits: '', flexUnits: '', caps: '' });
+  if (!data?.length) return null;
+  const open = (r: CapRow) => {
+    setEdit(r.id);
+    setForm({
+      capacityUnits: r.config.capacityUnits == null ? '' : String(r.config.capacityUnits),
+      flexUnits: r.config.flexUnits == null ? '' : String(r.config.flexUnits),
+      caps: Object.entries(r.config.categoryCaps).map(([k, v]) => `${k}=${v}`).join('; '),
+    });
+  };
+  const save = (id: number) => {
+    const categoryCaps = Object.fromEntries(
+      form.caps
+        .split(/[;,]/)
+        .map((x) => x.split('=').map((y) => y.trim()))
+        .filter((x) => x.length === 2 && x[0] && x[1])
+        .map(([k, v]) => [k, Number(v)]),
+    );
+    void act(() => call('inventory.setCapacity', { locationId: id, capacityUnits: form.capacityUnits, flexUnits: form.flexUnits, categoryCaps })).then((ok) => ok && setEdit(null));
+  };
+  return (
+    <Card title="Bilernes kapacitet">
+      <p className="muted small">Plads måles i lagerenheder (fx 1 = én dåse, 3 = en pose chips). Tom kapacitet = ubegrænset. Opfyldning og påfyldning holder sig inden for pladsen.</p>
+      <table>
+        <thead>
+          <tr><th>Bil</th><th className="num">Brugt / kapacitet</th><th className="num">Fri</th><th className="num">Reserveret</th><th>Varetyper (brugt/maks.)</th><th>Fast sortiment</th><th /></tr>
+        </thead>
+        <tbody>
+          {data.map((r) => (
+            <tr key={r.id}>
+              <td>{r.name}</td>
+              <td className="num">{r.capacity.usedUnits} / {r.capacity.capacityUnits ?? '∞'}</td>
+              <td className="num" style={{ color: r.capacity.freeUnits != null && r.capacity.capacityUnits && r.capacity.freeUnits < r.capacity.capacityUnits * 0.1 ? 'var(--danger)' : undefined }}>{r.capacity.freeUnits ?? '–'}</td>
+              <td className="num">{r.capacity.reservedUnits}</td>
+              <td className="small">{r.capacity.byCategory.filter((c) => c.capUnits != null).map((c) => `${c.category} ${c.usedUnits}/${c.capUnits}`).join(', ') || '–'}</td>
+              <td className="small">{r.capacity.assortment.length ? `${r.capacity.assortment.length} varer${r.capacity.flexUnits != null ? ` · flex ${r.capacity.flexUsedUnits}/${r.capacity.flexUnits}` : ''}` : '–'}</td>
+              <td>
+                {edit === r.id ? (
+                  <div className="row wrap">
+                    <input style={{ width: 80 }} placeholder="kapacitet" value={form.capacityUnits} onChange={(e) => setForm({ ...form, capacityUnits: e.target.value })} />
+                    <input style={{ width: 70 }} placeholder="flex" value={form.flexUnits} onChange={(e) => setForm({ ...form, flexUnits: e.target.value })} />
+                    <input style={{ width: 170 }} placeholder="Is=12; Husholdning=24" value={form.caps} onChange={(e) => setForm({ ...form, caps: e.target.value })} />
+                    <button className="primary" onClick={() => save(r.id)}>Gem</button>
+                  </div>
+                ) : (
+                  <button onClick={() => open(r)}>Redigér</button>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </Card>
+  );
+}
+

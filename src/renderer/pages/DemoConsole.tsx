@@ -94,6 +94,33 @@ export function DemoConsole({ nav }: { nav: Nav }) {
             Start opfyldningsscenarie
           </button>
         </Card>
+        <Card title="Alternative leveringstider (scenarie)" actions={<button onClick={() => nav.go('operations')}>Se forslag</button>}>
+          <p className="muted small">
+            Opretter en bekræftet ordre og sender – som når alle chauffører er fuldt booket – et forslag om senere levering via SMS. Den simulerede kunde svarer efter den valgte variant. Følg
+            samtalen under Kundesamtaler.
+          </p>
+          <div className="row wrap" style={{ marginTop: 8 }}>
+            {(
+              [
+                ['accept', 'Kunden accepterer'],
+                ['other_time', 'Ønsker et andet tidspunkt'],
+                ['earliest', 'Spørger om det tidligste'],
+                ['decline', 'Afviser'],
+                ['no_reply', 'Svarer ikke (udløber efter 10 min)'],
+              ] as const
+            ).map(([v, label]) => (
+              <button key={v} onClick={() => void act(() => call<{ phone: string; offerId: number | null }>('demo.altTimeScenario', { variant: v }).then((r) => toast(r.offerId ? `Forslag sendt til ${r.phone}` : 'Intet realistisk tidspunkt – sendt til medarbejder')))}>
+                {label}
+              </button>
+            ))}
+          </div>
+        </Card>
+        <Card title="Bilens kapacitet (scenarie)">
+          <p className="muted small">Gør en bil næsten fuld og beregner opfyldning: kun de ordrer, der kan være i bilen, dækkes, og påfyldning vælges efter dækningsbidrag pr. lagerenhed. Begrundelsen ses i ledelsesgruppen.</p>
+          <button style={{ marginTop: 8 }} onClick={() => void act(() => call<{ driverName: string; capacityUnits: number }>('demo.vehicleCapacityScenario').then((r) => toast(`${r.driverName}s bil har nu plads til ${r.capacityUnits} lagerenheder`)))}>
+            Start kapacitetsscenarie
+          </button>
+        </Card>
         <Card title="Rapporter og proaktiv overvågning" actions={<button onClick={() => nav.go('operations')}>Åbn Drift og overvågning</button>}>
           <p className="muted small">Timerapporter sendes automatisk hver hele time i åbningstiden. Overvågningen klassificerer hændelser som A (automatisk), B (orientering), C (godkendelse) eller D (overtagelse).</p>
           <div className="row wrap" style={{ marginTop: 8 }}>

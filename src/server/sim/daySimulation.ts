@@ -291,7 +291,7 @@ export async function runDaySimulation(input: SimConfig): Promise<SimResult> {
       economics: { strategy: cfg.strategy, ...(cfg.adaptive ? { adaptive: { ...DEFAULT_ADAPTIVE, ...cfg.adaptive } } : {}) },
       demo: { autoTraffic: false },
       ...(cfg.legacyRules ? { replenishment: { topUpHorizonMinutes: 0 }, monitoring: { dedupeLinkedDecisions: false } } : {}),
-      alternatives: { enabled: !cfg.v041 && !cfg.legacyRules && !cfg.alternativesOff },
+      alternatives: { enabled: !cfg.v041 && !cfg.legacyRules && !cfg.alternativesOff, ...(process.env.SIM_QUEUE ? { queueWithinNormalTime: true } : {}) },
     });
     // Katalog og lager
     const products = new Map<string, number>();
@@ -804,7 +804,6 @@ export async function runDaySimulation(input: SimConfig): Promise<SimResult> {
     const needsManual = (ctx.db.prepare(`SELECT COUNT(*) AS c FROM orders WHERE confirmed_at IS NOT NULL AND status = 'needs_manual'`).get() as { c: number }).c;
     // ---- Etape 5: alternative leveringstider, manuelle sager og kapacitet ----
     const offerRows = ctx.db.prepare(`SELECT order_id, status, kind FROM delivery_time_offers`).all() as { order_id: number; status: string; kind: string }[];
-    const ordersOffered = new Set(offerRows.map((o) => o.order_id)).size;
     const windowRows = ctx.db
       .prepare(`SELECT id, window_end, status, delivered_at FROM orders WHERE window_end IS NOT NULL`)
       .all() as { id: number; window_end: string; status: string; delivered_at: string | null }[];
@@ -850,9 +849,10 @@ export async function runDaySimulation(input: SimConfig): Promise<SimResult> {
       routeChangeOffers,
       promisedStopsMoved: promisedMoved,
       botRevisits: counters.revisits,
-      altOffers: offerRows.length,
-      altOrdersOffered: ordersOffered,
-      altAccepted: offerRows.filter((o) => o.status === 'accepted' || o.status === 'fulfilled').length,
+      altOffers: offerRows.filter((o) => o.kind !== 'queued').length,
+      altOrdersOffered: new Set(offerRows.filter((o) => o.kind !== 'queued').map((o) => o.order_id)).size,
+      altAccepted: offerRows.filter((o) => (o.status === 'accepted' || o.status === 'fulfilled') && o.kind !== 'queued').length,
+      altQueued: new Set(offerRows.filter((o) => o.kind === 'queued').map((o) => o.order_id)).size,
       altRequestedAccepted: offerRows.filter((o) => (o.status === 'accepted' || o.status === 'fulfilled') && o.kind === 'requested').length,
       altDeclined: offerRows.filter((o) => o.status === 'declined').length,
       altExpired: offerRows.filter((o) => o.status === 'expired').length,

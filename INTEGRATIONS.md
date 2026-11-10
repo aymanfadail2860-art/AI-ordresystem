@@ -54,6 +54,13 @@ Adapteren (`src/server/adapters/sms/imsgRpc.ts`):
 - Afsendelse: `send` med `service: "sms"`, `region: "DK"`. Kun `ok:true` = sendt; `retry_safe:true`/valideringsfejl = ikke sendt; alt andet (timeout, procesnedbrud, `-32001`) = **usikker**.
 - Procesnedbrud → automatisk genstart med eksponentiel backoff; alle ventende afsendelser markeres usikre.
 
+### Alternative leveringstider via SMS (v0.5)
+
+Forslag sendes som almindelige SMS'er gennem samme udbakke (idempotensnøgle pr. forslag,
+blokeres ved manuel overtagelse). Kundens svar fortolkes deterministisk – også uden Claude.
+Tidspunkter vises i virksomhedens tidszone. Systemet skriver aldrig, at en levering er
+bekræftet, før en chauffør har accepteret.
+
 ### Kendte begrænsninger og risici
 
 1. **iPhonen er et kritisk led.** Den skal være tændt, online og logget ind på samme Apple-konto. Overvej strømforsyning og fast Wi-Fi.

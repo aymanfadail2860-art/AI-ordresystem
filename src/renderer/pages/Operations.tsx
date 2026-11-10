@@ -1,8 +1,8 @@
 import { Fragment, useState } from 'react';
 import { act, call, toast, useQuery } from '../api';
 import { Card, Empty, Field, IntegrationBadge, PageHeader, SimTag, Stat, dateTime, kr, time } from '../components/ui';
-import type { DispatchStrategy, IntegrationStatus, ManagementReport, MonitorAlert, ReportMetrics, SimulationMetrics, SimulationRun, SystemEvent } from '../../shared/types';
-import { ALERT_CATEGORY_LABELS, ALERT_RULE_LABELS, DISPATCH_STRATEGY_LABELS, REPORT_STATUS_LABELS } from '../../shared/types';
+import type { DeliveryTimeOffer, DispatchStrategy, IntegrationStatus, ManagementReport, MonitorAlert, ReportMetrics, SimulationMetrics, SimulationRun, SystemEvent } from '../../shared/types';
+import { ALERT_CATEGORY_LABELS, ALERT_RULE_LABELS, DISPATCH_STRATEGY_LABELS, REPORT_STATUS_LABELS, TIME_OFFER_STATUS_LABELS } from '../../shared/types';
 
 interface Overview {
   integrations: IntegrationStatus[];
@@ -121,6 +121,7 @@ function OverviewTab({ data, go }: { data: Overview; go: (t: 'reports' | 'alerts
           {!data.settings.groupConfigured && <p className="muted small">Ledelsesgruppen er ikke konfigureret – rapporter gemmes, men sendes ikke.</p>}
         </Card>
       </div>
+      <AlternativesCard />
       <Card title="Åbne advarsler" actions={<button onClick={() => go('alerts')}>Alle advarsler</button>}>
         {data.openAlerts.length ? <AlertTable alerts={data.openAlerts.slice(0, 12)} /> : <Empty>Ingen åbne advarsler.</Empty>}
       </Card>
@@ -345,3 +346,39 @@ function SimulationTab() {
     </div>
   );
 }
+
+/** Forslag om senere levering og interne køpladser. */
+function AlternativesCard() {
+  const { data } = useQuery<DeliveryTimeOffer[]>('alternatives.list', {}, ['alternatives', 'orders']);
+  if (!data) return null;
+  const shown = data.slice(0, 15);
+  const tone: Record<string, string> = { pending: 'warn', accepted: 'ok', fulfilled: 'ok', declined: 'danger', expired: 'danger', superseded: 'neutral', cancelled: 'neutral' };
+  return (
+    <Card title="Alternative leveringstider og kø">
+      <p className="muted small">
+        Kan en ordre ikke leveres inden for den normale leveringstid, får kunden et realistisk senere tidsrum via SMS (tidsrummet skal slutte i åbningstiden). Afviser eller svarer kunden
+        ikke, overtager en medarbejder. Intern kø uden kundekontakt kan slås til (alternatives.queueWithinNormalTime) – se docs/simulation/v0.5.
+      </p>
+      {shown.length ? (
+        <table>
+          <thead><tr><th>Ordre</th><th>Type</th><th>Tidsrum</th><th>Status</th><th>Kundens svar</th><th>Oprettet</th></tr></thead>
+          <tbody>
+            {shown.map((o) => (
+              <tr key={o.id}>
+                <td>#{o.orderId}</td>
+                <td>{o.kind === 'queued' ? 'Intern kø' : o.kind === 'requested' ? 'Kundens ønske' : `Forslag ${o.attempt}`}</td>
+                <td>{time(o.windowStart)}–{time(o.windowEnd)}</td>
+                <td><span className={`badge ${tone[o.status]}`}>{TIME_OFFER_STATUS_LABELS[o.status]}</span></td>
+                <td className="small">{o.customerReply ?? '–'}</td>
+                <td className="muted small">{time(o.createdAt)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <Empty>Ingen forslag endnu.</Empty>
+      )}
+    </Card>
+  );
+}
+

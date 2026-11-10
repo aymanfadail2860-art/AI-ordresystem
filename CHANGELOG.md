@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.5.0] – 2026-11-10
+
+Etape 5: kundeaccept af alternative leveringstider, fysisk lagerkapacitet og cloud-kvalitetssikring. Hybridstrategien er fortsat standard; dispatchvægtene er ikke ændret. Analyse og resultater: `docs/simulation/v0.5/`.
+
+### Tilføjet
+- **Alternative leveringstider via SMS:** realistisk tidsrum ("omkring kl. 21.15–21.30. Passer det dig?"), reservation i chaufførens kø, udløb, genvalidering ved accept, deterministisk fortolkning af "Ja", "Det er fint", "Kan I komme kl. 22?", "Nej, det er for sent", "Hvad er det tidligste?"; nyt forslag eller medarbejder ved ændret kapacitet, afslag, intet eller uklart svar. Aftalt tidsrum gemmes på ordren og respekteres af dispatch.
+- Intern kø uden kundekontakt (slået fra som standard – ingen målbar gevinst i simuleringen).
+- **Fysisk lagerkapacitet:** lagerenheder pr. vare, kapacitet pr. bil og pr. varetype, fast sortiment med normalbeholdning/maks., flex-plads, status for brugt/reserveret/fri plads; håndhæves ved overførsel, afhentning og dispatch.
+- **Kapacitetsbegrænset opfyldning:** dækker kun ordrer, der kan være i bilen; påfyldning prioriteret (dækkede leveringer → aftalte senere leveringer → efterspørgsel efter DB pr. lagerenhed) med begrundelse og fravalg i ledelsesgruppen.
+- Kontrolpanel: aftalt tidsrum på ordren, alternative tider under Drift og overvågning, bilernes kapacitet under Billager, plads pr. vare i produktformularen. Demo-konsol: 5 varianter af alternative tider og et kapacitetsscenarie.
+- Simulering: kunde-bots svarer på tidsforslag, bilerne har fysisk kapacitet; `--v041` og `--no-alternatives`; nye nøgletal (tilbudt/accepteret/overholdt, manuelle sager pr. årsag, kapacitetsproblemer).
+- Migration 5. 29 nye tests (i alt 188).
+
+### Rettet
+- Ved gentildeling (fx omfordeling) blev kundens lovede tidspunkt overskrevet i stilhed – forsinkelser i forhold til det reelle løfte blev skjult.
+- Ordrer, der ikke kan være i nogen bil, ventede forgæves; de går nu straks til en medarbejder.
+- Overvågningen talte planlagte ordrer (aftalt tidsrum/afventende svar) som manglende kapacitet.
+
+### Kendte negative effekter (simulering)
+- Den realistiske kapacitetsmodel giver færre leverede ordrer end v0.4.1's ubegrænsede biler (−24 ved 1.000 ordrer).
+- Alternative tider gav lidt flere manuelle sager og forsinkelsesminutter ved 1.000 ordrer (kapaciteten er opbrugt til lukketid); lille gevinst ved 500 ordrer.
+
+
 ## [0.4.1] – 2026-11-10
 
 Etape 4.1: forbedret dispatchstrategi ud fra simuleringsresultaterne. Årsagsanalyse og resultater: `docs/simulation/v0.4.1/`.

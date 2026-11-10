@@ -98,6 +98,7 @@ export function defaultSettings(mode: Settings['installation']['mode']): Setting
       safetyMinutes: 5,
       dispatchLeadMinutes: 45,
       latestAfterCloseMinutes: 0,
+      queueWithinNormalTime: false,
     },
     replenishment: { enabled: true, pickupMinutes: 8, reminderAfterMinutes: 10, escalateLeadMinutes: 10, minRouteImprovementOre: 1000, topUpHorizonMinutes: 90, topUpMaxUnits: 40 },
     economics: {

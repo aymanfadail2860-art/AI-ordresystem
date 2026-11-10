@@ -84,6 +84,7 @@ den tilfører værdi (fortolkning af fri tekst). Alt andet er deterministisk kod
 | G. Management Agent | `agents/managementAgent.ts`, `services/management.ts`, `ai/managementInterpreter.ts` | Ja (kun fortolkning af intention) | Ledelsesgruppen i Telegram: spørgsmål besvares fra databasen; handlinger udføres via de eksisterende services efter rolle- og bekræftelseskontrol |
 | I. Rapporter | `agents/reports.ts` | Nej | Timerapporter og rapporter på forespørgsel – alle tal fra databasen |
 | J. Proaktiv overvågning | `agents/monitor.ts` | Nej | Hændelsesbaseret vurdering (A/B/C/D), dedupe, eskalering, beslutningslog |
+| K. Alternative leveringstider | `agents/timeOffers.ts`, `core/timeReply.ts` | Nej (svar fortolkes deterministisk) | Senere tidsrum via SMS ved manglende kapacitet, reservation, udløb, genvalidering, overdragelse |
 | H. Replenishment Agent | `agents/replenishment.ts`, `core/replenishment.ts` | Nej | Billagerprognose efter hvert stop, underskud, valg af opfyldningspunkt, godkendelse, chaufførkoordinering, påmindelse/eskalering |
 
 ### AI-sikkerhedsregler
@@ -365,6 +366,39 @@ ordrer – ordreværdi afgør aldrig, om en ordre accepteres.
   simulerede integrationer; den beviser ikke ydeevne mod Apple Messages,
   Telegram eller Google Maps.
 
+## Alternative leveringstider (`agents/timeOffers.ts`, v0.5)
+
+- **Udløser:** dispatch finder ingen gyldig chauffør af kapacitets- eller tidsgrunde (loft for
+  aktive ordrer, leveringstid, løfter), og ordren har ventet `offerAfterMinutes`.
+- **Tidligste tidsrum:** pr. aktiv chauffør med varerne beregnes ankomst efter rutens sidste
+  stop og efter andre reserverede pladser (afventende og accepterede forslag), plus margin,
+  afrundet til et kvarter. Tidsrummet skal slutte i åbningstiden (+ `latestAfterCloseMinutes`).
+  Findes intet, venter ordren som før (manuel efter 20 min) eller overdrages.
+- **Reservation:** et forslag har `driver_id` og fylder en plads i køen, så samme kapacitet ikke
+  tilbydes to kunder; accepterede tidsrum, der snart skal tildeles, holdes fri i chaufførens loft.
+- **Kundens svar** fortolkes deterministisk (`parseTimeReply`): accept, afslag, klokkeslæt,
+  "tidligste" eller uklart. Behandlingen kører i dispatch-køen (serialiseret). Accept
+  genvalideres; ændret kapacitet giver et nyt forslag (højst `maxAttempts`), ellers medarbejder.
+- **Aftalt tidsrum** gemmes på ordren (`window_start/end/kind`); løftet = slutningen. Dispatch
+  tildeler `dispatchLeadMinutes` før og validerer mod tidsrummet i stedet for maks. leveringstid.
+- **Udløb:** job + minutlig sikkerhedskontrol. Afvisning, intet svar, uklart svar (to gange) →
+  medarbejder; under manuel overtagelse sendes intet.
+- Intern kø uden kundekontakt (`queueWithinNormalTime`) findes, men er slået fra (ingen målbar gevinst).
+
+## Fysisk lagerkapacitet (v0.5)
+
+- Varer har `unit_volume` (lagerenheder). Lokationer har `capacity_units`, `category_caps`
+  (fx `{ "Is": 12 }`), `flex_units` og et fast sortiment (`location_assortment`: normalbeholdning, maks.).
+- `InventoryService.capacity()` giver brugt/reserveret/fri plads pr. bil, pr. varetype og sortiment;
+  `fitProblem()` afgør, om varer kan lægges i bilen (med plads frigjort af kommende leveringer).
+- Håndhæves ved overførsel til bilen, afhentning ved opfyldning (ordrer der ikke kan være i bilen
+  bliver på lageret) og i dispatch (en bil der ikke kan rumme varerne, kan ikke få ordren; kan ingen
+  bil, går ordren straks til en medarbejder).
+- **Opfyldning:** dækker kun ordrer, der kan være i bilen. Påfyldning: 1) dækkede leveringer,
+  2) aftalte senere leveringer hos chaufføren, 3) forventet efterspørgsel efter dækningsbidrag pr.
+  lagerenhed – inden for kapacitet, varetype, sortiment og flex. Begrundelse og fravalg vises i
+  ledelsesgruppen; godkendelse er uændret.
+
 ## Ordretilstandsmaskine
 
 `src/core/orderStateMachine.ts`. Statusser: Ny henvendelse, Afventer kundeoplysninger,
@@ -396,6 +430,8 @@ annullering, fradrag ved levering) udføres i samme transaktion.
 | Ledelseshandlinger overtages atomisk ved bekræftelse; afbrudt udførelse markeres *usikker* og gentages aldrig | `ManagementAgent` |
 | Timerapporter: én pr. periode, usikker afsendelse gensendes ikke | `ReportService` |
 | Forberedte SQL-sætninger genbruges (5× hurtigere simulering) | `openDatabase` |
+| Kundens løfte overskrives aldrig i stilhed ved gentildeling (v0.5) | `CustomerNotifier.initial` |
+| Tidsforslag: ét afventende pr. ordre (unikt indeks), udløb + sikkerhedskontrol, behandling i dispatch-køen | `TimeOfferService` |
 
 ## Omkostningsstyring (AI)
 

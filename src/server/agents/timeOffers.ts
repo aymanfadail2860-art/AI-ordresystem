@@ -185,7 +185,9 @@ export class TimeOfferService {
       this.close(existing.id, 'superseded'); // køpladsen er forældet – beregn igen
     }
     const w = await this.earliestWindow(order);
-    if (w && order.confirmedAt && w.etaMs - new Date(order.confirmedAt).getTime() <= s.economics.maxDeliveryMinutes * 60000) {
+    const withinNormal = !!w && !!order.confirmedAt && w.etaMs - new Date(order.confirmedAt).getTime() <= s.economics.maxDeliveryMinutes * 60000;
+    if (withinNormal && !s.alternatives.queueWithinNormalTime) return 'none'; // normal dispatch prøver igen (manuel efter den normale grænse)
+    if (w && withinNormal) {
       ctx.db
         .prepare(
           `INSERT INTO delivery_time_offers (order_id, driver_id, status, kind, window_start, window_end, est_eta, attempt, reason, expires_at, created_at, closed_at)

@@ -208,6 +208,7 @@ describe('Alternative leveringstider', () => {
     const { ctx } = t.app;
     ctx.drivers.setStatus(s.bo.id, 'offline');
     ctx.drivers.update(s.anna.id, { maxActiveOrders: 1 });
+    ctx.settings.update({ alternatives: { queueWithinNormalTime: true } }); // slået fra som standard (se docs/simulation/v0.5)
     const near = placeOrder(ctx, { phone: phone(), at: km(2, 0), lines: [{ productId: s.cola.id, quantity: 1 }], locationId: s.anna.vehicleLocationId! });
     await route(t.app, s.anna.id, [near]);
     const p = phone();
@@ -384,5 +385,26 @@ describe('QA-regression: manuel overtagelse og overvågning', () => {
     ctx.db.prepare(`UPDATE delivery_time_offers SET expires_at = ? WHERE order_id = ?`).run(new Date(t!.clock.t + 10 * MIN).toISOString(), o.id);
     await t!.app.agents.monitor.evaluate();
     expect(t!.app.agents.monitor.list({ status: ['open'] }).find((a) => a.rule === 'capacity_shortage')).toBeUndefined();
+  });
+});
+
+describe('Demo-scenarier (Demo Mode, simulerede adaptere)', () => {
+  it('alternativt tidspunkt og næsten fuld bil kan startes fra Demo-konsollen', async () => {
+    const { makeApp } = await import('./helpers');
+    const { altTimeScenario, vehicleCapacityScenario } = await import('../src/server/demo/scenarios');
+    t = await makeApp({});
+    const app = t.app;
+    for (const d of app.ctx.drivers.list()) app.ctx.drivers.setStatus(d.id, 'available');
+    const r = await altTimeScenario(app, 'accept');
+    expect(r.offerId).not.toBeNull();
+    await t.run();
+    expect(t.sms.sentLog.find((m) => m.to === r.phone)?.text).toMatch(/Passer det dig\?/);
+    const c = await vehicleCapacityScenario(app);
+    const driver = app.ctx.drivers.list().find((d) => d.name === c.driverName)!;
+    expect(app.ctx.inventory.capacity(driver.vehicleLocationId!).capacityUnits).toBe(c.capacityUnits);
+    await t.run();
+    const rep = app.agents.replenishment.list({ driverId: driver.id, activeOnly: true })[0];
+    expect(rep).toBeTruthy();
+    expect(app.agents.replenishment.proposalText(rep, 'test')).toMatch(/Bilens plads: .* lagerenheder brugt/);
   });
 });

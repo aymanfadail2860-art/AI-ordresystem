@@ -80,8 +80,17 @@
 - ✅ Adaptiv hybridstrategi med hysterese og løftebeskyttelse (standard)
 - ✅ Påfyldning ved lagerbesøg; overvågning tæller samme beslutning én gang
 - ✅ Simuleringsmatrix 100–1.000 ordrer × 4 seeds/profiler × 4 strategier
-- ⬜ Senere leveringstidspunkt med kundens accept i stedet for manuel eskalering ved meget høj belastning
+- ✅ Senere leveringstidspunkt med kundens accept (v0.5 – gevinst kun ved midlertidig spidsbelastning)
 - ⬜ Kalibrering på rigtige (anonymiserede) ordredata
+
+## Etape 5 – Alternative tider, fysisk kapacitet og kvalitetssikring (v0.5.0)
+- ✅ Analyse af manuelle sager (alle: chauffører ved loftet for aktive ordrer i aftenspidsen)
+- ✅ Alternative leveringstider via SMS med reservation, udløb, genvalidering og overdragelse
+- ✅ Fysisk lagerkapacitet pr. bil (lagerenheder, varetyper, fast sortiment, flex) og kapacitetsbegrænset opfyldning
+- ✅ Demo-scenarier og 29 nye tests; QA-gennemgang med 3 rettede fejl i eksisterende flow
+- ⬜ Vagtplan for chauffører (gør senere tidsrum efter lukketid forsvarlige)
+- ⬜ Opdeling af ordrer, der ikke kan være i én bil
+- ⬜ Måling af kapacitet og varernes plads på rigtige biler
 
 ## Næste etape (forslag)
 

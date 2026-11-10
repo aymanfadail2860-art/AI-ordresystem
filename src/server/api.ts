@@ -3,7 +3,7 @@ import { schemaVersion } from './db/database';
 import { SECRET_NAMES, maskSecret, type SecretName } from './secrets';
 import { startOfToday } from './services/orders';
 import { demoScenarios } from './demo/simulator';
-import { replenishmentScenario } from './demo/scenarios';
+import { altTimeScenario, replenishmentScenario, vehicleCapacityScenario, type AltVariant } from './demo/scenarios';
 import type { DispatchStrategy, ManagementRole } from '../shared/types';
 import { SimulationRunner } from './sim/runner';
 import type {
@@ -388,6 +388,7 @@ export function createApi(host: AppHost): Record<string, Handler> {
         active: p.active !== false,
         description: typeof p.description === 'string' && p.description ? p.description : null,
         synonyms: Array.isArray(p.synonyms) ? p.synonyms.filter((x): x is string => typeof x === 'string') : [],
+        unitVolume: p.unitVolume === undefined || p.unitVolume === null || p.unitVolume === '' ? undefined : num(p.unitVolume, 'lagerenheder'),
       };
       const res = p.id ? C().catalog.update(num(p.id, 'id'), input) : C().catalog.create(input);
       C().audit.record('staff', p.id ? 'product_update' : 'product_create', 'product', res.id, { priceOre: res.priceOre });
@@ -410,6 +411,30 @@ export function createApi(host: AppHost): Record<string, Handler> {
       return { ok: true };
     },
     'inventory.movements': () => C().inventory.movements(300),
+    'inventory.capacity': () => {
+      const c = C();
+      return c.inventory
+        .locations()
+        .filter((l) => l.type === 'vehicle')
+        .map((l) => ({ ...l, capacity: c.inventory.capacity(l.id), config: c.inventory.capacityConfig(l.id) }));
+    },
+    'inventory.setCapacity': (p) => {
+      const caps: Record<string, number> = {};
+      if (p.categoryCaps && typeof p.categoryCaps === 'object') for (const [k, v] of Object.entries(p.categoryCaps as Record<string, unknown>)) caps[k] = num(v, `kapacitet for ${k}`);
+      C().inventory.setCapacity(num(p.locationId, 'lokation'), {
+        capacityUnits: p.capacityUnits === null || p.capacityUnits === '' || p.capacityUnits === undefined ? null : num(p.capacityUnits, 'kapacitet'),
+        flexUnits: p.flexUnits === null || p.flexUnits === '' || p.flexUnits === undefined ? null : num(p.flexUnits, 'flex-plads'),
+        categoryCaps: caps,
+      });
+      C().audit.record('staff', 'vehicle_capacity', 'stock_location', num(p.locationId, 'lokation'), p);
+      return { ok: true };
+    },
+    'inventory.setAssortment': (p) => {
+      const items = Array.isArray(p.items) ? (p.items as Record<string, unknown>[]).map((i) => ({ productId: num(i.productId, 'produkt'), parLevel: Math.trunc(num(i.parLevel ?? 0, 'normalbeholdning')), maxQty: i.maxQty == null || i.maxQty === '' ? null : Math.trunc(num(i.maxQty, 'maks')) })) : [];
+      C().inventory.setAssortment(num(p.locationId, 'lokation'), items);
+      return { ok: true };
+    },
+    'alternatives.list': () => A().agents.timeOffers.list({ limit: 200 }),
     'inventory.createLocation': (p) => ({ id: C().inventory.createLocation(str(p.name, 'navn', 100), 'central', null) }),
 
     // ---------------- AI ----------------
@@ -700,6 +725,14 @@ export function createApi(host: AppHost): Record<string, Handler> {
         drivers: Math.trunc(num(p.drivers ?? 8, 'drivers')),
         strategies: strategies(p.strategies),
       }),
+    'demo.altTimeScenario': async (p) => {
+      demoOnly(A());
+      return altTimeScenario(A(), String(p.variant ?? 'accept') as AltVariant);
+    },
+    'demo.vehicleCapacityScenario': async () => {
+      demoOnly(A());
+      return vehicleCapacityScenario(A());
+    },
     'demo.telegramOutage': (p) => {
       const d = demoOnly(A());
       d.setTelegramOutage(!!p.on);

@@ -8,10 +8,10 @@ læser og besvarer beskederne via **Apple Messages på en Mac**, opretter og
 bekræfter ordrer, reserverer lager, vælger chauffør, kommunikerer med chaufførerne
 via **Telegram** og holder kunden opdateret – mens medarbejdere altid kan overtage.
 
-> **Status (v0.4.1):** Fungerende desktop-applikation med komplet Demo Mode,
+> **Status (v0.5.0):** Fungerende desktop-applikation med komplet Demo Mode,
 > ordresystem, lager, AI-orkestrering, økonomisk dispatch, Telegram-baserede ETA'er
 > (ingen live-GPS), Human Takeover, ledelsesgruppe, proaktiv lageropfyldning,
-> timerapporter, proaktiv overvågning, hel-dags-driftssimulering, adaptiv dispatchstrategi og 159 automatiske tests. Rigtige integrationer (imsg/SMS,
+> timerapporter, proaktiv overvågning, hel-dags-driftssimulering, adaptiv dispatchstrategi, alternative leveringstider, fysisk lagerkapacitet i bilerne og 188 automatiske tests. Rigtige integrationer (imsg/SMS,
 > Telegram, Google Maps, Claude) er implementeret, men **ikke verificeret mod
 > rigtig hardware/rigtige konti endnu**. Se [Status](#status).
 
@@ -63,7 +63,7 @@ npm run simulate:matrix
 | Kundesamtaler | Samtaler, AI-tilstand (AI aktiv / Manuel overtagelse / AI pauseret / Integrationsfejl), Human Takeover, beskedhistorik med leveringsstatus |
 | Chauffører | Status, Telegram-forbindelse via engangskode, aktive leveringer, rute, lager i bilen, beskeder |
 | Logistik | Planlagte ruter, seneste Telegram-status, ETA-interval og -sikkerhed, forsinkelser, omsætning pr. chauffør og rute, leveringer pr. time, tilbud og omfordelingsforslag med økonomisk begrundelse (ingen live-GPS) |
-| Produkter og lager | Katalog og priser, centrallager + billagre, regulering, overførsel, lagerbevægelser, **billager efter hvert planlagt stop, underskud og opfyldninger** |
+| Produkter og lager | Katalog og priser (inkl. plads i lagerenheder), bilernes kapacitet, varetyper og faste sortiment, centrallager + billagre, regulering, overførsel, lagerbevægelser, **billager efter hvert planlagt stop, underskud og opfyldninger** |
 | Ledelsescenter | Godkendelser (opfyldning), kommandolog med beslutning og resultat, gruppechat, ledere og roller (Administrator/Leder/Observatør) |
 | AI Control Center | Modelvalg pr. opgave, modelpriser, budget, tokenforbrug, AI-kald, agenthændelser, automatiseringsindstillinger |
 | Hændelser | Monitoring: fejl og situationer, der kræver menneskelig handling |
@@ -81,6 +81,7 @@ npm run simulate:matrix
 - [INSTALLATION.md](INSTALLATION.md) – installation hos en virksomhed, signering, notarisering, opdateringer
 - [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md) – etaper og status
 - [CHANGELOG.md](CHANGELOG.md)
+- [docs/simulation/v0.5/](docs/simulation/v0.5/) – manuelle sager, alternative leveringstider, fysisk kapacitet, QA (simulerede data)
 - [docs/simulation/v0.4.1/](docs/simulation/v0.4.1/) – årsagsanalyse, adaptiv strategi og simuleringsmatrix (simulerede data)
 
 ## Status
@@ -94,6 +95,8 @@ npm run simulate:matrix
 | Proaktiv lageropfyldning | ✅ | ✅ 9 tests | 🟡 kræver korrekt startlager i bilerne og kalibrering af afhentningstid |
 | Timerapporter og proaktiv overvågning | ✅ | ✅ 16 tests | 🟡 grænseværdier bør justeres efter første driftsuger |
 | Hel-dags-driftssimulering og strategisammenligning | ✅ | ✅ reproducerbar, 4 seeds × 5 belastninger | – (simulerede data; beviser ikke rigtige integrationer) |
+| Alternative leveringstider via SMS | ✅ | ✅ 29 tests + simulering | 🟡 gav kun gevinst ved midlertidig spidsbelastning i simuleringen; kræver vagtplan og rigtige kundereaktioner |
+| Fysisk lagerkapacitet og kapacitetsbegrænset opfyldning | ✅ | ✅ tests + simulering | 🟡 kapaciteter, varernes plads og sortiment skal måles på rigtige biler |
 | Adaptiv dispatchstrategi (standard) | ✅ | ✅ regressionstests + matrix | 🟡 grænser og vægte bør kalibreres på rigtige data |
 | Demo Mode (alle integrationer simuleret) | ✅ | ✅ tests + browsertest | – (demo) |
 | Human Takeover | ✅ | ✅ (simuleret) | ⚠️ automatisk registrering af manuelle iPhone-svar kræver hardwaretest |
