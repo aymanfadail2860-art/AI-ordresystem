@@ -41,6 +41,8 @@ interface Job {
   strategy: DispatchStrategy;
   adaptive?: Record<string, number>;
   legacyRules?: boolean;
+  v041?: boolean;
+  alternativesOff?: boolean;
 }
 
 export interface MatrixResult {
@@ -158,7 +160,7 @@ async function main() {
   // Største kørsler først, så parallelliseringen udnyttes
   const jobs: Job[] = [];
   const adaptive = process.env.SIM_ADAPTIVE ? (JSON.parse(process.env.SIM_ADAPTIVE) as Record<string, number>) : undefined;
-  for (const load of [...loads].sort((a, b) => b.orders - a.orders)) for (const v of variants) for (const strategy of strategies) jobs.push({ load, seed: v.seed, profile: v.profile, strategy, adaptive, legacyRules: process.argv.includes('--legacy-rules') });
+  for (const load of [...loads].sort((a, b) => b.orders - a.orders)) for (const v of variants) for (const strategy of strategies) jobs.push({ load, seed: v.seed, profile: v.profile, strategy, adaptive, legacyRules: process.argv.includes('--legacy-rules'), v041: process.argv.includes('--v041'), alternativesOff: process.argv.includes('--no-alternatives') });
   const results: MatrixResult[] = [];
   const t0 = Date.now();
   await runPool(jobs, workers, (r) => {
@@ -181,7 +183,7 @@ if (isMainThread) {
   }
 } else {
   const job = workerData as Job;
-  runDaySimulation({ seed: job.seed, orders: job.load.orders, drivers: job.load.drivers, strategy: job.strategy, profile: job.profile, adaptive: job.adaptive, legacyRules: job.legacyRules })
+  runDaySimulation({ seed: job.seed, orders: job.load.orders, drivers: job.load.drivers, strategy: job.strategy, profile: job.profile, adaptive: job.adaptive, legacyRules: job.legacyRules, v041: job.v041, alternativesOff: job.alternativesOff })
     .then((r) =>
       parentPort!.postMessage({
         load: job.load.id,

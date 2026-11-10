@@ -88,6 +88,17 @@ export function defaultSettings(mode: Settings['installation']['mode']): Setting
       approvalWarnMinutes: 5,
       dedupeLinkedDecisions: true,
     },
+    alternatives: {
+      enabled: true,
+      offerAfterMinutes: 8,
+      offerExpiryMinutes: 10,
+      maxAttempts: 3,
+      maxHorizonMinutes: 240,
+      windowMinutes: 15,
+      safetyMinutes: 5,
+      dispatchLeadMinutes: 45,
+      latestAfterCloseMinutes: 0,
+    },
     replenishment: { enabled: true, pickupMinutes: 8, reminderAfterMinutes: 10, escalateLeadMinutes: 10, minRouteImprovementOre: 1000, topUpHorizonMinutes: 90, topUpMaxUnits: 40 },
     economics: {
       strategy: 'adaptive',

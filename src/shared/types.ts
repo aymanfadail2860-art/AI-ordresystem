@@ -78,6 +78,8 @@ export interface Product {
   active: boolean;
   description: string | null;
   synonyms: string[];
+  /** Plads i standardiserede lagerenheder (fx 1 = én dåse, 3 = en pose chips). */
+  unitVolume: number;
 }
 
 export interface StockLocation {
@@ -86,6 +88,22 @@ export interface StockLocation {
   type: 'central' | 'vehicle';
   driverId: number | null;
   active: boolean;
+}
+
+/** Fysisk kapacitet for en lagerlokation (bil). capacityUnits = null betyder ubegrænset. */
+export interface LocationCapacity {
+  locationId: number;
+  capacityUnits: number | null;
+  /** Fysisk lager (enheder) – inkl. reserveret. */
+  usedUnits: number;
+  reservedUnits: number;
+  freeUnits: number | null;
+  /** Plads til varer uden for det faste vareudvalg (null = ingen grænse ud over den samlede). */
+  flexUnits: number | null;
+  flexUsedUnits: number;
+  byCategory: { category: string; usedUnits: number; capUnits: number | null }[];
+  assortment: { productId: number; productName: string; parLevel: number; maxQty: number | null; quantity: number; reserved: number }[];
+  plannedPickupUnits: number;
 }
 
 export interface StockLevel {
@@ -197,6 +215,10 @@ export interface Order {
   attentionReason: string | null;
   priority: number;
   pausedFromStatus: OrderStatus | null;
+  /** Aftalt leveringstidsrum (alternativt tidspunkt accepteret af kunden). */
+  windowStart: string | null;
+  windowEnd: string | null;
+  windowKind: 'earliest' | 'requested' | null;
   version: number;
   lines: OrderLine[];
 }
@@ -382,6 +404,34 @@ export const REPLENISHMENT_STATUSES = [
   'cancelled',
   'expired',
 ] as const;
+export type TimeOfferStatus = 'pending' | 'accepted' | 'declined' | 'expired' | 'superseded' | 'cancelled' | 'fulfilled';
+export const TIME_OFFER_STATUS_LABELS: Record<TimeOfferStatus, string> = {
+  pending: 'Afventer kunden',
+  accepted: 'Accepteret af kunden',
+  declined: 'Afvist af kunden',
+  expired: 'Udløbet',
+  superseded: 'Erstattet af nyt forslag',
+  cancelled: 'Annulleret',
+  fulfilled: 'Chauffør tildelt',
+};
+
+export interface DeliveryTimeOffer {
+  id: number;
+  orderId: number;
+  driverId: number | null;
+  status: TimeOfferStatus;
+  kind: 'earliest' | 'requested' | 'queued';
+  windowStart: string;
+  windowEnd: string;
+  attempt: number;
+  reason: string | null;
+  expiresAt: string;
+  decision: string | null;
+  customerReply: string | null;
+  createdAt: string;
+  respondedAt: string | null;
+}
+
 export type ReplenishmentStatus = (typeof REPLENISHMENT_STATUSES)[number];
 export const REPLENISHMENT_STATUS_LABELS: Record<ReplenishmentStatus, string> = {
   proposed: 'Opfyldning foreslået',
@@ -425,7 +475,7 @@ export interface Replenishment {
   afterOrderId: number | null;
   items: { productId: number; productName: string; quantity: number }[];
   coversOrders: number[];
-  analysis: { chosen: ReplenishmentOption; alternatives: ReplenishmentOption[]; reasoning: string[]; rejectedOptions?: string[]; topUp?: { productId: number; productName: string; quantity: number }[] } | null;
+  analysis: { chosen: ReplenishmentOption; alternatives: ReplenishmentOption[]; reasoning: string[]; rejectedOptions?: string[]; topUp?: { productId: number; productName: string; quantity: number; tier?: number }[]; droppedForCapacity?: string[] } | null;
   deadlineAt: string | null;
   sentAt: string | null;
   approvedBy: string | null;
@@ -623,6 +673,26 @@ export interface Settings {
      */
     dedupeLinkedDecisions: boolean;
   };
+  alternatives: {
+    /** Tilbyd kunden et senere leveringstidspunkt, når ingen chauffør kan levere inden for den normale ramme. */
+    enabled: boolean;
+    /** Minutter en bekræftet ordre har ventet uden chauffør, før der tilbydes et alternativ. */
+    offerAfterMinutes: number;
+    /** Tilbuddet udløber efter så mange minutter uden svar. */
+    offerExpiryMinutes: number;
+    /** Højst så mange forslag pr. ordre, før en medarbejder overtager. */
+    maxAttempts: number;
+    /** Længste tid frem, der må foreslås. */
+    maxHorizonMinutes: number;
+    /** Tidsrummets længde (fx 15 min: "kl. 21.15–21.30"). */
+    windowMinutes: number;
+    /** Sikkerhedsmargin lagt til den beregnede ETA før afrunding. */
+    safetyMinutes: number;
+    /** Hvor længe før tidsrummet chaufføren tildeles. */
+    dispatchLeadMinutes: number;
+    /** Seneste levering i forhold til lukketid (virksomheden skal have åbent så mange minutter før tidsrummet). */
+    latestAfterCloseMinutes: number;
+  };
   replenishment: {
     enabled: boolean;
     pickupMinutes: number;
@@ -778,7 +848,8 @@ export type LiveTopic =
   | 'replenishment'
   | 'reports'
   | 'monitoring'
-  | 'simulation';
+  | 'simulation'
+  | 'alternatives';
 
 // ---------------- Etape 4: rapporter, overvågning, simulering ----------------
 
@@ -921,6 +992,20 @@ export interface SimulationMetrics {
   promisedStopsMoved: number;
   /** Chauffør-bot genbesøgte en allerede leveret ordre (simuleringsfejl i v0.4.0 – skal være 0). */
   botRevisits: number;
+  /** Etape 5: alternative leveringstider. */
+  altOffers: number;
+  altOrdersOffered: number;
+  altAccepted: number;
+  altRequestedAccepted: number;
+  altDeclined: number;
+  altExpired: number;
+  altSuperseded: number;
+  windowOrdersDelivered: number;
+  /** Leveret inden for det aftalte tidsrum (+ tolerance). */
+  windowsMet: number;
+  manualByReason: Record<string, number>;
+  /** Lagerbesøg begrænset af bilens plads (ordrer der må vente + påfyldning der blev fravalgt). */
+  capacityProblems: number;
   /** Andel leverede ordrer, der fik et tidspunkt ved tildelingen (resten først ved "der om 5 min"). */
   initialPromiseShare: number;
   /** Forsinkede blandt ordrer med løfte ved tildelingen. */

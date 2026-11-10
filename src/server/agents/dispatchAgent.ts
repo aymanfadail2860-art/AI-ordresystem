@@ -6,6 +6,7 @@ import type { RoutingService } from './routing';
 import type { CustomerNotifier } from './notifier';
 import { DEFAULT_ADAPTIVE, adaptiveCost, chooseAdaptive, chooseInsertion, compareByStrategy, type InsertionResult } from '../../core/routePlanning';
 import { LOAD_LABELS } from './routing';
+import type { TimeOfferService } from './timeOffers';
 import { etaCommunicable } from '../../core/eta';
 import { InsufficientStockError } from '../services/inventory';
 import { formatDkk } from '../../core/money';
@@ -31,7 +32,13 @@ export interface Candidate {
  * Alle dispatch-beslutninger kører i én serialiseret kø (lane 'dispatch'),
  * så samtidige ordrer ikke kan dobbeltbooke kapacitet.
  */
+/** Afvisningsårsager, der skyldes kortsigtet kapacitet/tid (kan løses med et senere tidspunkt). */
+const CAPACITY_REASON = /(ledig kapacitet|først leveres om|lovede|løftebeskyttelse|ubesvaret tilbud|efter det lovede|aftalte tidsrum)/i;
+
 export class DispatchAgent {
+  /** Sættes af app.ts (alternative leveringstider). */
+  timeOffers: TimeOfferService | null = null;
+
   constructor(
     private ctx: Ctx,
     private routing: RoutingService,
@@ -85,14 +92,34 @@ export class DispatchAgent {
     const needs = this.needs(order);
     if (order.stockLocationId && order.stockLocationId === driver.vehicleLocationId) return 'own_vehicle';
     if (driver.vehicleLocationId && ctx.inventory.canFulfil(driver.vehicleLocationId, needs)) return 'move_to_vehicle';
-    if (s.delivery.allowCentralPickup && central && order.stockLocationId === central.id) return 'central_pickup';
-    if (s.delivery.allowCentralPickup && central && ctx.inventory.canFulfil(central.id, needs)) return 'move_to_central';
+    // Varer fra lageret skal kunne være i bilen (plads frigøres, efterhånden som reserverede varer leveres)
+    const fits = () => !driver.vehicleLocationId || !ctx.inventory.fitProblem(driver.vehicleLocationId, needs, ctx.inventory.capacity(driver.vehicleLocationId).reservedUnits);
+    if (s.delivery.allowCentralPickup && central && order.stockLocationId === central.id) return fits() ? 'central_pickup' : null;
+    if (s.delivery.allowCentralPickup && central && ctx.inventory.canFulfil(central.id, needs)) return fits() ? 'move_to_central' : null;
     return null;
   }
 
-  capacityLeft(driver: Driver): number {
+  /** Kan varerne slet ikke være i bilen (selv når alle reserverede varer er leveret)? */
+  private noRoom(driver: Driver, order: Order): boolean {
+    if (!driver.vehicleLocationId) return false;
+    const inv = this.ctx.inventory;
+    return !!inv.fitProblem(driver.vehicleLocationId, this.needs(order), inv.capacity(driver.vehicleLocationId).reservedUnits);
+  }
+
+  capacityLeft(driver: Driver, forOrderId?: number): number {
     const extra = driver.extraCapacityUntil && new Date(driver.extraCapacityUntil).getTime() > clock.now() ? 1 : 0;
-    return driver.maxActiveOrders + extra - driver.activeOrderCount - driver.pendingOfferCount;
+    // Pladser reserveret til leveringstider aftalt med kunden, der snart skal tildeles, holdes fri for nye ordrer
+    // (interne køpladser reserverer ikke – de konkurrerer om ledig plads efter ventetid)
+    const horizon = new Date(clock.now() + (this.ctx.settings.get().alternatives.dispatchLeadMinutes + 45) * 60000).toISOString();
+    const held = (
+      this.ctx.db
+        .prepare(
+          `SELECT COUNT(*) AS c FROM delivery_time_offers t JOIN orders o ON o.id = t.order_id
+           WHERE t.driver_id = ? AND t.status = 'accepted' AND t.kind <> 'queued' AND o.status = 'awaiting_driver' AND t.window_start <= ? AND t.order_id <> ?`,
+        )
+        .get(driver.id, horizon, forOrderId ?? -1) as { c: number }
+    ).c;
+    return driver.maxActiveOrders + extra - driver.activeOrderCount - driver.pendingOfferCount - held;
   }
 
   /** Vurdér alle chauffører for en ordre. Returnerer gyldige kandidater sorteret efter score. */
@@ -123,7 +150,7 @@ export class DispatchAgent {
         reject('Ikke forbundet til Telegram');
         continue;
       }
-      if (this.capacityLeft(d) <= 0 && d.id !== order.driverId) {
+      if (this.capacityLeft(d, order.id) <= 0 && d.id !== order.driverId) {
         reject('Ingen ledig kapacitet');
         continue;
       }
@@ -134,7 +161,7 @@ export class DispatchAgent {
       }
       const plan = this.stockPlanFor(d, order);
       if (!plan) {
-        reject('Mangler varer i bilen');
+        reject(this.noRoom(d, order) ? 'Ikke plads i bilen' : 'Mangler varer i bilen');
         continue;
       }
       const results = await this.routing.planInsertion(
@@ -194,6 +221,10 @@ export class DispatchAgent {
     if (order.status === 'confirmed') order = ctx.orders.transition(orderId, 'awaiting_driver', 'system');
     if (order.status !== 'awaiting_driver') return;
     if (ctx.drivers.offers(orderId).some((o) => o.status === 'pending')) return;
+    // Afventer kundens svar på et alternativt leveringstidspunkt
+    if (this.timeOffers?.pendingFor(orderId)) return;
+    // Aftalt tidsrum: tildel først chauffør kort før tidsrummet
+    if (order.windowStart && clock.now() < new Date(order.windowStart).getTime() - s.alternatives.dispatchLeadMinutes * 60000) return;
     if (!s.installation.automationEnabled || !s.automation.autoDispatch) {
       ctx.orders.flag(orderId, 'Afventer manuel tildeling af chauffør');
       return;
@@ -206,6 +237,33 @@ export class DispatchAgent {
     if (!feasible.length) {
       const waited = order.confirmedAt ? (clock.now() - new Date(order.confirmedAt).getTime()) / 60000 : 0;
       const why = rejected.map((r) => `${r.driver.name}: ${r.reason}`).join('; ') || 'ingen chauffører';
+      if (order.windowEnd && this.timeOffers) {
+        // Aftalt tidsrum: vent på kapacitet, men giv kunden et nyt forslag i god tid, hvis det ikke kan nås
+        if (clock.now() > new Date(order.windowEnd).getTime() - 20 * 60000) {
+          await this.timeOffers.windowNoLongerFeasible(order);
+          return;
+        }
+        throw new RetryLaterError('Afventer kapacitet til aftalt tidsrum', 60_000);
+      }
+      // Ordren kan fysisk ikke være i nogen aktiv bil → det er en reel konflikt, som en medarbejder skal løse nu
+      const active = rejected.filter((r) => !/^(Offline|På pause|Ikke forbundet)/.test(r.reason));
+      if (active.length && active.every((r) => r.reason === 'Ikke plads i bilen')) {
+        ctx.orders.transition(orderId, 'needs_manual', 'system', { reason: 'Ordren fylder mere, end der er plads til i bilerne' });
+        ctx.orders.flag(orderId, 'Ordren fylder mere, end der er plads til i bilerne – del ordren eller kør med en større bil');
+        ctx.events.log('warn', 'dispatch', 'no_room', `Ordre #${orderId} kan ikke være i nogen bil – kræver medarbejder`, { requiresAction: true, data: { orderId } });
+        return;
+      }
+      // Manglende kortsigtet kapacitet: tilbyd kunden et realistisk senere tidspunkt i stedet for manuel behandling
+      const capacityRelated = rejected.some((r) => CAPACITY_REASON.test(r.reason));
+      if (this.timeOffers && capacityRelated && s.alternatives.enabled) {
+        const r = await this.timeOffers.queueOrOffer(order, waited);
+        if (r === 'offered') return;
+        // Ordren har en realistisk køplads inden for den normale leveringstid → ikke en manuel sag
+        if (r === 'queued') {
+          ctx.orders.flag(orderId, 'I kø hos chauffør – tildeles, når der bliver plads');
+          throw new RetryLaterError('I kø hos chauffør – tildeles når der bliver plads', 60_000);
+        }
+      }
       ctx.orders.flag(orderId, 'Ingen forsvarlig løsning – kræver medarbejder');
       ctx.events.log('warn', 'dispatch', 'no_driver', `Ingen forsvarlig tildeling af ordre #${orderId} (${why})`, {
         requiresAction: true,
@@ -429,6 +487,7 @@ export class DispatchAgent {
         this.moveStock(order, driver);
         ctx.orders.updateFields(order.id, { driverId, needsAttention: false, attentionReason: null }, 'system');
         ctx.orders.transition(order.id, 'driver_assigned', offer.kind === 'reassignment' ? 'staff' : 'driver', { driverId, driverName: driver.name, offerId });
+        this.timeOffers?.onAssigned(order.id);
         ctx.db.prepare(`UPDATE dispatch_offers SET status = 'accepted', responded_at = ? WHERE id = ?`).run(clock.date().toISOString(), offerId);
         ctx.db.prepare(`UPDATE dispatch_offers SET status = 'cancelled' WHERE order_id = ? AND status = 'pending' AND id <> ?`).run(order.id, offerId);
         if (wasIdle) {

@@ -356,6 +356,9 @@ export function mapOrder(r: Record<string, unknown>): Order {
     attentionReason: (r.attention_reason as string) ?? null,
     priority: (r.priority as number) ?? 0,
     pausedFromStatus: (r.paused_from_status as Order['pausedFromStatus']) ?? null,
+    windowStart: (r.window_start as string) ?? null,
+    windowEnd: (r.window_end as string) ?? null,
+    windowKind: (r.window_kind as Order['windowKind']) ?? null,
     version: r.version as number,
     lines: [],
   };

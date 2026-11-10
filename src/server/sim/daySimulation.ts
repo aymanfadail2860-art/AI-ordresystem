@@ -48,6 +48,13 @@ export interface SimConfig {
    * samme beslutning flere gange) – bruges til før/efter-sammenligningen.
    */
   legacyRules?: boolean;
+  /**
+   * Kør som v0.4.1: ingen alternative leveringstider og ingen fysisk kapacitet i bilerne
+   * (alle varer fylder ens og ubegrænset) – til før/efter-sammenligningen i Etape 5.
+   */
+  v041?: boolean;
+  /** Fysisk kapacitet som v0.5, men uden alternative leveringstider (isolerer effekten). */
+  alternativesOff?: boolean;
   /** Eksperiment: alle varer i bilerne fra start (ingen varer kun på centrallageret). */
   fullVehicleAssortment?: boolean;
   /** Afvig fra standardindstillingerne for den adaptive strategi (kalibrering). */
@@ -87,21 +94,21 @@ function keyed(seed: number, ...parts: (string | number)[]): () => number {
 // ---------------- Testdata ----------------
 
 const PRODUCTS = [
-  { sku: 'RB', name: 'Red Bull', category: 'Energidrik', price: 2500, cost: 1250, weight: 14, syn: ['redbull'] },
-  { sku: 'MON', name: 'Monster', category: 'Energidrik', price: 2500, cost: 1300, weight: 9, syn: [] },
-  { sku: 'COLA', name: 'Coca-Cola', category: 'Sodavand', price: 2000, cost: 800, weight: 14, syn: ['cola'] },
-  { sku: 'FAXE', name: 'Faxe Kondi', category: 'Sodavand', price: 1800, cost: 700, weight: 8, syn: ['faxe'] },
-  { sku: 'VAND', name: 'Danskvand', category: 'Vand', price: 1200, cost: 300, weight: 7, syn: [] },
-  { sku: 'CHIPS', name: 'Kartoffelchips', category: 'Snacks', price: 3000, cost: 1400, weight: 12, syn: ['chips'] },
-  { sku: 'POP', name: 'Popcorn', category: 'Snacks', price: 2500, cost: 900, weight: 5, syn: [] },
-  { sku: 'VING', name: 'Vingummi', category: 'Slik', price: 2200, cost: 800, weight: 8, syn: [] },
-  { sku: 'CHOK', name: 'Chokoladebar', category: 'Slik', price: 2000, cost: 1000, weight: 7, syn: ['chokolade'] },
-  { sku: 'IS', name: 'Isbæger', category: 'Is', price: 4500, cost: 2200, weight: 5, syn: ['is'] },
-  { sku: 'KAFFE', name: 'Iskaffe', category: 'Kaffe', price: 3500, cost: 1000, weight: 5, syn: [] },
-  { sku: 'MAELK', name: 'Letmælk', category: 'Dagligvarer', price: 1800, cost: 1100, weight: 3, syn: ['mælk'] },
-  { sku: 'BATT', name: 'Batterier', category: 'Husholdning', price: 7900, cost: 3500, weight: 2, syn: [] },
-  { sku: 'TOILET', name: 'Toiletpapir', category: 'Husholdning', price: 5000, cost: 3000, weight: 2, syn: [] },
-  { sku: 'OPLADER', name: 'Telefonoplader', category: 'Elektronik', price: 14900, cost: 6000, weight: 1, syn: ['oplader'] },
+  { sku: 'RB', volume: 1, name: 'Red Bull', category: 'Energidrik', price: 2500, cost: 1250, weight: 14, syn: ['redbull'] },
+  { sku: 'MON', volume: 1, name: 'Monster', category: 'Energidrik', price: 2500, cost: 1300, weight: 9, syn: [] },
+  { sku: 'COLA', volume: 1, name: 'Coca-Cola', category: 'Sodavand', price: 2000, cost: 800, weight: 14, syn: ['cola'] },
+  { sku: 'FAXE', volume: 1, name: 'Faxe Kondi', category: 'Sodavand', price: 1800, cost: 700, weight: 8, syn: ['faxe'] },
+  { sku: 'VAND', volume: 2, name: 'Danskvand', category: 'Vand', price: 1200, cost: 300, weight: 7, syn: [] },
+  { sku: 'CHIPS', volume: 3, name: 'Kartoffelchips', category: 'Snacks', price: 3000, cost: 1400, weight: 12, syn: ['chips'] },
+  { sku: 'POP', volume: 3, name: 'Popcorn', category: 'Snacks', price: 2500, cost: 900, weight: 5, syn: [] },
+  { sku: 'VING', volume: 1, name: 'Vingummi', category: 'Slik', price: 2200, cost: 800, weight: 8, syn: [] },
+  { sku: 'CHOK', volume: 1, name: 'Chokoladebar', category: 'Slik', price: 2000, cost: 1000, weight: 7, syn: ['chokolade'] },
+  { sku: 'IS', volume: 2, name: 'Isbæger', category: 'Is', price: 4500, cost: 2200, weight: 5, syn: ['is'] },
+  { sku: 'KAFFE', volume: 1, name: 'Iskaffe', category: 'Kaffe', price: 3500, cost: 1000, weight: 5, syn: [] },
+  { sku: 'MAELK', volume: 2, name: 'Letmælk', category: 'Dagligvarer', price: 1800, cost: 1100, weight: 3, syn: ['mælk'] },
+  { sku: 'BATT', volume: 1, name: 'Batterier', category: 'Husholdning', price: 7900, cost: 3500, weight: 2, syn: [] },
+  { sku: 'TOILET', volume: 8, name: 'Toiletpapir', category: 'Husholdning', price: 5000, cost: 3000, weight: 2, syn: [] },
+  { sku: 'OPLADER', volume: 1, name: 'Telefonoplader', category: 'Elektronik', price: 14900, cost: 6000, weight: 1, syn: ['oplader'] },
 ];
 /** Varer der starter i bilerne (resten ligger kun på centrallageret). */
 const VEHICLE_SKUS = ['RB', 'MON', 'COLA', 'FAXE', 'VAND', 'CHIPS', 'VING', 'CHOK'];
@@ -125,7 +132,7 @@ interface PlannedOrder {
   addSku: string;
 }
 
-function planOrders(cfg: Required<Omit<SimConfig, 'onProgress' | 'inspect' | 'adaptive' | 'legacyRules' | 'fullVehicleAssortment'>>, openMs: number): PlannedOrder[] {
+function planOrders(cfg: Required<Omit<SimConfig, 'onProgress' | 'inspect' | 'adaptive' | 'legacyRules' | 'fullVehicleAssortment' | 'v041' | 'alternativesOff'>>, openMs: number): PlannedOrder[] {
   const rng = mulberry32(cfg.seed);
   const hours: number[] = [];
   for (let h = cfg.openHour; h < cfg.closeHour; h++) hours.push(h);
@@ -284,10 +291,12 @@ export async function runDaySimulation(input: SimConfig): Promise<SimResult> {
       economics: { strategy: cfg.strategy, ...(cfg.adaptive ? { adaptive: { ...DEFAULT_ADAPTIVE, ...cfg.adaptive } } : {}) },
       demo: { autoTraffic: false },
       ...(cfg.legacyRules ? { replenishment: { topUpHorizonMinutes: 0 }, monitoring: { dedupeLinkedDecisions: false } } : {}),
+      alternatives: { enabled: !cfg.v041 && !cfg.legacyRules && !cfg.alternativesOff },
     });
     // Katalog og lager
     const products = new Map<string, number>();
-    for (const p of PRODUCTS) products.set(p.sku, ctx.catalog.create({ sku: p.sku, name: p.name, category: p.category, priceOre: p.price, costOre: p.cost, synonyms: p.syn }).id);
+    for (const p of PRODUCTS)
+      products.set(p.sku, ctx.catalog.create({ sku: p.sku, name: p.name, category: p.category, priceOre: p.price, costOre: p.cost, synonyms: p.syn, unitVolume: cfg.v041 ? 1 : p.volume }).id);
     const depot = { lat: 55.6815, lng: 12.5545 };
     const central = ctx.inventory.createLocation('Centrallager (simuleret)', 'central', null, depot.lat, depot.lng);
     for (const id of products.values()) ctx.inventory.adjust(central, id, 600, 'simulering', 'system');
@@ -308,7 +317,12 @@ export async function runDaySimulation(input: SimConfig): Promise<SimResult> {
       ctx.db.prepare(`UPDATE drivers SET telegram_user_id = ?, telegram_chat_id = ? WHERE id = ?`).run(uid, uid, d.id);
       ctx.drivers.setStatus(d.id, 'offline');
       const vloc = ctx.drivers.get(d.id)!.vehicleLocationId!;
-      for (const sku of cfg.fullVehicleAssortment ? PRODUCTS.map((p) => p.sku) : VEHICLE_SKUS) ctx.inventory.adjust(vloc, products.get(sku)!, 18, "bil – startlager", "system");
+      for (const sku of cfg.fullVehicleAssortment ? PRODUCTS.map((p) => p.sku) : VEHICLE_SKUS) ctx.inventory.adjust(vloc, products.get(sku)!, 18, 'bil – startlager', 'system');
+      if (!cfg.v041) {
+        // Fysisk kapacitet (Etape 5): 240 lagerenheder, fryseboks og plads til husholdningsvarer, fast sortiment
+        ctx.inventory.setCapacity(vloc, { capacityUnits: 240, categoryCaps: { Is: 12, Husholdning: 24 }, flexUnits: 40 });
+        ctx.inventory.setAssortment(vloc, VEHICLE_SKUS.map((sku) => ({ productId: products.get(sku)!, parLevel: 18, maxQty: 24 })));
+      }
       const peak = k >= Math.max(2, cfg.drivers - 2);
       const lunch = k % 2 === 0;
       bots.push({
@@ -349,7 +363,7 @@ export async function runDaySimulation(input: SimConfig): Promise<SimResult> {
     const timed: Step[] = [];
     const later = (ms: number, act: () => void) => timed.push({ at: now + ms, act });
     const tgPending: (() => void)[] = [];
-    const counters = { driveMs: 0, depotDriveMs: 0, mgmtActions: 0, offersIgnored: 0, stockReplies: 0, busyMs: 0, waitRepMs: 0, idleWithStopsMs: 0, revisits: 0 };
+    const counters = { driveMs: 0, depotDriveMs: 0, mgmtActions: 0, offersIgnored: 0, stockReplies: 0, busyMs: 0, waitRepMs: 0, idleWithStopsMs: 0, revisits: 0, timeOffersSeen: 0 };
     /** Telegram-handling fra en chauffør/leder; under udfald afventer den forbindelsen. */
     const viaTelegram = (fn: () => void) => {
       if (tg.inOutage) tgPending.push(fn);
@@ -370,7 +384,7 @@ export async function runDaySimulation(input: SimConfig): Promise<SimResult> {
 
     // ---------------- Kunder ----------------
     const planned = planOrders(cfg as never, openMs);
-    const byPhone = new Map(planned.map((p) => [p.phone, { p, modified: false, cancelled: false, confirmed: false, answeredQuote: 0 }]));
+    const byPhone = new Map(planned.map((p) => [p.phone, { p, modified: false, cancelled: false, confirmed: false, answeredQuote: 0, timeOffers: 0 as number | undefined }]));
     let nextOrder = 0;
     let smsIndex = 0;
     const handleSms = () => {
@@ -379,7 +393,7 @@ export async function runDaySimulation(input: SimConfig): Promise<SimResult> {
         const c = byPhone.get(m.to);
         if (!c) continue;
         const r = keyed(cfg.seed, 'cust', c.p.i, smsIndex);
-        if (/Svar JA/i.test(m.text)) {
+        if (/Svar JA/i.test(m.text) && !/Passer det dig\?|Passer levering ca\./i.test(m.text)) {
           c.answeredQuote++;
           if (c.p.kind === 'ignore_quote') continue;
           if (c.p.kind === 'decline') {
@@ -393,6 +407,32 @@ export async function runDaySimulation(input: SimConfig): Promise<SimResult> {
           }
           if (c.answeredQuote > 3) continue;
           later(c.p.replyDelayS * 1000, () => sms.injectInbound(m.to, 'Ja tak'));
+        } else if (/Passer det dig\?|Passer levering ca\./i.test(m.text)) {
+          // Forslag om senere levering (Etape 5)
+          c.timeOffers = (c.timeOffers ?? 0) + 1;
+          counters.timeOffersSeen++;
+          const rr = keyed(cfg.seed, 'timeoffer', c.p.i, c.timeOffers);
+          const x = rr();
+          const delay = (30 + Math.floor(rr() * 150)) * 1000;
+          const win = m.text.match(/kl\. (\d{2})\.(\d{2})–(\d{2})\.(\d{2})/);
+          if (/Passer levering ca\./i.test(m.text)) {
+            later(delay, () => sms.injectInbound(m.to, 'Ja'));
+          } else if (c.timeOffers >= 2) {
+            later(delay, () => sms.injectInbound(m.to, x < 0.8 ? 'Ja, det er fint' : 'Nej, det er for sent'));
+          } else if (x < 0.63) {
+            later(delay, () => sms.injectInbound(m.to, x < 0.3 ? 'Ja' : 'Det er fint'));
+          } else if (x < 0.75 && win) {
+            // Ønsker et senere tidspunkt: 30–60 min efter forslaget, på et kvarter
+            let h = Number(win[3]);
+            let mi = Number(win[4]) + 30 + Math.floor(rr() * 3) * 15;
+            h += Math.floor(mi / 60);
+            mi %= 60;
+            later(delay, () => sms.injectInbound(m.to, `Kan I komme kl. ${String(h % 24).padStart(2, '0')}.${String(mi).padStart(2, '0')}?`));
+          } else if (x < 0.83) {
+            later(delay, () => sms.injectInbound(m.to, 'Hvad er det tidligste?'));
+          } else if (x < 0.93) {
+            later(delay, () => sms.injectInbound(m.to, 'Nej, det er for sent'));
+          } // ellers svarer kunden ikke
         } else if (/ikke nok af|udsolgt/i.test(m.text)) {
           counters.stockReplies++;
           later(60_000, () => sms.injectInbound(m.to, 'Ok, så annuller'));
@@ -762,6 +802,25 @@ export async function runDaySimulation(input: SimConfig): Promise<SimResult> {
       ctx.db.prepare(`SELECT COUNT(*) AS c FROM orders WHERE confirmed_at IS NOT NULL AND status IN ('confirmed','awaiting_driver','driver_assigned','out_for_delivery')`).get() as { c: number }
     ).c;
     const needsManual = (ctx.db.prepare(`SELECT COUNT(*) AS c FROM orders WHERE confirmed_at IS NOT NULL AND status = 'needs_manual'`).get() as { c: number }).c;
+    // ---- Etape 5: alternative leveringstider, manuelle sager og kapacitet ----
+    const offerRows = ctx.db.prepare(`SELECT order_id, status, kind FROM delivery_time_offers`).all() as { order_id: number; status: string; kind: string }[];
+    const ordersOffered = new Set(offerRows.map((o) => o.order_id)).size;
+    const windowRows = ctx.db
+      .prepare(`SELECT id, window_end, status, delivered_at FROM orders WHERE window_end IS NOT NULL`)
+      .all() as { id: number; window_end: string; status: string; delivered_at: string | null }[];
+    const windowsDelivered = windowRows.filter((o) => o.status === 'delivered');
+    const windowsMet = windowsDelivered.filter((o) => arriveMs({ id: o.id, delivered_at: o.delivered_at! }) <= new Date(o.window_end).getTime() + tol).length;
+    const manualReasons: Record<string, number> = {};
+    for (const r of ctx.db
+      .prepare(
+        `SELECT (SELECT data FROM order_events e WHERE e.order_id = o.id AND e.to_status = 'needs_manual' ORDER BY e.id DESC LIMIT 1) AS d FROM orders o WHERE o.status = 'needs_manual' AND o.confirmed_at IS NOT NULL`,
+      )
+      .all() as { d: string | null }[]) {
+      const reason = (JSON.parse(r.d ?? '{}') as { reason?: string }).reason ?? 'ukendt';
+      manualReasons[reason] = (manualReasons[reason] ?? 0) + 1;
+    }
+    const capacityLimited = (ctx.db.prepare(`SELECT COUNT(*) AS c FROM events WHERE type = 'capacity_limited'`).get() as { c: number }).c;
+    const repsWithDrops = (ctx.db.prepare(`SELECT COUNT(*) AS c FROM replenishments WHERE analysis LIKE '%droppedForCapacity":["%'`).get() as { c: number }).c;
     const metrics: SimulationMetrics = {
       strategy: cfg.strategy,
       profile: cfg.profile,
@@ -791,6 +850,17 @@ export async function runDaySimulation(input: SimConfig): Promise<SimResult> {
       routeChangeOffers,
       promisedStopsMoved: promisedMoved,
       botRevisits: counters.revisits,
+      altOffers: offerRows.length,
+      altOrdersOffered: ordersOffered,
+      altAccepted: offerRows.filter((o) => o.status === 'accepted' || o.status === 'fulfilled').length,
+      altRequestedAccepted: offerRows.filter((o) => (o.status === 'accepted' || o.status === 'fulfilled') && o.kind === 'requested').length,
+      altDeclined: offerRows.filter((o) => o.status === 'declined').length,
+      altExpired: offerRows.filter((o) => o.status === 'expired').length,
+      altSuperseded: offerRows.filter((o) => o.status === 'superseded').length,
+      windowOrdersDelivered: windowsDelivered.length,
+      windowsMet,
+      manualByReason: manualReasons,
+      capacityProblems: capacityLimited + repsWithDrops,
       initialPromiseShare: r1((delivered.filter((o) => promiseKind.get(o.id) === 'initial').length / Math.max(1, delivered.length)) * 100),
       lateShareInitialPromise: share(delivered.filter((o) => promiseKind.get(o.id) === 'initial')),
       lateShareHighValue: share(byValue.slice(0, topN)),

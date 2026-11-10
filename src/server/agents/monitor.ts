@@ -181,14 +181,21 @@ export class MonitorService {
     }
 
     // 3. Manglende chaufførkapacitet
+    // Ordrer med et aftalt senere tidsrum eller et afventende kundesvar venter planmæssigt – de er ikke en kapacitetsmangel.
+    // Ordrer i intern kø tæller med (de venter på kapacitet), men kun som orientering.
     const waiting = ctx.db
-      .prepare(`SELECT id, confirmed_at FROM orders WHERE status IN ('confirmed','awaiting_driver') AND confirmed_at IS NOT NULL`)
-      .all() as { id: number; confirmed_at: string }[];
+      .prepare(
+        `SELECT o.id, o.confirmed_at, EXISTS(SELECT 1 FROM delivery_time_offers t WHERE t.order_id = o.id AND t.status = 'accepted' AND t.kind = 'queued') AS queued
+         FROM orders o WHERE o.status IN ('confirmed','awaiting_driver') AND o.confirmed_at IS NOT NULL AND o.window_end IS NULL
+           AND NOT EXISTS(SELECT 1 FROM delivery_time_offers t WHERE t.order_id = o.id AND t.status = 'pending')`,
+      )
+      .all() as { id: number; confirmed_at: string; queued: number }[];
     const longWaits = waiting.map((o) => ({ id: o.id, min: Math.round((now - new Date(o.confirmed_at).getTime()) / 60000) })).filter((x) => x.min >= m.capacityWaitMinutes);
     if (longWaits.length) {
       const worst = Math.max(...longWaits.map((x) => x.min));
       const available = drivers.filter((d) => d.status === 'available' || d.status === 'busy').length;
-      const category: AlertCategory = worst >= m.capacityWaitMinutes * 2 ? 'takeover' : 'inform';
+      const unqueuedWorst = Math.max(0, ...waiting.filter((o) => !o.queued).map((o) => Math.round((now - new Date(o.confirmed_at).getTime()) / 60000)));
+      const category: AlertCategory = unqueuedWorst >= m.capacityWaitMinutes * 2 ? 'takeover' : 'inform';
       out.push({
         rule: 'capacity_shortage',
         key: 'capacity_shortage',

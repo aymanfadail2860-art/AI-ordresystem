@@ -572,4 +572,54 @@ CREATE TABLE simulation_runs (
 );
 `,
   },
+  {
+    version: 5,
+    name: 'delivery_windows_and_vehicle_capacity',
+    sql: `
+-- Alternative leveringstider (Etape 5). Et tilbud reserverer en plads i en chaufførs kø
+-- (holdes, mens det er afventende eller accepteret), udløber og valideres igen ved accept.
+CREATE TABLE delivery_time_offers (
+  id INTEGER PRIMARY KEY,
+  order_id INTEGER NOT NULL REFERENCES orders(id),
+  driver_id INTEGER REFERENCES drivers(id),
+  status TEXT NOT NULL CHECK (status IN ('pending','accepted','declined','expired','superseded','cancelled','fulfilled')),
+  -- earliest/requested: aftalt med kunden. queued: intern køplads inden for den normale leveringstid (ingen kundekontakt)
+  kind TEXT NOT NULL CHECK (kind IN ('earliest','requested','queued')),
+  window_start TEXT NOT NULL,
+  window_end TEXT NOT NULL,
+  est_eta TEXT,
+  attempt INTEGER NOT NULL DEFAULT 1,
+  reason TEXT,
+  expires_at TEXT NOT NULL,
+  decision TEXT,
+  customer_reply TEXT,
+  created_at TEXT NOT NULL,
+  responded_at TEXT,
+  closed_at TEXT
+);
+-- Højst ét afventende tilbud pr. ordre
+CREATE UNIQUE INDEX idx_time_offer_pending ON delivery_time_offers(order_id) WHERE status = 'pending';
+CREATE INDEX idx_time_offer_driver ON delivery_time_offers(driver_id, status);
+
+-- Aftalt leveringstidsrum (kundens accept). eta_communicated = slutningen af tidsrummet.
+ALTER TABLE orders ADD COLUMN window_start TEXT;
+ALTER TABLE orders ADD COLUMN window_end TEXT;
+ALTER TABLE orders ADD COLUMN window_kind TEXT;
+
+-- Fysisk lagerkapacitet: standardiserede lagerenheder pr. vare (fx 1 = én dåse) og pr. lokation
+ALTER TABLE products ADD COLUMN unit_volume REAL NOT NULL DEFAULT 1 CHECK (unit_volume > 0);
+ALTER TABLE stock_locations ADD COLUMN capacity_units REAL CHECK (capacity_units IS NULL OR capacity_units >= 0);
+ALTER TABLE stock_locations ADD COLUMN category_caps TEXT;
+ALTER TABLE stock_locations ADD COLUMN flex_units REAL;
+
+-- Fast vareudvalg pr. bil med normalbeholdning (par) og maks.
+CREATE TABLE location_assortment (
+  location_id INTEGER NOT NULL REFERENCES stock_locations(id),
+  product_id INTEGER NOT NULL REFERENCES products(id),
+  par_level INTEGER NOT NULL DEFAULT 0 CHECK (par_level >= 0),
+  max_qty INTEGER CHECK (max_qty IS NULL OR max_qty >= 0),
+  PRIMARY KEY (location_id, product_id)
+);
+`,
+  },
 ];

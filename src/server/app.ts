@@ -28,6 +28,7 @@ import { ManagementService } from './services/management';
 import { ClaudeManagementInterpreter, RuleBasedManagementInterpreter } from './ai/managementInterpreter';
 import { ReportService } from './agents/reports';
 import { MonitorService } from './agents/monitor';
+import { TimeOfferService } from './agents/timeOffers';
 import { DispatchAgent } from './agents/dispatchAgent';
 import { DriverAgent } from './agents/driverAgent';
 import { LogisticsAgent } from './agents/logisticsAgent';
@@ -86,6 +87,7 @@ export interface App {
     management: ManagementAgent;
     reports: ReportService;
     monitor: MonitorService;
+    timeOffers: TimeOfferService;
   };
   management: ManagementService;
   backup: BackupService;
@@ -197,6 +199,10 @@ export async function createApp(opts: AppOptions): Promise<App> {
   const routing = new RoutingService(ctx, notifier);
   const customer = new CustomerAgent(ctx);
   const dispatch = new DispatchAgent(ctx, routing, notifier);
+  const timeOffers = new TimeOfferService(ctx, routing);
+  timeOffers.dispatch = dispatch;
+  dispatch.timeOffers = timeOffers;
+  customer.timeOffers = timeOffers;
   const driver = new DriverAgent(ctx, dispatch, routing, notifier);
   const logistics = new LogisticsAgent(ctx, dispatch, routing);
   const replenishment = new ReplenishmentService(ctx, routing);
@@ -257,7 +263,7 @@ export async function createApp(opts: AppOptions): Promise<App> {
   const app: App = {
     ctx,
     mode: opts.mode,
-    agents: { customer, dispatch, driver, logistics, routing, replenishment, management: managementAgent, reports, monitor },
+    agents: { customer, dispatch, driver, logistics, routing, replenishment, management: managementAgent, reports, monitor, timeOffers },
     management,
     backup,
     retention,
@@ -279,6 +285,7 @@ export async function createApp(opts: AppOptions): Promise<App> {
         replenishment.start();
         reports.start();
         monitor.start();
+        timeOffers.start();
         backup.start();
         retention.start();
         jobs.start();

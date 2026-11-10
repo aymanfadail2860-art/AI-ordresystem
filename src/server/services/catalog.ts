@@ -13,6 +13,8 @@ export interface ProductInput {
   active?: boolean;
   description?: string | null;
   synonyms?: string[];
+  /** Lagerenheder pr. stk. (standard 1). */
+  unitVolume?: number;
 }
 
 export function mapProduct(r: Record<string, unknown>): Product {
@@ -27,6 +29,7 @@ export function mapProduct(r: Record<string, unknown>): Product {
     active: !!r.active,
     description: (r.description as string) ?? null,
     synonyms: parseJson<string[]>(r.synonyms as string, []),
+    unitVolume: (r.unit_volume as number) ?? 1,
   };
 }
 
@@ -61,14 +64,15 @@ export class CatalogService {
     if (!p.name?.trim()) throw new Error('Produktnavn mangler');
     if (!Number.isInteger(p.priceOre) || p.priceOre < 0 || p.priceOre > 10_000_000) throw new Error('Ugyldig pris');
     if (p.costOre != null && (!Number.isInteger(p.costOre) || p.costOre < 0 || p.costOre > 10_000_000)) throw new Error('Ugyldig vareomkostning');
+    if (p.unitVolume != null && (!Number.isFinite(p.unitVolume) || p.unitVolume <= 0 || p.unitVolume > 1000)) throw new Error('Ugyldig pladsangivelse (lagerenheder)');
   }
 
   create(p: ProductInput): Product {
     this.validate(p);
     const r = this.db
       .prepare(
-        `INSERT INTO products (sku, name, category, variant, price_ore, cost_ore, active, description, synonyms)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO products (sku, name, category, variant, price_ore, cost_ore, active, description, synonyms, unit_volume)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         p.sku.trim().toUpperCase(),
@@ -80,6 +84,7 @@ export class CatalogService {
         p.active === false ? 0 : 1,
         p.description ?? null,
         JSON.stringify(cleanSynonyms(p.synonyms)),
+        p.unitVolume ?? 1,
       );
     this.bus.touch('products');
     return this.get(Number(r.lastInsertRowid))!;
@@ -90,7 +95,7 @@ export class CatalogService {
     this.db
       .prepare(
         `UPDATE products SET sku = ?, name = ?, category = ?, variant = ?, price_ore = ?, cost_ore = ?, active = ?,
-         description = ?, synonyms = ?, updated_at = ? WHERE id = ?`,
+         description = ?, synonyms = ?, unit_volume = COALESCE(?, unit_volume), updated_at = ? WHERE id = ?`,
       )
       .run(
         p.sku.trim().toUpperCase(),
@@ -102,6 +107,7 @@ export class CatalogService {
         p.active === false ? 0 : 1,
         p.description ?? null,
         JSON.stringify(cleanSynonyms(p.synonyms)),
+        p.unitVolume ?? null,
         nowIso(),
         id,
       );

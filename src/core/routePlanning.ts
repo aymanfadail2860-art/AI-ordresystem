@@ -66,7 +66,13 @@ export interface InsertionArgs {
   existing: PlanningStop[];
   /** Antal stop forrest i ruten, der ikke må flyttes (fx stop chaufføren er på vej til). */
   lockedCount: number;
-  newOrder: { orderId: number; value: OrderValue; priority?: number };
+  newOrder: {
+    orderId: number;
+    value: OrderValue;
+    priority?: number;
+    /** Aftalt leveringstidsrum (kundens accept af et alternativt tidspunkt): erstatter maks. leveringstid. */
+    window?: { notBeforeMs: number | null; notAfterMs: number } | null;
+  };
   /**
    * Køretid i sekunder mellem knuder: -1 = ankerpunkt, 0..n-1 = eksisterende stop,
    * n = den nye ordre. Kalderen indregner fx afhentning på centrallager i ben til n.
@@ -163,7 +169,11 @@ export function evaluateInsertions(args: InsertionArgs): InsertionResult[] {
         }
       }
     }
-    if (newEtaMin > e.maxDeliveryMinutes) violations.push(`Ny ordre kan først leveres om ${Math.round(newEtaMin)} min (maks. ${e.maxDeliveryMinutes})`);
+    const win = args.newOrder.window;
+    if (win) {
+      if (newEta.etaMs > win.notAfterMs) violations.push(`Ordren kan først leveres ${Math.round((newEta.etaMs - win.notAfterMs) / 60000)} min efter det aftalte tidsrum`);
+      if (win.notBeforeMs != null && newEta.etaMs < win.notBeforeMs) violations.push(`Ordren ville blive leveret før det aftalte tidspunkt`);
+    } else if (newEtaMin > e.maxDeliveryMinutes) violations.push(`Ny ordre kan først leveres om ${Math.round(newEtaMin)} min (maks. ${e.maxDeliveryMinutes})`);
 
     // Nærhed: ligger den nye ordre tæt på et eksisterende stop i ruten?
     const prevNode = k === 0 ? -1 : nodes[k - 1];

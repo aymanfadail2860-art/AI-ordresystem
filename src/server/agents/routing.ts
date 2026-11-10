@@ -339,6 +339,17 @@ export class RoutingService {
     order: { id: number; point: LatLng; needsPickup: boolean; deliveryFeeOre: number; stockLocationId?: number | null; priority?: number },
     opts: { reassignment: boolean },
   ): Promise<InsertionResult[]> {
+    // Aftalt leveringstidsrum (alternativt tidspunkt accepteret af kunden)
+    const w = this.ctx.db.prepare(`SELECT window_start, window_end, window_kind FROM orders WHERE id = ?`).get(order.id) as
+      | { window_start: string | null; window_end: string | null; window_kind: string | null }
+      | undefined;
+    const window = w?.window_end
+      ? {
+          // Systemets "tidligst muligt"-forslag må gerne leveres lidt før; et ønsket klokkeslæt må ikke
+          notBeforeMs: w.window_start ? new Date(w.window_start).getTime() - (w.window_kind === 'requested' ? 10 : 30) * 60000 : null,
+          notAfterMs: new Date(w.window_end).getTime(),
+        }
+      : null;
     const anchor = this.ensureAnchor(driver);
     const stops = this.stops(driver.id).filter((s) => s.orderId !== order.id);
     const anchorPt = anchor.lat != null ? { lat: anchor.lat, lng: anchor.lng! } : null;
@@ -352,7 +363,7 @@ export class RoutingService {
       anchor: planAnchor,
       existing,
       lockedCount: this.lockedCount(driver, stops, anchor),
-      newOrder: { orderId: order.id, value: this.valueOf(order.id, order.deliveryFeeOre, s.economics.defaultMarginPct), priority: order.priority ?? 0 },
+      newOrder: { orderId: order.id, value: this.valueOf(order.id, order.deliveryFeeOre, s.economics.defaultMarginPct), priority: order.priority ?? 0, window },
       travel,
       eta: this.etaParams(),
       econ: s.economics,

@@ -12,6 +12,7 @@ import { haversineMeters } from '../../core/geo';
 import { isOpen } from '../../core/openingHours';
 import type { Order, OrderStatus } from '../../shared/types';
 import { fillTemplate, menuText, priceFacts, quoteText, statusText } from './replies';
+import type { TimeOfferService } from './timeOffers';
 import { clock } from '../clock';
 
 /**
@@ -25,6 +26,9 @@ import { clock } from '../clock';
  *     Går noget galt, rulles alt tilbage – ingen halve ordrer eller dobbeltsvar.
  */
 export class CustomerAgent {
+  /** Sættes af app.ts (alternative leveringstider). */
+  timeOffers: TimeOfferService | null = null;
+
   constructor(private ctx: Ctx) {
     ctx.jobs.register('process_conversation', (job) => this.handleJob(job));
     ctx.bus.on('inbound_message', ({ conversationId }: { conversationId: number }) => {
@@ -166,7 +170,7 @@ export class CustomerAgent {
 
     // ---- 2. Synkron, transaktionssikker anvendelse ----
     ctx.db.transaction(() => {
-      const reply = this.apply(conversationId, conv.customerId, interp, geo, geoError, pending[0].id);
+      const reply = this.apply(conversationId, conv.customerId, interp, geo, geoError, pending[0].id, pending.map((m) => m.body).join('\n'));
       if (reply) ctx.sms.queue(conversationId, reply.text, 'ai', replyKey, reply.orderId);
       ctx.conversations.markProcessed(pending.map((m) => m.id));
     })();
@@ -180,6 +184,7 @@ export class CustomerAgent {
     geo: GeocodeResult | null,
     geoError: string | null,
     firstInboundId: number,
+    rawText = '',
   ): { text: string; orderId: number | null } | null {
     const { ctx } = this;
     const s = ctx.settings.get();
@@ -191,6 +196,9 @@ export class CustomerAgent {
     const isDraft = (o: Order | null) => !!o && DRAFT_STATUSES.includes(o.status);
 
     if (interp.customerName) ctx.conversations.updateCustomer(customerId, { name: interp.customerName });
+
+    // Svar på et foreslået leveringstidspunkt fortolkes deterministisk (før AI'ens vurdering)
+    if (order && this.timeOffers?.handleReply(order, rawText, interp)) return null;
 
     if (interp.needsHuman) {
       ctx.conversations.setMode(conversationId, 'ai_paused', interp.needsHumanReason ?? 'Kræver medarbejder', 'ai');

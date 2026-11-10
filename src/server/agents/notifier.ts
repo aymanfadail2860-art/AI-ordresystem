@@ -27,12 +27,25 @@ export class CustomerNotifier {
   /** Første ETA til kunden (ved tildeling) – kun hvis den kan kommunikeres forsvarligt. */
   initial(orderId: number, driverFirstName: string, etaMs: number | null, communicable: boolean): void {
     const { ctx } = this;
-    const o = ctx.db.prepare(`SELECT conversation_id FROM orders WHERE id = ?`).get(orderId) as { conversation_id: number | null };
+    const o = ctx.db.prepare(`SELECT conversation_id, eta_communicated, window_start, window_end FROM orders WHERE id = ?`).get(orderId) as {
+      conversation_id: number | null;
+      eta_communicated: string | null;
+      window_start: string | null;
+      window_end: string | null;
+    };
     if (!o?.conversation_id) return;
+    if (o.window_end) {
+      // Aftalt tidsrum: løftet er tidsrummet – det ændres ikke af tildelingen
+      const win = `${this.fmt(new Date(o.window_start ?? o.window_end).getTime())}–${this.fmt(new Date(o.window_end).getTime())}`;
+      ctx.sms.queue(o.conversation_id, `${driverFirstName} kører med din ordre #${orderId}. Levering som aftalt ca. kl. ${win}.`, 'system', `assigned_notice:${orderId}`, orderId);
+      return;
+    }
     const rounded = etaMs ? Math.ceil(etaMs / 300000) * 300000 : null;
     const eta = communicable && rounded ? ` Forventet levering ca. kl. ${this.fmt(rounded)}.` : ' Vi giver besked, når chaufføren er tæt på.';
     ctx.sms.queue(o.conversation_id, `${driverFirstName} kører med din ordre #${orderId}.${eta}`, 'system', `assigned_notice:${orderId}`, orderId);
-    if (communicable && rounded) {
+    // Rettet i v0.5: ved gentildeling (fx omfordeling) er beskeden allerede sendt (idempotent) –
+    // kundens løfte må ikke overskrives i stilhed. Ændringer går via de almindelige ETA-opdateringer.
+    if (communicable && rounded && !o.eta_communicated) {
       // Første oplyste tid tæller ikke med i spam-grænsen for senere opdateringer
       ctx.orders.updateFields(orderId, { etaCommunicated: new Date(rounded).toISOString() }, 'system');
     }
