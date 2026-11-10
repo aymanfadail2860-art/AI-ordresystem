@@ -22,9 +22,11 @@ rigtige beskeder**.
 | `tests/adapters.test.ts` | imsg JSON-RPC (falsk proces): cursor, mapping, gruppebeskeder, afsendelses-dispositioner, procesnedbrud, manglende diskadgang. Telegram: mapping, rate limit, timeout. Google: geokodning, Routes-matrix |
 | `tests/restart.test.ts` | Data, cursor og jobs overlever genstart, backup + gendannelse, migrationer, CHECK-constraints, produktion starter med automatik slået fra, jobkø (dedupe, retry, permanent fejl) |
 | `tests/logistics.test.ts` | De 15 logistikscenarier: 5-min-melding og "stå klar"-SMS, 10 min forsinkelse ved A → genberegning af A–D, kun relevante kunder opdateres (og ingen gentagelser ved små ændringer), ordre 3 min fra eksisterende stop, stor ordre (5.000 kr.) mod mindre, stor ordre afvist når den bryder løfter, uklar besked, chauffør svarer ikke (tilbud udløber, statusforespørgsel, eskalering), flere mulige chauffører, ruteændring kræver accept, forældet ETA, genstart midt i ruteændring, samtidige ordrer. Desuden: "færdig med X, kører mod Y", trafikforsinkelse, ekstra kapacitet og at live-position ikke gemmes. Bruger et deterministisk testkort (30 km/t). |
+| `tests/replenishment.test.ts` | Lageropfyldning: prognose efter hvert stop, lager til 5 af 7 stop → forslag efter stop 4 → godkendelse → chaufføraccept → afhentning → billager opdateres først ved bekræftelse, afvisning → alternativ, observatør kan ikke godkende, ingen reaktion → påmindelse/eskalering/udløb, ny ordre ændrer behovet, chaufførens lagermelding, to chauffører om samme centrallager (ingen dobbeltreservation), genstart midt i opfyldning |
+| `tests/management.test.ts` | Ledelsesgruppe: omsætning i dag (præcist tal), chaufførstatus, lager/ventende/forsinkelser/lagerproblemer/"hvorfor", uklar instruktion, omfordeling med bekræftelse og chaufføraccept, observatør afvist, ukendt bruger/forkert chat afvist, kun udsteder/admin kan bekræfte, kritiske regler kræver administrator, prioritering (med og uden løftebrud), bedre rute, godkendelse af opfyldning via tekst, revisionsspor |
 | `tests/e2e.test.ts` | Hele flowet: SMS → tilbud → bekræftelse → Telegram-accept → kører → leveret → lagerfradrag |
 
-Seneste kørsel: **10 testfiler, 90 tests, alle bestået** (kørt gentagne gange for at udelukke ustabile tests). Alle tests kører i cloudmiljøet uden API-nøgler.
+Seneste kørsel: **12 testfiler, 113 tests, alle bestået** (kørt gentagne gange for at udelukke ustabile tests). Alle tests kører i cloudmiljøet uden API-nøgler.
 
 ## Typecheck og build
 
@@ -52,5 +54,6 @@ JavaScript-fejl.
 2. **Telegram:** opret testbot, forbind en chauffør med kode, gennemfør tilbud → accept → kører → fremme → leveret; test live-position.
 3. **Google Maps:** test med 10 rigtige adresser i leveringsområdet, inkl. adresser med etage/dør og stavefejl.
 4. **Claude:** evaluer fortolkning på mindst 50 anonymiserede, rigtige kundebeskeder; mål omkostning pr. ordre i AI Control Center.
-5. **Electron på macOS:** `npm start`, gennemfør Demo-scenarier, test Keychain-lagring af nøgler og notifikationer.
-6. **Pakning:** byg `.dmg`, installer på en ren Mac, kontroller Gatekeeper, Fuld diskadgang og Automation-tilladelser.
+5. **Ledelsesgruppe:** opret gruppe, slå privacy mode fra, knyt 3 testbrugere (én pr. rolle), test spørgsmål, afvist observatørhandling, bekræftelse og opfyldningsknapper.
+6. **Electron på macOS:** `npm start`, gennemfør Demo-scenarier, test Keychain-lagring af nøgler og notifikationer.
+7. **Pakning:** byg `.dmg`, installer på en ren Mac, kontroller Gatekeeper, Fuld diskadgang og Automation-tilladelser.

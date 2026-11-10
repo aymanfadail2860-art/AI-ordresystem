@@ -56,6 +56,15 @@
 - ✅ Dokumentation
 - ✅ End-to-end-tests (simulerede adaptere)
 
+## Udvidelse – Ledelsesagent og lageropfyldning (v0.3.0)
+- ✅ Interaktiv ledelsesgruppe i Telegram (spørgsmål og handlinger på dansk)
+- ✅ Roller, chat- og brugerverifikation, eksplicit bekræftelse, revisionsspor
+- ✅ Billagerprognose pr. stop, underskud, valg af opfyldningspunkt
+- ✅ Godkendelse i gruppen/kontrolpanelet, chaufførkoordinering, påmindelse og eskalering
+- ✅ Ledelsescenter og Billager-fane i kontrolpanelet, demo-scenarie
+- ⬜ Planlagte daglige rapporter til ledelsesgruppen
+- ⬜ Opfyldning fra flere lagre i samme tur / delvis opfyldning
+
 ## Næste etape (forslag)
 
 1. **SMS Proof of Concept på rigtig iPhone + Mac** (blokerende for drift).

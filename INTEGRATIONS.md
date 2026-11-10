@@ -112,9 +112,18 @@ chat.db-læser + AppleScript i egen kode, eller en dedikeret Mac + iPhone).
 - **Ingen live-GPS:** AI Dispatch tracker bevidst ikke chaufførernes position. Delte positioner fra Telegram gemmes ikke (chaufføren får besked om at skrive status i stedet). ETA'er bygger på chaufførens meldinger, bekræftede leveringer, planlagte ruter og køretider – se ARCHITECTURE.md → Logistik uden live-GPS.
 - **Statusmeldinger der forstås** (eksempler): "Ordre 142, jeg er der om 5 min", "Jeg er 10 min forsinket" (gælder hele den resterende rute), "Jeg er færdig med 142 og kører mod 143", "Der er trafik, bliver nok 20 min senere", "Jeg kan godt tage en ekstra ordre på vejen". Uklare beskeder besvares med et opklarende spørgsmål; ordrenumre gættes aldrig.
 - **Statusforespørgsel:** Har en chauffør med aktive ordrer ikke givet status i N minutter, spørger botten; svares der stadig ikke, eskaleres til kontoret.
+- **Lageropfyldning:** chaufføren får besked med knapperne Accepter / Afvis, derefter "Jeg er ved lageret" og "Varer afhentet" (kan også skrives som tekst). Lagermeldinger som "har kun 4 cola tilbage" opdaterer billageret og kan udløse et opfyldningsforslag.
 - Fælles chaufførgruppe: feltet findes i indstillingerne (`telegram.driverGroupChatId`); udsendelse til gruppe er planlagt (Etape 4).
 
 Opsætning: @BotFather → `/newbot` → token → Indstillinger → Integrationer.
+
+### Ledelsesgruppe
+
+- Opret en Telegram-gruppe og tilføj botten. Slå *Group Privacy* fra hos @BotFather (`/setprivacy` → Disable), så botten modtager almindelige beskeder i gruppen – ellers kun kommandoer og svar til botten.
+- Indsæt gruppens chat-ID (negativt tal, fx `-100…`) i Ledelsescenter → Ledere og rettigheder. Botten reagerer kun på beskeder fra præcis den gruppe (og evt. private chats, hvis det er slået til).
+- Opret hver leder med rolle (Administrator / Leder / Observatør). Lederen skriver `/leder KODE` i gruppen eller privat til botten; derefter genkendes brugeren på Telegram-bruger-ID – **både chat-ID og bruger-ID verificeres** for hver besked.
+- Handlinger bekræftes med inline-knapper i gruppen. Opfyldningsforslag har knapperne Godkend / Vis alternativer / Afvis.
+- Gruppen er ikke en sikker kanal for følsomme kundedata: svarene indeholder ordrenumre, adresser i forkortet form og beløb, men aldrig telefonnumre.
 
 ## 3. Google Maps Platform
 

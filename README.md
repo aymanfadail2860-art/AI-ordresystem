@@ -50,12 +50,13 @@ og åbn http://127.0.0.1:5199.
 | Kundesamtaler | Samtaler, AI-tilstand (AI aktiv / Manuel overtagelse / AI pauseret / Integrationsfejl), Human Takeover, beskedhistorik med leveringsstatus |
 | Chauffører | Status, Telegram-forbindelse via engangskode, aktive leveringer, rute, lager i bilen, beskeder |
 | Logistik | Planlagte ruter, seneste Telegram-status, ETA-interval og -sikkerhed, forsinkelser, omsætning pr. chauffør og rute, leveringer pr. time, tilbud og omfordelingsforslag med økonomisk begrundelse (ingen live-GPS) |
-| Produkter og lager | Katalog og priser, centrallager + billagre, regulering, overførsel, lagerbevægelser |
+| Produkter og lager | Katalog og priser, centrallager + billagre, regulering, overførsel, lagerbevægelser, **billager efter hvert planlagt stop, underskud og opfyldninger** |
+| Ledelsescenter | Godkendelser (opfyldning), kommandolog med beslutning og resultat, gruppechat, ledere og roller (Administrator/Leder/Observatør) |
 | AI Control Center | Modelvalg pr. opgave, modelpriser, budget, tokenforbrug, AI-kald, agenthændelser, automatiseringsindstillinger |
 | Hændelser | Monitoring: fejl og situationer, der kræver menneskelig handling |
 | Indstillinger | Virksomhed, integrationer, levering, priser, åbningstider, standardbeskeder, PIN, backup, GDPR, auditlog, tilstand |
 | Opsætningsguide | 11 trin til ny installation hos en ny virksomhed |
-| Demo-konsol | Scenarier, automatisk trafik, skriv som kunde/medarbejder-iPhone/chauffør |
+| Demo-konsol | Scenarier, automatisk trafik, skriv som kunde/medarbejder-iPhone/chauffør/leder, opfyldningsscenarie |
 
 ## Dokumentation
 
@@ -74,6 +75,8 @@ og åbn http://127.0.0.1:5199.
 | Ordresystem, tilstandsmaskine, priser | ✅ | ✅ automatiske tests | ✅ (forretningsregler bør gennemgås af virksomheden) |
 | Lager (central + biler, reservation) | ✅ | ✅ | ✅ |
 | Telegram-baseret ETA, kundeopdateringer, økonomisk ruteplanlægning | ✅ | ✅ 15 scenarier | 🟡 vægte og grænser bør kalibreres på rigtige data |
+| Ledelsesagent i Telegram (spørgsmål, handlinger, roller, bekræftelse, revisionsspor) | ✅ | ✅ 14 tests | 🟡 kræver test med rigtig gruppe + Claude-evaluering af danske ledelsesbeskeder |
+| Proaktiv lageropfyldning | ✅ | ✅ 9 tests | 🟡 kræver korrekt startlager i bilerne og kalibrering af afhentningstid |
 | Demo Mode (alle integrationer simuleret) | ✅ | ✅ tests + browsertest | – (demo) |
 | Human Takeover | ✅ | ✅ (simuleret) | ⚠️ automatisk registrering af manuelle iPhone-svar kræver hardwaretest |
 | SMS via Apple Messages (imsg) | ✅ | ✅ mod falsk imsg-proces | ❌ kræver PoC på rigtig iPhone + Mac |

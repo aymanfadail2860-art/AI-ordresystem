@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.3.0] – 2026-11-10
+
+Udvidelse: interaktiv ledelsesagent og proaktiv lageropfyldning. Arkitektur, Demo Mode og eksisterende tests er bevaret.
+
+### Tilføjet
+- **Ledelsesgruppe i Telegram:** spørgsmål (omsætning, manglende ordrer, chaufførstatus, mest forsinket, billager, lagerproblemer, "hvorfor", ruteøkonomi, rapport) besvares fra databasen; handlinger (omfordel, prioritér, bedre rute, pause/genoptag, manuel behandling, godkend/afvis opfyldning, automatik, regler) udføres via eksisterende services.
+- Roller Administrator/Leder/Observatør, verifikation af chat-ID og Telegram-bruger-ID, tilknytning med `/leder KODE`.
+- Eksplicit bekræftelse via knapper (kun udsteder eller administrator, med udløb); AI'en kan ikke godkende egne handlinger.
+- Revisionsspor (`management_commands`) og gruppebeskedlog (`management_messages`).
+- **Proaktiv lageropfyldning:** billagerprognose efter hvert stop, underskud, økonomisk valg af opfyldningspunkt og lager, sidste sikre beslutningstidspunkt, godkendelse med Godkend/Vis alternativer/Afvis, chaufføraccept, afhentning, påmindelse, eskalering og udløb.
+- Prioriterede ordrer (`orders.priority`) og pause (`orders.paused_from_status`); ruteændringstilbud (`route_change`) til chaufføren.
+- Chaufførens lagermelding med antal ("har kun 4 cola tilbage") afstemmer billageret.
+- Kontrolpanel: Ledelsescenter (godkendelser, kommandolog, gruppechat, ledere), Produkter → Billager og opfyldning, opfyldningsstatus i Logistik, Demo-konsol med ledelsesgruppe og opfyldningsscenarie.
+- Migration 3 og 23 nye tests (i alt 113).
+
+
 ## [0.2.0] – 2026-11-09
 
 Arkitekturændring: Telegram-baseret ETA, intelligent ruteplanlægning og omsætningsoptimering.

@@ -33,14 +33,16 @@ Ingen Supabase, Sentry, Vercel, Twilio, n8n eller SaaS-backend.
 │   │      ├─ Claude-fortolkere (produktion)                  │
 │   │      └─ Regelbaserede fortolkere (demo)                 │
 │   ├─ Agenter: Customer/Order, Dispatch, Routing,            │
-│   │           Driver, Logistics/Monitoring                  │
+│   │           Driver, Logistics/Monitoring,                 │
+│   │           Management (ledelsesgruppe), Replenishment    │
 │   └─ Backup, GDPR-opbevaring, PIN-adgangskontrol            │
 │  API (createApi) ◄── IPC (preload, contextIsolation)        │
 └─────────────────────────────────────────────────────────────┘
                  ▲ invoke / live-emner
 ┌────────────── Renderer (React, sandboxed) ──────────────────┐
 │  Sider: Dashboard, Ordrer, Samtaler, Chauffører, Logistik,  │
-│  Produkter, AI Control Center, Hændelser, Indstillinger …   │
+│  Produkter (+ billager), Ledelsescenter, AI Control Center, │
+│  Hændelser, Indstillinger …                                 │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -77,6 +79,8 @@ den tilfører værdi (fortolkning af fri tekst). Alt andet er deterministisk kod
 | D. Logistics Agent | `agents/logisticsAgent.ts`, `agents/routing.ts`, `agents/notifier.ts` | Nej | Bindende ruter, ETA-genberegning uden GPS, kundeopdateringer, statusforespørgsler, økonomiske omfordelingsforslag |
 | E. Driver Communication Agent | `agents/driverAgent.ts` | Ja (kun fritekst) | Status/ETA/forsinkelser fra Telegram; knapper deterministisk; fritekst fortolkes; uklarhed → opklarende spørgsmål |
 | F. Monitoring Agent | `logisticsAgent.monitor`, `IntegrationRegistry`, `EventLog` | Nej | Integrationsstatus, usikre beskeder, ventende kunder, fejlede jobs, budget |
+| G. Management Agent | `agents/managementAgent.ts`, `services/management.ts`, `ai/managementInterpreter.ts` | Ja (kun fortolkning af intention) | Ledelsesgruppen i Telegram: spørgsmål besvares fra databasen; handlinger udføres via de eksisterende services efter rolle- og bekræftelseskontrol |
+| H. Replenishment Agent | `agents/replenishment.ts`, `core/replenishment.ts` | Nej | Billagerprognose efter hvert stop, underskud, valg af opfyldningspunkt, godkendelse, chaufførkoordinering, påmindelse/eskalering |
 
 ### AI-sikkerhedsregler
 
@@ -164,6 +168,80 @@ kræver altid chaufførens accept. Findes ingen gyldig løsning, eskaleres til m
 
 Alle vægte og grænser kan konfigureres under Indstillinger → Logistik og økonomi.
 Claude bruges kun til at fortolke chaufførbeskeder – aldrig til køretider eller økonomi.
+
+## Ledelsesagent (Telegram-ledelsesgruppe)
+
+Ledelsen skriver på dansk i en Telegram-gruppe (`settings.management.groupChatId`).
+Flow i `ManagementAgent.handle`:
+
+1. **Verifikation:** beskeden skal komme fra den konfigurerede gruppe-chat (eller en
+   privat chat, hvis `allowPrivateChats`) **og** fra en Telegram-bruger, der er knyttet
+   til en aktiv ledelsesbruger (`management_users.telegram_user_id`). Brugere knyttes med
+   `/leder KODE` (engangskode fra Ledelsescenter → Ledere og rettigheder). Alt andet
+   afvises og logges.
+2. **Fortolkning:** Claude (`management_interpret`, Haiku) – eller regelbaseret fortolker
+   i Demo Mode – returnerer *kun* en intention + parametre (Zod-skema). Tal, svar og
+   handlinger kommer altid fra deterministisk kode og databasen. Uklar instruktion →
+   opklarende spørgsmål, intet udføres.
+3. **Rettigheder:** Observatør (spørgsmål), Leder (handlinger), Administrator
+   (automatik og kritiske regler). For lav rolle → afvist og logget.
+4. **Spørgsmål** (omsætning i dag, manglende ordrer, chaufførstatus, mest forsinket,
+   billager, afventende leveringer, "hvorfor fik X ordren", lagerproblemer,
+   ruteøkonomi, rapport) besvares kort ud fra databasen. Forældede chaufførstatusser
+   og estimerede ETA'er markeres som sådan.
+5. **Handlinger** (omfordel, prioritér, find bedre rute, pause/genoptag, manuel
+   behandling, godkend/afvis opfyldning, automatik til/fra, ændr regel) kræver altid
+   eksplicit bekræftelse via knap (`mgmt:<id>:confirm|cancel`). Kun den der gav
+   instruktionen – eller en administrator – kan bekræfte, og bekræftelsen udløber
+   (`confirmTimeoutMinutes`). Systemet/AI'en kan aldrig selv bekræfte.
+6. **Udførelse via eksisterende services:** omfordeling sender et tilbud til den nye
+   chauffør (`DispatchAgent.offerToDriver`), prioritering og ny rute sender et
+   ruteændringstilbud (`createRouteChangeOffer`) – **chaufføren skal stadig acceptere**.
+   Prioritering bryder aldrig givne løfter; er det umuligt, forklares hvorfor og et
+   alternativ foreslås. Regelændringer er begrænset til sikre intervaller.
+7. **Revisionsspor:** `management_commands` gemmer bruger, Telegram-ID, chat, tidspunkt,
+   instruktion, intention, parametre, berørte ordrer, beslutning
+   (`answered/clarify/denied/rejected/needs_confirmation/executed/cancelled/expired/failed`),
+   resultat og hvem der bekræftede. Al trafik i gruppen gemmes i `management_messages`.
+
+## Proaktiv lageropfyldning
+
+**Prognose** (`core/replenishment.ts → forecastVehicleStock`): startlager i bilen
+(fri + reserveret til rutens ordrer) minus behov ved hvert planlagt stop, plus
+planlagte afhentninger. Første stop hvor en vare går i minus = underskud.
+
+**Udløsere:** hver ETA-/rutegenberegning (`route_refreshed`) – dvs. ny, annulleret eller
+ændret ordre, ændret tildeling, levering, chaufførens lagermelding ("har kun 4 cola
+tilbage" → `reconcileVehicleStock`), ruteændring og bekræftet opfyldning – lægger et
+dedupliceret `replenishment_check`-job i kø. Et minutligt `replenishment_tick` håndterer
+påmindelser, eskalering og udløb.
+
+**Valg af opfyldningspunkt** (`evaluateReplenishmentOptions`): for hvert lager med nok
+fri beholdning og hvert muligt punkt ("før første stop", "efter stop k" før første
+underskud) beregnes ekstra køretid, afhentningstid, forsinkelse af hvert senere stop,
+løftebrud (ikke for de ordrer, opfyldningen selv dækker), risiko, omkostning og
+leveringer pr. time, samt *sidste sikre beslutningstidspunkt*. Gyldige muligheder
+sorteres efter omkostning; findes ingen, eskaleres til ledelsen med forslag om
+omfordeling – en umulig levering planlægges aldrig stiltiende.
+
+**Statusser:** Opfyldning foreslået → Afventer ledelsesgodkendelse → Godkendt →
+Afventer chaufføraccept → På vej til lager → Afventer fysisk afhentning → Afhentning
+bekræftet → Afsluttet (samt Afvist, Annulleret, Udløbet). Gyldige skift er låst i en
+tabel; højst én aktiv opfyldning pr. chauffør (delvist unikt indeks). Alle skift logges
+i `replenishment_events`.
+
+**Godkendelse:** forslaget sendes til ledelsesgruppen med knapperne *Godkend / Vis
+alternativer / Afvis* og indeholder chauffør, nuværende lager, behov, mangel, lager,
+tidspunkt, antal, ekstra køretid, effekt på leveringer, alternativer og begrundelse.
+Godkendelse (Leder+) flytter reservationen fra bilen til lageret i én transaktion og
+beder chaufføren om accept. Afvisning → nyt forslag uden den afviste mulighed (eller
+eskalering). Ingen reaktion → påmindelse, "HASTER"-eskalering før sidste sikre punkt,
+udløb og genberegning.
+
+**Lager:** bilens lager øges **først**, når chaufføren bekræfter afhentningen
+(`InventoryService.pickupForOrders`: fradrag på lageret, tilgang i bilen og reservation
+til de dækkede ordrer – atomisk og idempotent). Indtil da står berørte stop med
+lav ETA-sikkerhed og begrundelsen "afventer lageropfyldning".
 
 ## Ordretilstandsmaskine
 
