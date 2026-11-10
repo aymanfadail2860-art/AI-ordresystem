@@ -4,7 +4,8 @@ import { RetryLaterError } from '../jobs/jobQueue';
 import type { Driver, Order, RoutePlanSummary } from '../../shared/types';
 import type { RoutingService } from './routing';
 import type { CustomerNotifier } from './notifier';
-import { chooseInsertion, compareByStrategy, type InsertionResult } from '../../core/routePlanning';
+import { DEFAULT_ADAPTIVE, adaptiveCost, chooseAdaptive, chooseInsertion, compareByStrategy, type InsertionResult } from '../../core/routePlanning';
+import { LOAD_LABELS } from './routing';
 import { etaCommunicable } from '../../core/eta';
 import { InsufficientStockError } from '../services/inventory';
 import { formatDkk } from '../../core/money';
@@ -51,14 +52,18 @@ export class DispatchAgent {
   dispatchWaiting(): void {
     const { ctx } = this;
     const margin = ctx.settings.get().economics.defaultMarginPct;
-    const economic = (ctx.settings.get().economics.strategy ?? 'economic') === 'economic';
+    const strat = ctx.settings.get().economics.strategy ?? 'economic';
+    const economic = strat === 'economic';
+    // Adaptiv: ventetid først (ingen ordre springes over pga. lav værdi); let værdivægt kun ved høj belastning
+    const highLoad = strat === 'adaptive' && this.routing.loadState().level === 'high';
     const waiting = ctx.orders
       .list({ status: ['awaiting_driver'] })
       .filter((o) => !ctx.drivers.offers(o.id).some((x) => x.status === 'pending'))
       .map((o) => {
         const waitedMin = o.confirmedAt ? (clock.now() - new Date(o.confirmedAt).getTime()) / 60000 : 0;
         // Sammenligningsstrategierne behandler ventende ordrer i ankomstrækkefølge
-        return { id: o.id, prio: economic ? this.routing.valueOf(o.id, o.deliveryFeeOre, margin).contributionOre + waitedMin * 500 : waitedMin };
+        if (economic) return { id: o.id, prio: this.routing.valueOf(o.id, o.deliveryFeeOre, margin).contributionOre + waitedMin * 500 };
+        return { id: o.id, prio: waitedMin * 1000 + (highLoad ? 0.3 * this.routing.valueOf(o.id, o.deliveryFeeOre, margin).contributionOre : 0) };
       })
       .sort((a, b) => b.prio - a.prio);
     waiting.forEach((w, i) => this.enqueue(w.id, i * 5));
@@ -95,8 +100,18 @@ export class DispatchAgent {
     const { ctx } = this;
     const feasible: Candidate[] = [];
     const rejected: Candidate[] = [];
-    const strategy = ctx.settings.get().economics.strategy ?? 'economic';
+    const econ = ctx.settings.get().economics;
+    const strategy = opts.reassignment ? 'economic' : econ.strategy ?? 'economic';
     if (order.addressLat == null) return { feasible, rejected };
+    const adaptive = strategy === 'adaptive' ? { ...DEFAULT_ADAPTIVE, ...(econ.adaptive ?? {}) } : null;
+    const load = adaptive ? this.routing.loadState() : null;
+    const relaxed: (Candidate & { cost: number })[] = [];
+    const costs = new Map<Candidate, number>();
+    /** Ekstra omkostning pr. chauffør: lageret skal hentes (kræver opfyldning/godkendelse) og chaufførens nuværende belastning. */
+    // Kan lagerbesøget kombineres med et allerede planlagt besøg, koster det ikke en ekstra godkendelse/tur
+    const driverCost = (d: Driver, plan: StockPlan) =>
+      ((plan === 'central_pickup' || plan === 'move_to_central') && !this.routing.plannedPickups(d.id).length ? econ.driveCostPerMinuteOre * 4 : 0) +
+      (load && load.level !== 'low' ? 20 * this.routing.backlogMinutes(d.id) : 0);
     const drivers = ctx.drivers.list().filter((d) => !(opts.exclude ?? []).includes(d.id));
     for (const d of drivers) {
       const reject = (reason: string) => rejected.push({ driver: d, stockPlan: 'own_vehicle', best: null, reason });
@@ -127,14 +142,46 @@ export class DispatchAgent {
         { id: order.id, point: { lat: order.addressLat, lng: order.addressLng! }, needsPickup: plan === 'central_pickup' || plan === 'move_to_central', deliveryFeeOre: order.deliveryFeeOre },
         { reassignment: !!opts.reassignment },
       );
-      const best = chooseInsertion(results, opts.reassignment ? 'economic' : strategy);
+      if (adaptive && load) {
+        const c = chooseAdaptive(results, load.level, econ, adaptive);
+        if (!c.relaxed) {
+          reject(results[0]?.violations[0] ?? 'Ingen gyldig placering i ruten');
+          continue;
+        }
+        const extra = driverCost(d, plan);
+        if (c.best) {
+          const cand: Candidate = { driver: d, stockPlan: plan, best: c.best, reason: c.best.analysis.explanation[0] };
+          costs.set(cand, adaptiveCost(c.best, load.level, econ) + extra);
+          feasible.push(cand);
+        } else {
+          relaxed.push({ driver: d, stockPlan: plan, best: c.relaxed, reason: c.relaxed.analysis.explanation[0], cost: adaptiveCost(c.relaxed, 'medium', econ) + extra });
+        }
+        continue;
+      }
+      const best = chooseInsertion(results, strategy);
       if (!best) {
         reject(results[0]?.violations[0] ?? 'Ingen gyldig placering i ruten');
         continue;
       }
       feasible.push({ driver: d, stockPlan: plan, best, reason: best.analysis.explanation[0] });
     }
-    const cmp = compareByStrategy(opts.reassignment ? 'economic' : strategy);
+    if (adaptive && load) {
+      const note = `Adaptiv strategi – belastning ${LOAD_LABELS[load.level]} (${load.value.toFixed(2)} timers arbejde pr. chauffør)`;
+      if (!feasible.length && relaxed.length) {
+        // Nødvendigt for at kunne levere ordren: lemp løftebeskyttelsen til de almindelige regler (tolerance)
+        relaxed.sort((a, b) => a.cost - b.cost);
+        for (const r of relaxed) {
+          r.best!.analysis.explanation.push(note, 'Løftebeskyttelse lempet: ingen placering uden at rykke lovede leveringer – nødvendigt for at levere ordren');
+          feasible.push(r);
+        }
+      } else {
+        feasible.sort((a, b) => costs.get(a)! - costs.get(b)!);
+        for (const f of feasible) f.best!.analysis.explanation.push(note);
+        for (const r of relaxed) rejected.push({ ...r, best: null, reason: 'Ville rykke lovede leveringer (løftebeskyttelse)' });
+      }
+      return { feasible, rejected };
+    }
+    const cmp = compareByStrategy(strategy);
     feasible.sort((a, b) => cmp(a.best!, b.best!));
     return { feasible, rejected };
   }

@@ -670,6 +670,7 @@ export function createApi(host: AppHost): Record<string, Handler> {
         openAlerts: app.agents.monitor.list({ status: ['open', 'acknowledged'] }),
         criticalEvents: app.ctx.events.list({ minLevel: 'error', limit: 50 }),
         lastReport: app.agents.reports.list(1)[0] ?? null,
+        dispatch: { strategy: app.ctx.settings.get().economics.strategy, load: app.agents.routing.loadState() },
         settings: { monitoring: app.ctx.settings.get().monitoring, hourlyReports: app.ctx.settings.get().management.hourlyReports, groupConfigured: !!app.ctx.settings.get().management.groupChatId },
       };
     },

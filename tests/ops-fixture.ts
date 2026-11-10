@@ -19,6 +19,8 @@ export function opsData(app: App) {
     pricing: { deliveryFeeOre: 3900, freeDeliveryThresholdOre: 0, minimumOrderOre: 0 },
     management: { groupChatId: GROUP, allowPrivateChats: false },
     delivery: { requireDriverAcceptance: true },
+    // Påfyldning (v0.4.1) slået fra i de oprindelige opfyldningstests, så de måler præcis behovet
+    replenishment: { topUpHorizonMinutes: 0 },
   });
   const cola = ctx.catalog.create({ sku: 'COLA', name: 'Coca-Cola', category: 'Sodavand', priceOre: 2500, costOre: 1200, synonyms: ['cola'] });
   const chips = ctx.catalog.create({ sku: 'CHIPS', name: 'Chips', category: 'Snacks', priceOre: 3000, synonyms: ['chips'] });

@@ -25,7 +25,27 @@ export function openDatabase(opts: OpenDbOptions): Db {
   db.pragma('foreign_keys = ON');
   db.pragma('busy_timeout = 5000');
   migrate(db, opts.beforeMigrate);
+  cacheStatements(db);
   return db;
+}
+
+/**
+ * Genbrug forberedte SQL-sætninger (better-sqlite3 kompilerer ellers SQL ved
+ * hvert kald). Ingen kode bruger iterate/pluck/raw, så sætningerne kan deles.
+ * Dynamiske sætninger (fx IN-lister) holdes nede af en simpel størrelsesgrænse.
+ */
+function cacheStatements(db: Db): void {
+  const original = db.prepare.bind(db);
+  const cache = new Map<string, ReturnType<Db['prepare']>>();
+  (db as { prepare: Db['prepare'] }).prepare = ((sql: string) => {
+    let st = cache.get(sql);
+    if (!st) {
+      st = original(sql);
+      if (cache.size > 2000) cache.clear();
+      cache.set(sql, st);
+    }
+    return st;
+  }) as Db['prepare'];
 }
 
 export function migrate(db: Db, beforeMigrate?: OpenDbOptions['beforeMigrate']): number {

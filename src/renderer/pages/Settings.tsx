@@ -1,3 +1,4 @@
+import { DISPATCH_STRATEGY_LABELS } from '../../shared/types';
 import { useEffect, useState } from 'react';
 import { act, call, toast, useQuery } from '../api';
 import { Card, Empty, Field, IntegrationBadge, Modal, PageHeader, dateTime } from '../components/ui';
@@ -316,7 +317,7 @@ function NumGrid<T extends Record<string, unknown>>({ value, fields, onChange }:
           <Field key={String(f.key)} label={`${f.label}${f.unit === 'kr' ? ' (kr.)' : f.unit === 'min' ? ' (min)' : f.unit === 'pct' ? ' (%)' : ''}`} hint={f.hint}>
             <input
               type="number"
-              step={f.unit === 'kr' ? 0.5 : 1}
+              step={f.unit === 'kr' ? 0.5 : f.unit === 'n' && !Number.isInteger(raw) ? 0.05 : 1}
               min={0}
               value={shown}
               onChange={(e) => onChange({ ...value, [f.key]: f.unit === 'kr' ? Math.round(Number(e.target.value) * 100) : Number(e.target.value) })}
@@ -373,6 +374,32 @@ function LogisticsTab({ s }: { s: Settings }) {
           Score = dækningsbidrag − kørselsomkostning − ventetid (vægtet efter ordreværdi) − forsinkelse af andre kunder − risiko − omfordeling + nærhedsbonus.
           Hårde grænser (leveringsløfter, maks. leveringstid, lager, kapacitet) kan aldrig opvejes af omsætning.
         </p>
+        <Field
+          label="Dispatchstrategi"
+          hint="Adaptiv hybrid skifter mellem hurtigst levering (lav belastning), mindst køretid med stærk løftebeskyttelse (mellem) og kapacitet først (høj). Se docs/simulation/v0.4.1."
+        >
+          <select value={e.strategy} onChange={(ev) => setE({ ...e, strategy: ev.target.value as typeof e.strategy })}>
+            {(['adaptive', 'economic', 'shortest_detour', 'fifo'] as const).map((k) => (
+              <option key={k} value={k}>{DISPATCH_STRATEGY_LABELS[k]}</option>
+            ))}
+          </select>
+        </Field>
+        {e.strategy === 'adaptive' && (
+          <NumGrid
+            value={e.adaptive as unknown as Record<string, unknown>}
+            onChange={(v) => setE({ ...e, adaptive: v as unknown as typeof e.adaptive })}
+            fields={[
+              { key: 'lowToMedium', label: 'Lav → mellem ved', unit: 'n', hint: 'timers arbejde pr. aktiv chauffør' },
+              { key: 'mediumToHigh', label: 'Mellem → høj ved', unit: 'n' },
+              { key: 'highToMedium', label: 'Høj → mellem ved', unit: 'n' },
+              { key: 'mediumToLow', label: 'Mellem → lav ved', unit: 'n' },
+              { key: 'minDwellMinutes', label: 'Mindste tid mellem skift', unit: 'min' },
+              { key: 'protectBufferMinutes', label: 'Margin der skal være tilbage til et løfte', unit: 'min' },
+              { key: 'maxPromisedDelayMedium', label: 'Maks. ryk af lovet stop (mellem)', unit: 'min' },
+              { key: 'maxPromisedDelayHigh', label: 'Maks. ryk af lovet stop (høj)', unit: 'min' },
+            ]}
+          />
+        )}
         <h4>Hårde begrænsninger</h4>
         <NumGrid
           value={e as unknown as Record<string, unknown>}

@@ -1,5 +1,10 @@
 # Driftssimulering – resultater
 
+> ⚠️ **Forældet (v0.4.0).** Disse resultater blev lavet med en fejl i simuleringens
+> chauffør-bot (genbesøg af leverede ordrer, ca. 4–5 min pr. stop), som gjorde dagene
+> kunstigt overbelastede og ETA'erne for optimistiske. Se **[v0.4.1/README.md](v0.4.1/README.md)**
+> for den rettede simulering, årsagsanalysen og den nye adaptive strategi.
+
 > **SIMULEREDE DATA.** Alle tal stammer fra Demo Mode: simulerede kunder (SMS),
 > chauffører (Telegram), ledere, kort og et virtuelt ur – kørt gennem hele AI
 > Dispatch (agenter, regler, jobkø, database). Resultaterne beviser **ikke**

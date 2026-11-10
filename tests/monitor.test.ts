@@ -104,6 +104,8 @@ describe('Proaktiv overvågning', () => {
   it('lagerunderskud med forslag til godkendelse: kategori C uden dobbelt besked; godkendelse der udløber', async () => {
     const s = await setup();
     const { app } = t;
+    // v0.4.0-adfærd (samme beslutning tælles som selvstændig godkendelse); v0.4.1-standarden testes i adaptive.test.ts
+    app.ctx.settings.update({ monitoring: { dedupeLinkedDecisions: false } });
     await sevenStops(t, s);
     const rep = app.agents.replenishment.list({ activeOnly: true })[0];
     expect(rep.status).toBe('awaiting_management');
@@ -141,6 +143,8 @@ describe('Proaktiv overvågning', () => {
   it('risiko for brud på løfte: automatisk overvågning, eller godkendelse når et omfordelingsforslag findes', async () => {
     const s = await setup();
     const { app } = t;
+    // v0.4.0-adfærd (samme beslutning tælles som selvstændig godkendelse); v0.4.1-standarden testes i adaptive.test.ts
+    app.ctx.settings.update({ monitoring: { dedupeLinkedDecisions: false } });
     const id = placeOrder(app.ctx, { phone: phone(), at: km(2, 0), lines: [{ productId: s.cola.id, quantity: 1 }], locationId: s.anna.vehicleLocationId! });
     await route(app, s.anna.id, [id]);
     const now = clock.now();

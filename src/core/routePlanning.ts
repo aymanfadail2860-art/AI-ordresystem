@@ -77,10 +77,25 @@ export interface InsertionArgs {
   reassignment: boolean;
 }
 
+export interface PromiseImpact {
+  /** Antal allerede lovede stop, der rykkes > 0,5 min. */
+  delayedPromised: number;
+  maxPromisedDelay: number;
+  /** Samlede minutter, lovede stop rykkes. */
+  erosionMinutes: number;
+  /** Mindste resterende margin (min) til løftet blandt de rykkede lovede stop (null = ingen rykkes). */
+  minSlackAfter: number | null;
+  /** Samlede minutter, alle eksisterende stop rykkes. */
+  existingDelayMinutes: number;
+}
+
 export interface InsertionResult {
   insertIndex: number;
   feasible: boolean;
   violations: string[];
+  promise: PromiseImpact;
+  newEtaMinutesExact: number;
+  extraDriveMinutesExact: number;
   /** Ordre-id'er i ny rækkefølge. */
   sequence: number[];
   etas: StopEta[];
@@ -122,6 +137,7 @@ export function evaluateInsertions(args: InsertionArgs): InsertionResult[] {
     let lateMinutes = 0;
     let maxDelay = 0;
     let disrupted = 0;
+    const promise = { delayedPromised: 0, maxPromisedDelay: 0, erosionMinutes: 0, minSlackAfter: Infinity, existingDelayMinutes: 0 };
     for (let i = 0; i < n; i++) {
       const stop = args.existing[i];
       const before = baseline[i].etaMs;
@@ -131,6 +147,13 @@ export function evaluateInsertions(args: InsertionArgs): InsertionResult[] {
         disrupted++;
         maxDelay = Math.max(maxDelay, delayMin);
         existingWaitCost += e.waitCostPerMinuteOre * weight(stop.value, e, stop.priority) * delayMin;
+        promise.existingDelayMinutes += delayMin;
+        if (stop.promisedMs) {
+          promise.delayedPromised++;
+          promise.maxPromisedDelay = Math.max(promise.maxPromisedDelay, delayMin);
+          promise.erosionMinutes += delayMin;
+          promise.minSlackAfter = Math.min(promise.minSlackAfter, (stop.promisedMs - after) / 60000);
+        }
       }
       if (stop.promisedMs) {
         const overMin = (after - stop.promisedMs) / 60000;
@@ -178,6 +201,9 @@ export function evaluateInsertions(args: InsertionArgs): InsertionResult[] {
       insertIndex: k,
       feasible: violations.length === 0,
       violations,
+      promise: { ...promise, minSlackAfter: Number.isFinite(promise.minSlackAfter) ? Math.round(promise.minSlackAfter * 10) / 10 : null },
+      newEtaMinutesExact: newEtaMin,
+      extraDriveMinutesExact: extraDriveMin,
       sequence: nodes.map((node) => (node === n ? args.newOrder.orderId : args.existing[node].orderId)),
       etas,
       baseline,
@@ -197,6 +223,8 @@ export function evaluateInsertions(args: InsertionArgs): InsertionResult[] {
         reassignmentCostOre: reassign,
         nearby,
         significantChange: k < n && maxDelay >= e.significantChangeMinutes,
+        promisedStopsDelayed: promise.delayedPromised,
+        maxPromisedDelayMinutes: Math.round(promise.maxPromisedDelay * 10) / 10,
         explanation: [...explanation, ...violations.map((x) => `Afvist: ${x}`)],
       },
     });
@@ -323,4 +351,93 @@ export function optimizeSequence(args: Omit<InsertionArgs, 'newOrder' | 'reassig
     }
   }
   return { current, best };
+}
+
+// ---------------- Adaptiv hybridstrategi (Etape 4.1) ----------------
+
+export type LoadLevel = 'low' | 'medium' | 'high';
+
+export interface AdaptiveSettings {
+  /** Belastning (timers arbejde pr. aktiv chauffør) hvor der skiftes op/ned – forskellige grænser giver hysterese. */
+  lowToMedium: number;
+  mediumToHigh: number;
+  highToMedium: number;
+  mediumToLow: number;
+  /** Mindste tid mellem to skift (minutter), medmindre belastningen springer markant. */
+  minDwellMinutes: number;
+  /** Arbejdsminutter der regnes pr. ventende ordre uden chauffør. */
+  minutesPerWaitingOrder: number;
+  /** Lovede stop skal have mindst så mange minutters margin tilbage, hvis de rykkes. */
+  protectBufferMinutes: number;
+  /** Maks. minutter et lovet stop må rykkes ved mellem/høj belastning. */
+  maxPromisedDelayMedium: number;
+  maxPromisedDelayHigh: number;
+}
+
+export const DEFAULT_ADAPTIVE: AdaptiveSettings = {
+  lowToMedium: 0.6,
+  mediumToHigh: 1.1,
+  highToMedium: 0.85,
+  mediumToLow: 0.4,
+  minDwellMinutes: 10,
+  minutesPerWaitingOrder: 12,
+  protectBufferMinutes: 3,
+  maxPromisedDelayMedium: 3,
+  maxPromisedDelayHigh: 8,
+};
+
+/**
+ * Nyt belastningsniveau med hysterese: der skiftes kun, når en grænse er
+ * passeret tydeligt, og tidligst efter `minDwellMinutes` (undtagen ved et
+ * spring over to niveauer).
+ */
+export function nextLoadLevel(current: LoadLevel, value: number, minutesSinceChange: number, a: AdaptiveSettings): LoadLevel {
+  let target: LoadLevel = current;
+  if (current === 'low') target = value >= a.mediumToHigh ? 'high' : value >= a.lowToMedium ? 'medium' : 'low';
+  else if (current === 'medium') target = value >= a.mediumToHigh ? 'high' : value <= a.mediumToLow ? 'low' : 'medium';
+  else target = value <= a.mediumToLow ? 'low' : value <= a.highToMedium ? 'medium' : 'high';
+  if (target === current) return current;
+  const jump = (current === 'low' && target === 'high') || (current === 'high' && target === 'low');
+  if (minutesSinceChange < a.minDwellMinutes && !jump) return current;
+  return target;
+}
+
+/**
+ * Løftebeskyttelse: må placeringen bruges uden at lempe reglerne?
+ *  - lav belastning: lovede stop må ikke rykkes (≤ 1 min)
+ *  - mellem/høj: lovede stop må rykkes en begrænset tid, og kun hvis der stadig er margin til løftet
+ */
+export function promiseProtected(r: InsertionResult, level: LoadLevel, a: AdaptiveSettings): boolean {
+  if (!r.feasible) return false;
+  if (r.promise.delayedPromised === 0 || r.promise.maxPromisedDelay <= 1) return true;
+  if (level === 'low') return false;
+  const maxDelay = level === 'medium' ? a.maxPromisedDelayMedium : a.maxPromisedDelayHigh;
+  return r.promise.maxPromisedDelay <= maxDelay && (r.promise.minSlackAfter ?? Infinity) >= a.protectBufferMinutes;
+}
+
+/**
+ * Omkostning (øre, lavere er bedre) for en placering på et givet belastningsniveau.
+ *  - lav: hurtigst mulig levering (som først-til-mølle, men uden at køre langt omveje)
+ *  - mellem: mindst ekstra køretid + ventetid, stærk beskyttelse af løfter
+ *  - høj: kapacitet først (køretid), let værdivægtning (højst 1,25×), begrænset brug af løftemargin
+ * Ordreværdien afgør aldrig, om en ordre accepteres – kun rækkefølgen ved høj belastning.
+ */
+export function adaptiveCost(r: InsertionResult, level: LoadLevel, e: EconomicsSettings): number {
+  const drive = r.extraDriveMinutesExact;
+  const eta = Math.max(0, r.newEtaMinutesExact);
+  const erosionPerMinute = level === 'low' ? 2000 : level === 'medium' ? 800 : 300;
+  const erosion = erosionPerMinute * r.promise.erosionMinutes;
+  const otherDelay = e.waitCostPerMinuteOre * Math.max(0, r.promise.existingDelayMinutes - r.promise.erosionMinutes);
+  if (level === 'low') return eta * 100 + drive * e.driveCostPerMinuteOre * 0.25 + erosion + otherDelay;
+  if (level === 'medium') return drive * e.driveCostPerMinuteOre + eta * e.waitCostPerMinuteOre + erosion + otherDelay;
+  const w = Math.min(1.25, 1 + Math.max(0, r.analysis.contributionOre) / Math.max(1, e.valueWeightScaleOre));
+  return drive * e.driveCostPerMinuteOre + eta * e.waitCostPerMinuteOre * w + erosion + otherDelay - (r.analysis.nearby ? e.nearbyBonusOre : 0);
+}
+
+/** Bedste placering i én rute under adaptiv strategi: først beskyttede, ellers (nødvendigt) den mindst skadelige gyldige. */
+export function chooseAdaptive(results: InsertionResult[], level: LoadLevel, e: EconomicsSettings, a: AdaptiveSettings): { best: InsertionResult | null; relaxed: InsertionResult | null } {
+  const byCost = (x: InsertionResult, y: InsertionResult) => adaptiveCost(x, level, e) - adaptiveCost(y, level, e);
+  const protectedOnes = results.filter((r) => promiseProtected(r, level, a)).sort(byCost);
+  const feasible = results.filter((r) => r.feasible).sort((x, y) => adaptiveCost(x, 'medium', e) - adaptiveCost(y, 'medium', e));
+  return { best: protectedOnes[0] ?? null, relaxed: feasible[0] ?? null };
 }

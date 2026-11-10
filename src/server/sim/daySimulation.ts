@@ -8,6 +8,7 @@ import { SimulatedTelegramAdapter } from '../adapters/telegram/simulator';
 import { SimulatedMapsAdapter, simulatedTravel } from '../adapters/maps/simulator';
 import type { LatLng } from '../../core/geo';
 import { DEFAULT_TZ, localToUtc, zonedParts } from '../../core/time';
+import { DEFAULT_ADAPTIVE, type AdaptiveSettings } from '../../core/routePlanning';
 import { DISPATCH_STRATEGY_LABELS, type DispatchStrategy, type SimulationMetrics } from '../../shared/types';
 
 /**
@@ -37,6 +38,20 @@ export interface SimConfig {
   /** Midlertidige integrationsfejl og en chauffør der ikke svarer. */
   failures?: boolean;
   stepSeconds?: number;
+  /**
+   * Ordreprofil: 'standard' (som v0.4.0), 'large' (flere og større ordrelinjer, flere dyre varer),
+   * 'spread' (større leveringsområde, ca. ±5,5 km), 'central' (flere varer der kun findes på centrallageret).
+   */
+  profile?: SimProfile;
+  /**
+   * Kør med v0.4.0-forretningsreglerne (ingen påfyldning ved lagerbesøg, overvågning der tæller
+   * samme beslutning flere gange) – bruges til før/efter-sammenligningen.
+   */
+  legacyRules?: boolean;
+  /** Eksperiment: alle varer i bilerne fra start (ingen varer kun på centrallageret). */
+  fullVehicleAssortment?: boolean;
+  /** Afvig fra standardindstillingerne for den adaptive strategi (kalibrering). */
+  adaptive?: Partial<AdaptiveSettings>;
   onProgress?: (pct: number) => void;
   /** Fejlfinding: undersøg simuleringens database før den lukkes. */
   inspect?: (app: App) => void;
@@ -95,6 +110,9 @@ const POSTS = ['2200 København N', '2100 København Ø', '2300 København S', '
 /** Relativ efterspørgsel pr. lokal time (frokost- og aftenspids). */
 const DEMAND: Record<number, number> = { 10: 3, 11: 6, 12: 8, 13: 6, 14: 4, 15: 4, 16: 6, 17: 9, 18: 10, 19: 9, 20: 8, 21: 5 };
 
+export type SimProfile = 'standard' | 'large' | 'spread' | 'central';
+export const SIM_PROFILES: SimProfile[] = ['standard', 'large', 'spread', 'central'];
+
 type CustomerKind = 'normal' | 'ignore_quote' | 'modify' | 'cancel_after' | 'decline';
 
 interface PlannedOrder {
@@ -107,19 +125,24 @@ interface PlannedOrder {
   addSku: string;
 }
 
-function planOrders(cfg: Required<Omit<SimConfig, 'onProgress' | 'inspect'>>, openMs: number): PlannedOrder[] {
+function planOrders(cfg: Required<Omit<SimConfig, 'onProgress' | 'inspect' | 'adaptive' | 'legacyRules' | 'fullVehicleAssortment'>>, openMs: number): PlannedOrder[] {
   const rng = mulberry32(cfg.seed);
   const hours: number[] = [];
   for (let h = cfg.openHour; h < cfg.closeHour; h++) hours.push(h);
   const weights = hours.map((h) => DEMAND[h] ?? 3);
   const total = weights.reduce((a, b) => a + b, 0);
   const pick = <T>(arr: T[]) => arr[Math.floor(rng() * arr.length)];
+  const profile = cfg.profile ?? 'standard';
+  const weightOf = (p: (typeof PRODUCTS)[number]) =>
+    profile === 'central' && !VEHICLE_SKUS.includes(p.sku) ? p.weight * 2.5 : profile === 'large' && p.price >= 5000 ? p.weight * 3 : p.weight;
   const pickProduct = () => {
-    const sum = PRODUCTS.reduce((a, p) => a + p.weight, 0);
+    const sum = PRODUCTS.reduce((a, p) => a + weightOf(p), 0);
     let x = rng() * sum;
-    for (const p of PRODUCTS) if ((x -= p.weight) <= 0) return p;
+    for (const p of PRODUCTS) if ((x -= weightOf(p)) <= 0) return p;
     return PRODUCTS[0];
   };
+  const maxLines = profile === 'large' ? 6 : 4;
+  const maxQty = profile === 'large' ? 6 : 4;
   const out: PlannedOrder[] = [];
   for (let i = 0; i < cfg.orders; i++) {
     // Ankomsttid: vælg time efter efterspørgsel, derefter tilfældigt minut (undgå sidste 10 min)
@@ -127,11 +150,11 @@ function planOrders(cfg: Required<Omit<SimConfig, 'onProgress' | 'inspect'>>, op
     let hi = 0;
     while ((x -= weights[hi]) > 0) hi++;
     const at = openMs + (hours[hi] - cfg.openHour) * 3_600_000 + Math.floor(rng() * 50 * 60_000);
-    const n = 1 + Math.floor(rng() * rng() * 4);
+    const n = 1 + Math.floor(rng() * rng() * maxLines);
     const items = new Map<string, number>();
     for (let k = 0; k < n; k++) {
       const p = pickProduct();
-      items.set(p.name, (items.get(p.name) ?? 0) + 1 + Math.floor(rng() * rng() * 4));
+      items.set(p.name, (items.get(p.name) ?? 0) + 1 + Math.floor(rng() * rng() * maxQty));
     }
     const address = `${pick(STREETS)} ${1 + Math.floor(rng() * 140)}, ${pick(POSTS)}`;
     const list = [...items].map(([name, q]) => `${q} ${name}`);
@@ -156,7 +179,10 @@ function planOrders(cfg: Required<Omit<SimConfig, 'onProgress' | 'inspect'>>, op
 
 class SimMaps extends SimulatedMapsAdapter {
   failing = false;
-  constructor(private c: LatLng) {
+  constructor(
+    private c: LatLng,
+    private scale = 0.5,
+  ) {
     super(c);
   }
   /** Leveringsområde ca. ±3,5 km omkring centrum (en tæt bydel). */
@@ -164,7 +190,7 @@ class SimMaps extends SimulatedMapsAdapter {
     if (this.failing) throw new Error('Simuleret kortfejl (HTTP 503)');
     const g = await super.geocode(address);
     if (!g.found || g.lat == null || g.lng == null) return g;
-    return { ...g, lat: this.c.lat + (g.lat - this.c.lat) * 0.5, lng: this.c.lng + (g.lng - this.c.lng) * 0.5 };
+    return { ...g, lat: this.c.lat + (g.lat - this.c.lat) * this.scale, lng: this.c.lng + (g.lng - this.c.lng) * this.scale };
   }
   override async travelMatrix(o: LatLng[], d: LatLng[]) {
     if (this.failing) throw new Error('Simuleret kortfejl (HTTP 503)');
@@ -214,6 +240,7 @@ export async function runDaySimulation(input: SimConfig): Promise<SimResult> {
     closeHour: 22,
     failures: true,
     stepSeconds: 30,
+    profile: 'standard',
     ...input,
   } as Required<SimConfig>;
   const wallStart = Date.now();
@@ -228,7 +255,7 @@ export async function runDaySimulation(input: SimConfig): Promise<SimResult> {
 
   const sms = new SimulatedSmsAdapter();
   const tg = new SimulatedTelegramAdapter();
-  const maps = new SimMaps({ lat: 55.6761, lng: 12.5683 });
+  const maps = new SimMaps({ lat: 55.6761, lng: 12.5683 }, cfg.profile === 'spread' ? 0.8 : 0.5);
   let app: App | null = null;
   try {
     app = await createApp({
@@ -254,8 +281,9 @@ export async function runDaySimulation(input: SimConfig): Promise<SimResult> {
       pricing: { deliveryFeeOre: 3900, freeDeliveryThresholdOre: 30000, minimumOrderOre: 0 },
       management: { groupChatId: GROUP, allowPrivateChats: false, hourlyReports: true },
       delivery: { requireDriverAcceptance: true, offerTimeoutSeconds: 120 },
-      economics: { strategy: cfg.strategy },
+      economics: { strategy: cfg.strategy, ...(cfg.adaptive ? { adaptive: { ...DEFAULT_ADAPTIVE, ...cfg.adaptive } } : {}) },
       demo: { autoTraffic: false },
+      ...(cfg.legacyRules ? { replenishment: { topUpHorizonMinutes: 0 }, monitoring: { dedupeLinkedDecisions: false } } : {}),
     });
     // Katalog og lager
     const products = new Map<string, number>();
@@ -280,7 +308,7 @@ export async function runDaySimulation(input: SimConfig): Promise<SimResult> {
       ctx.db.prepare(`UPDATE drivers SET telegram_user_id = ?, telegram_chat_id = ? WHERE id = ?`).run(uid, uid, d.id);
       ctx.drivers.setStatus(d.id, 'offline');
       const vloc = ctx.drivers.get(d.id)!.vehicleLocationId!;
-      for (const sku of VEHICLE_SKUS) ctx.inventory.adjust(vloc, products.get(sku)!, 18, 'bil – startlager', 'system');
+      for (const sku of cfg.fullVehicleAssortment ? PRODUCTS.map((p) => p.sku) : VEHICLE_SKUS) ctx.inventory.adjust(vloc, products.get(sku)!, 18, "bil – startlager", "system");
       const peak = k >= Math.max(2, cfg.drivers - 2);
       const lunch = k % 2 === 0;
       bots.push({
@@ -321,7 +349,7 @@ export async function runDaySimulation(input: SimConfig): Promise<SimResult> {
     const timed: Step[] = [];
     const later = (ms: number, act: () => void) => timed.push({ at: now + ms, act });
     const tgPending: (() => void)[] = [];
-    const counters = { driveMs: 0, depotDriveMs: 0, mgmtActions: 0, offersIgnored: 0, stockReplies: 0, busyMs: 0, waitRepMs: 0, idleWithStopsMs: 0 };
+    const counters = { driveMs: 0, depotDriveMs: 0, mgmtActions: 0, offersIgnored: 0, stockReplies: 0, busyMs: 0, waitRepMs: 0, idleWithStopsMs: 0, revisits: 0 };
     /** Telegram-handling fra en chauffør/leder; under udfald afventer den forbindelsen. */
     const viaTelegram = (fn: () => void) => {
       if (tg.inOutage) tgPending.push(fn);
@@ -412,6 +440,7 @@ export async function runDaySimulation(input: SimConfig): Promise<SimResult> {
 
     const startDelivery = (b: DriverBot, orderId: number, viaDepot: boolean) => {
       const o = ctx.orders.get(orderId)!;
+      if (b.doneUnreported.has(orderId) || o.status === 'delivered') counters.revisits++;
       const dest = { lat: o.addressLat!, lng: o.addressLng! };
       const r = keyed(cfg.seed, 'leg', b.id, orderId);
       let t = now;
@@ -433,7 +462,14 @@ export async function runDaySimulation(input: SimConfig): Promise<SimResult> {
       }
       if (leg > 7 * 60_000 && r() < 0.3) b.plan.push({ at: t + leg - 5 * 60_000, act: () => text(b, `Ordre ${orderId}, jeg er der om 5 min`) });
       t += leg;
-      b.plan.push({ at: t, act: () => press(b, `ord:${orderId}:arrived`) });
+      const arriveAt = t;
+      b.plan.push({
+        at: t,
+        act: () => {
+          arrivals.set(orderId, arriveAt);
+          press(b, `ord:${orderId}:arrived`);
+        },
+      });
       let service = (2 + r() * 2) * 60_000;
       if (r() < 0.04) {
         b.plan.push({ at: t + 3 * 60_000, act: () => press(b, `ord:${orderId}:unreachable`) });
@@ -443,11 +479,10 @@ export async function runDaySimulation(input: SimConfig): Promise<SimResult> {
       b.plan.push({
         at: t,
         act: () => {
+          // Fysisk leveret: botten må ikke køre til ordren igen, selv om systemet endnu
+          // ikke har behandlet beskeden (rettet i v0.4.1 – botten genbesøgte ordren før)
           b.doneUnreported.add(orderId);
-          viaTelegram(() => {
-            tg.injectCallback(b.uid, b.name, `ord:${orderId}:delivered`);
-            b.doneUnreported.delete(orderId);
-          });
+          viaTelegram(() => tg.injectCallback(b.uid, b.name, `ord:${orderId}:delivered`));
         },
       });
       b.plan.push({ at: t, act: () => (b.busyWith = null) });
@@ -563,6 +598,10 @@ export async function runDaySimulation(input: SimConfig): Promise<SimResult> {
     const stepMs = cfg.stepSeconds * 1000;
     stepMsRef.v = stepMs;
     const firstPromise = new Map<number, number>();
+    const promiseKind = new Map<number, 'initial' | 'arrival'>();
+    /** Faktisk ankomsttid hos kunden (løftet gælder ankomst, ikke afslutning af afleveringen). */
+    const arrivals = new Map<number, number>();
+    const promiseCtx = new Map<number, { pos: number; horizon: number; central: boolean }>();
     let lastPct = -1;
     while (now < endMs) {
       now += stepMs;
@@ -596,8 +635,18 @@ export async function runDaySimulation(input: SimConfig): Promise<SimResult> {
       for (const b of bots) driverStep(b);
       await runJobs();
       handleSms();
-      for (const r of ctx.db.prepare(`SELECT id, eta_communicated FROM orders WHERE eta_communicated IS NOT NULL`).all() as { id: number; eta_communicated: string }[]) {
-        if (!firstPromise.has(r.id)) firstPromise.set(r.id, new Date(r.eta_communicated).getTime());
+      for (const r of ctx.db.prepare(`SELECT id, eta_communicated, arrival_soon_sent FROM orders WHERE eta_communicated IS NOT NULL`).all() as { id: number; eta_communicated: string; arrival_soon_sent: number }[]) {
+        if (!firstPromise.has(r.id)) {
+          firstPromise.set(r.id, new Date(r.eta_communicated).getTime());
+          // Løfte givet ved tildeling (planlagt ETA) eller først når chaufføren melder "der om 5 min"
+          promiseKind.set(r.id, r.arrival_soon_sent ? 'arrival' : 'initial');
+          if (!r.arrival_soon_sent) {
+            const o = ctx.orders.get(r.id)!;
+            const bot = bots.find((b) => b.id === o.driverId);
+            const pos = o.driverId ? ctx.drivers.routeStops(o.driverId).findIndex((x) => x.orderId === r.id) : -1;
+            promiseCtx.set(r.id, { pos, horizon: (new Date(r.eta_communicated).getTime() - now) / 60000, central: !!bot && o.stockLocationId !== bot.vehicleLoc });
+          }
+        }
       }
       const pct = Math.floor(((now - openMs) / (closeMs - openMs)) * 100);
       if (pct !== lastPct && pct % 5 === 0) {
@@ -643,7 +692,9 @@ export async function runDaySimulation(input: SimConfig): Promise<SimResult> {
     const margin = s.economics.defaultMarginPct;
     const contribution = delivered.reduce((sum, o) => sum + app!.agents.routing.valueOf(o.id, o.delivery_fee_ore, margin).contributionOre, 0);
     const durations = delivered.map((o) => (new Date(o.delivered_at).getTime() - new Date(o.confirmed_at).getTime()) / 60000).sort((a, b) => a - b);
-    const late = delivered.filter((o) => firstPromise.has(o.id) && new Date(o.delivered_at).getTime() > firstPromise.get(o.id)! + tol).length;
+    /** Ankomst hos kunden (løftet gælder ankomst); afleveringen afsluttes 2–4 min senere. */
+    const arriveMs = (o: { id: number; delivered_at: string }) => arrivals.get(o.id) ?? new Date(o.delivered_at).getTime();
+    const late = delivered.filter((o) => firstPromise.has(o.id) && arriveMs(o) > firstPromise.get(o.id)! + tol).length;
     const planned_extra = ctx.db.prepare(`SELECT plan FROM dispatch_offers WHERE status = 'accepted' AND kind = 'new_order'`).all() as { plan: string }[];
     const plannedExtra = planned_extra.reduce((sum, r) => sum + ((JSON.parse(r.plan)?.analysis?.extraDriveMinutes as number) ?? 0), 0);
     const reps = (ctx.db.prepare(`SELECT COUNT(*) AS c FROM replenishments`).get() as { c: number }).c;
@@ -664,8 +715,58 @@ export async function runDaySimulation(input: SimConfig): Promise<SimResult> {
     const driverHours = bots.reduce((sum, b) => sum + b.onlineMs, 0) / 3_600_000;
     const hours = (closeMs - openMs) / 3_600_000;
     const r1 = (x: number) => Math.round(x * 10) / 10;
+    // ---- Etape 4.1: løfter, ruteændringer, indgreb og lager ----
+    const promisedRows = delivered.filter((o) => firstPromise.has(o.id));
+    const delayMin = promisedRows.map((o) => Math.max(0, (arriveMs(o) - firstPromise.get(o.id)!) / 60000)).sort((a, b) => a - b);
+    const lateMinutes = promisedRows.reduce((sum, o) => sum + Math.max(0, (arriveMs(o) - firstPromise.get(o.id)! - tol) / 60000), 0);
+    const slaLate = delivered.filter((o) => new Date(o.delivered_at).getTime() - new Date(o.confirmed_at).getTime() > 60 * 60_000).length;
+    const etaChanges = (ctx.db.prepare(`SELECT COALESCE(SUM(eta_updates_sent), 0) AS c FROM orders`).get() as { c: number }).c;
+    const acceptedPlans = ctx.db.prepare(`SELECT plan, kind FROM dispatch_offers WHERE status = 'accepted'`).all() as { plan: string; kind: string }[];
+    let insertedAhead = 0;
+    let disruptive = 0;
+    let promisedMoved = 0;
+    for (const r of acceptedPlans) {
+      const plan = JSON.parse(r.plan) as { insertIndex?: number; sequence?: number[]; analysis?: { maxExistingDelayMinutes?: number; promisedStopsDelayed?: number } } | null;
+      if (!plan) continue;
+      promisedMoved += plan.analysis?.promisedStopsDelayed ?? 0;
+      if (r.kind === 'new_order' && plan.sequence && plan.insertIndex != null && plan.insertIndex < plan.sequence.length - 1) insertedAhead++;
+      if ((plan.analysis?.maxExistingDelayMinutes ?? 0) >= 1) disruptive++;
+    }
+    const routeChangeOffers = acceptedPlans.filter((r) => r.kind === 'route_change').length;
+    // Store ordrer (øverste kvartil efter omsætning) mod resten
+    const byValue = [...delivered].sort((a, b) => b.total_ore - a.total_ore);
+    const topN = Math.max(1, Math.floor(byValue.length / 4));
+    const isLate = (o: (typeof delivered)[number]) => firstPromise.has(o.id) && arriveMs(o) > firstPromise.get(o.id)! + tol;
+    const share = (arr: typeof delivered) => r1((arr.filter(isLate).length / Math.max(1, arr.length)) * 100);
+    // Ledelsesindgreb fordelt på årsag
+    const alertRows = ctx.db.prepare(`SELECT rule, alert_key, category FROM monitor_alerts`).all() as { rule: string; alert_key: string; category: string }[];
+    const human = alertRows.filter((a) => a.category === 'approval' || a.category === 'takeover');
+    const cause = {
+      replenishmentDecisions: counters.mgmtActions,
+      duplicateOfReplenishment: human.filter((a) => a.rule === 'stock_shortage' || a.alert_key.startsWith('approval_expiring:rep')).length,
+      reassignmentSuggestions: human.filter((a) => a.rule === 'promise_risk').length,
+      delays: human.filter((a) => a.rule === 'critical_delay').length,
+      driverNoResponse: human.filter((a) => a.rule === 'driver_unresponsive').length,
+      capacity: human.filter((a) => a.rule === 'capacity_shortage').length,
+      integration: human.filter((a) => a.rule === 'integration_failure').length,
+      other: human.filter((a) => !['stock_shortage', 'promise_risk', 'critical_delay', 'driver_unresponsive', 'capacity_shortage', 'integration_failure'].includes(a.rule) && !a.alert_key.startsWith('approval_expiring:rep')).length,
+    };
+    // Reelle beslutninger, en person skal træffe (uden dubletter af samme opfyldningsbeslutning)
+    const distinctInterventions = cause.replenishmentDecisions + cause.reassignmentSuggestions + cause.delays + cause.driverNoResponse + cause.capacity + cause.integration + cause.other;
+    // Opfyldninger: hvorfor og hvor længe
+    const repRows = ctx.db.prepare(`SELECT items, status, sent_at, approved_at FROM replenishments`).all() as { items: string; status: string; sent_at: string | null; approved_at: string | null }[];
+    const vehicleIds = new Set(VEHICLE_SKUS.map((x) => products.get(x)!));
+    const repCentralOnly = repRows.filter((r) => (JSON.parse(r.items) as { productId: number }[]).some((i) => !vehicleIds.has(i.productId))).length;
+    const approvalWaits = repRows.filter((r) => r.sent_at && r.approved_at).map((r) => (new Date(r.approved_at!).getTime() - new Date(r.sent_at!).getTime()) / 60000);
+    const openAtEnd = (
+      ctx.db.prepare(`SELECT COUNT(*) AS c FROM orders WHERE confirmed_at IS NOT NULL AND status IN ('confirmed','awaiting_driver','driver_assigned','out_for_delivery')`).get() as { c: number }
+    ).c;
+    const needsManual = (ctx.db.prepare(`SELECT COUNT(*) AS c FROM orders WHERE confirmed_at IS NOT NULL AND status = 'needs_manual'`).get() as { c: number }).c;
     const metrics: SimulationMetrics = {
       strategy: cfg.strategy,
+      profile: cfg.profile,
+      orders: cfg.orders,
+      drivers: cfg.drivers,
       seed: cfg.seed,
       ordersGenerated: planned.length,
       ordersAccepted: accepted,
@@ -681,6 +782,43 @@ export async function runDaySimulation(input: SimConfig): Promise<SimResult> {
       p90DeliveryMinutes: r1(durations[Math.floor(durations.length * 0.9)] ?? 0),
       lateShare: r1((late / Math.max(1, delivered.length)) * 100),
       lateCount: late,
+      lateMinutes: Math.round(lateMinutes),
+      p90DelayMinutes: r1(delayMin[Math.floor(delayMin.length * 0.9)] ?? 0),
+      slaLateShare: r1((slaLate / Math.max(1, delivered.length)) * 100),
+      etaChanges,
+      insertedAhead,
+      disruptiveInsertions: disruptive,
+      routeChangeOffers,
+      promisedStopsMoved: promisedMoved,
+      botRevisits: counters.revisits,
+      initialPromiseShare: r1((delivered.filter((o) => promiseKind.get(o.id) === 'initial').length / Math.max(1, delivered.length)) * 100),
+      lateShareInitialPromise: share(delivered.filter((o) => promiseKind.get(o.id) === 'initial')),
+      lateShareHighValue: share(byValue.slice(0, topN)),
+      lateShareOtherValue: share(byValue.slice(topN)),
+      openAtEnd,
+      needsManual,
+      waitForReplenishmentMinutes: Math.round(counters.waitRepMs / 60000),
+      replenishmentsCentralOnly: repCentralOnly,
+      avgApprovalMinutes: r1(approvalWaits.reduce((a, b) => a + b, 0) / Math.max(1, approvalWaits.length)),
+      interventionsByCause: cause,
+      promiseDiagnostics: (() => {
+        const rows = delivered.filter((o) => promiseCtx.has(o.id)).map((o) => ({ ...promiseCtx.get(o.id)!, err: (arriveMs(o) - firstPromise.get(o.id)!) / 60000 }));
+        const grp = (f: (x: (typeof rows)[number]) => boolean) => {
+          const g = rows.filter(f);
+          return { n: g.length, late: r1((g.filter((x) => x.err > s.economics.promiseToleranceMinutes).length / Math.max(1, g.length)) * 100), meanErr: r1(g.reduce((a, x) => a + x.err, 0) / Math.max(1, g.length)) };
+        };
+        return {
+          pos0: grp((x) => x.pos === 0),
+          pos1: grp((x) => x.pos === 1),
+          pos2plus: grp((x) => x.pos >= 2),
+          central: grp((x) => x.central),
+          vehicle: grp((x) => !x.central),
+          horizonUnder20: grp((x) => x.horizon < 20),
+          horizon20to40: grp((x) => x.horizon >= 20 && x.horizon < 40),
+          horizon40plus: grp((x) => x.horizon >= 40),
+        };
+      })(),
+      managementInterventionsDistinct: distinctInterventions,
       driveMinutes: Math.round(counters.driveMs / 60000),
       driveMinutesPerDelivery: r1(counters.driveMs / 60000 / Math.max(1, delivered.length)),
       extraDriveMinutes: Math.round(plannedExtra),
@@ -714,7 +852,7 @@ export async function runDaySimulation(input: SimConfig): Promise<SimResult> {
 
 // ---------------- Sammenligning ----------------
 
-export const STRATEGIES: DispatchStrategy[] = ['fifo', 'shortest_detour', 'economic'];
+export const STRATEGIES: DispatchStrategy[] = ['fifo', 'shortest_detour', 'economic', 'adaptive'];
 
 /** Nøgletal der sammenlignes, og om højere eller lavere er bedst. */
 export const COMPARED: { key: keyof SimulationMetrics; label: string; better: 'higher' | 'lower'; unit?: string }[] = [
@@ -725,10 +863,14 @@ export const COMPARED: { key: keyof SimulationMetrics; label: string; better: 'h
   { key: 'avgDeliveryMinutes', label: 'Gns. leveringstid (min)', better: 'lower' },
   { key: 'p90DeliveryMinutes', label: '90 %-fraktil leveringstid (min)', better: 'lower' },
   { key: 'lateShare', label: 'Andel forsinkede (%)', better: 'lower' },
+  { key: 'lateMinutes', label: 'Forsinkelsesminutter', better: 'lower' },
+  { key: 'p90DelayMinutes', label: 'P90 forsinkelse (min)', better: 'lower' },
+  { key: 'etaChanges', label: 'ETA-ændringer til kunder', better: 'lower' },
+  { key: 'openAtEnd', label: 'Åbne ved dagens slutning', better: 'lower' },
   { key: 'driveMinutesPerDelivery', label: 'Køretid pr. levering (min)', better: 'lower' },
   { key: 'depotDriveMinutes', label: 'Køretid til lager (min)', better: 'lower' },
   { key: 'stockProblems', label: 'Lagerproblemer', better: 'lower' },
-  { key: 'managementInterventions', label: 'Ledelsesindgreb', better: 'lower' },
+  { key: 'managementInterventionsDistinct', label: 'Ledelsesindgreb', better: 'lower' },
   { key: 'failedOrUnresolvedActions', label: 'Fejlede/uafklarede handlinger', better: 'lower' },
 ];
 

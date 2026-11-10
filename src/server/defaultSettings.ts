@@ -1,3 +1,4 @@
+import { DEFAULT_ADAPTIVE } from '../core/routePlanning';
 import type { ModelPricing, Settings } from '../shared/types';
 
 /**
@@ -85,10 +86,12 @@ export function defaultSettings(mode: Settings['installation']['mode']): Setting
       volumeChangeFactor: 2,
       volumeMinOrders: 8,
       approvalWarnMinutes: 5,
+      dedupeLinkedDecisions: true,
     },
-    replenishment: { enabled: true, pickupMinutes: 8, reminderAfterMinutes: 10, escalateLeadMinutes: 10, minRouteImprovementOre: 1000 },
+    replenishment: { enabled: true, pickupMinutes: 8, reminderAfterMinutes: 10, escalateLeadMinutes: 10, minRouteImprovementOre: 1000, topUpHorizonMinutes: 90, topUpMaxUnits: 40 },
     economics: {
-      strategy: 'economic',
+      strategy: 'adaptive',
+      adaptive: { ...DEFAULT_ADAPTIVE },
       priorityWeight: 3,
       defaultMarginPct: 35,
       driveCostPerMinuteOre: 400,

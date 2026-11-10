@@ -389,7 +389,9 @@ export class ReplenishmentService {
     const deadline = Math.max(safe, clock.now() + window);
     if (safe < clock.now() + window) intro = `${intro ?? '🔄 Forslag til lageropfyldning'} – HASTER: beslut hurtigst muligt`;
     const reasoning = this.reasoning(chosen, feasible, results);
-    const analysis = { chosen: this.toOption(chosen), alternatives: results.filter((r) => r !== chosen).slice(0, 6).map((r) => this.toOption(r)), reasoning, rejectedOptions: excluded };
+    const topUp = this.topUpFor(driverId, chosen.locationId, need);
+    if (topUp.length) reasoning.push(`Påfyldning ud fra de seneste 2 timers salg, så færre lagerbesøg bliver nødvendige: ${topUp.map((t) => `${t.quantity}× ${t.productName}`).join(', ')}.`);
+    const analysis = { chosen: this.toOption(chosen), alternatives: results.filter((r) => r !== chosen).slice(0, 6).map((r) => this.toOption(r)), reasoning, rejectedOptions: excluded, topUp };
     let id: number;
     try {
       const r = ctx.db
@@ -422,6 +424,44 @@ export class ReplenishmentService {
     this.transition(id, 'awaiting_management', 'system', {}, { sent_at: clock.date().toISOString() });
     this.sendProposal(id, intro ?? '🔄 Forslag til lageropfyldning');
     return id;
+  }
+
+  /**
+   * Påfyldning: når chaufføren alligevel kører på lager, hentes også varer til den
+   * forventede efterspørgsel (salg de seneste 2 timer pr. aktiv chauffør × horisont),
+   * minus det bilen allerede har. Begrænset af lagerets ledige beholdning og et loft.
+   */
+  topUpFor(driverId: number, locationId: number, need: Qty): { productId: number; productName: string; quantity: number }[] {
+    const { ctx } = this;
+    const s = ctx.settings.get().replenishment;
+    if (!s.topUpHorizonMinutes || s.topUpHorizonMinutes <= 0) return [];
+    const driver = ctx.drivers.get(driverId);
+    if (!driver?.vehicleLocationId) return [];
+    const since = new Date(clock.now() - 120 * 60000).toISOString();
+    const sold = ctx.db
+      .prepare(
+        `SELECT ol.product_id AS pid, SUM(ol.quantity) AS q FROM order_lines ol JOIN orders o ON o.id = ol.order_id
+         WHERE o.confirmed_at >= ? AND o.status <> 'cancelled' GROUP BY ol.product_id`,
+      )
+      .all(since) as { pid: number; q: number }[];
+    const activeDrivers = Math.max(1, ctx.drivers.list().filter((d) => d.status === 'available' || d.status === 'busy').length);
+    const levels = ctx.inventory.levels();
+    const free = (loc: number, pid: number) => {
+      const l = levels.find((x) => x.locationId === loc && x.productId === pid);
+      return l ? l.quantity - l.reserved : 0;
+    };
+    const out: { productId: number; productName: string; quantity: number }[] = [];
+    let total = 0;
+    for (const r of sold.sort((a, b) => b.q - a.q)) {
+      const expected = Math.ceil(((r.q / 2) * (s.topUpHorizonMinutes / 60)) / activeDrivers);
+      const have = Math.max(0, free(driver.vehicleLocationId, r.pid));
+      const want = Math.min(expected - have, 12, s.topUpMaxUnits - total, free(locationId, r.pid) - (need[r.pid] ?? 0));
+      if (want <= 0) continue;
+      out.push({ productId: r.pid, productName: ctx.catalog.get(r.pid)?.name ?? `#${r.pid}`, quantity: want });
+      total += want;
+      if (total >= s.topUpMaxUnits) break;
+    }
+    return out;
   }
 
   private reasoning(chosen: ReplenishmentOptionResult, feasible: ReplenishmentOptionResult[], all: ReplenishmentOptionResult[]): string[] {
@@ -521,6 +561,7 @@ export class ReplenishmentService {
       `Foreslået lager: ${rep.locationName}`,
       `Tidspunkt: ${point}`,
       `Afhent: ${rep.items.map((i) => `${i.quantity}× ${i.productName}`).join(', ')}`,
+      rep.analysis?.topUp?.length ? `Påfyldning (ekstra lager til kommende ordrer): ${rep.analysis.topUp.map((t) => `${t.quantity}× ${t.productName}`).join(', ')}` : '',
       `Ekstra køretid: ${c?.extraDriveMinutes ?? '?'} min + ${c?.pickupMinutes ?? '?'} min afhentning`,
       `Effekt: ${effect}`,
       `Alternativer:\n${alts || '• ingen andre gyldige'}`,
@@ -657,6 +698,13 @@ export class ReplenishmentService {
     let moved: { productId: number; quantity: number }[] = [];
     ctx.db.transaction(() => {
       moved = ctx.inventory.pickupForOrders(covers, r.location_id, driver.vehicleLocationId!, id);
+      // Påfyldning (godkendt sammen med opfyldningen): flyt det, lageret stadig har ledigt
+      for (const t of parseJson<{ topUp?: { productId: number; quantity: number }[] }>(r.analysis, {}).topUp ?? []) {
+        const qty = Math.min(t.quantity, ctx.inventory.available(r.location_id, t.productId));
+        if (qty <= 0) continue;
+        ctx.inventory.transfer(r.location_id, driver.vehicleLocationId!, t.productId, qty, 'driver');
+        moved.push({ productId: t.productId, quantity: qty });
+      }
       this.transition(id, 'picked_up', 'driver', { moved }, { picked_up_at: clock.date().toISOString() });
       this.transition(id, 'completed', 'system', {}, { completed_at: clock.date().toISOString() });
       const loc = ctx.inventory.location(r.location_id);

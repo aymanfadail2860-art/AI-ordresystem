@@ -28,9 +28,10 @@ rigtige beskeder**.
 | `tests/monitor.test.ts` | Proaktiv overvågning: forsinkelse A → B → D med én besked pr. eskalering og automatisk lukning, chauffør der ikke svarer, manglende kapacitet og stigende ordretilgang, lagerunderskud med godkendelse (ingen dobbelt besked) og udløbende godkendelse, integrationsfejl og kvittering, risiko for løftebrud, beslutningslog |
 | `tests/robustness.test.ts` | Genstart under aktiv ordre og under ledelsesgodkendelse (dobbelttryk, afbrudt udførelse → usikker), genstart efter 3 timers nedetid, Telegram-udfald (beskeder venter og sendes én gang), dublerede og forsinkede Telegram-opdateringer, samtidige ordreændringer (optimistisk låsning), 200 samtidige reservationer om 50 varer, udløbne knapper, manglende Claude API (regelbaseret reserve), ugyldige AI-svar, Google Maps-fejl |
 | `tests/simulation.test.ts` | Hel arbejdsdag (45 ordrer, 4 chauffører, fejlvinduer): ordrer forsvinder ikke, ingen negativt eller overreserveret lager, ingen dobbelt levering, højst én aktiv opfyldning pr. chauffør, kun simulerede adaptere, 12 timerapporter; reproducerbar med samme seed; strategierne får de samme ordrer; strategivalg og ærlig sammenligning (kerne) |
+| `tests/adaptive.test.ts` | Etape 4.1-regressioner: hysterese uden blafren, løftebeskyttelse pr. belastningsniveau, mindst skadelige fallback (ordren afvises ikke), lav = hurtigst / høj = mindst køretid, værdivægt højst 1,25×, lavværdiordre tildeles, belastning målt i kapacitet, påfyldning ved lagerbesøg, samme beslutning tælles én gang, adaptiv er standard, simuleringsbot genbesøger ikke og ETA-fejl er ikke systematisk |
 | `tests/e2e.test.ts` | Hele flowet: SMS → tilbud → bekræftelse → Telegram-accept → kører → leveret → lagerfradrag |
 
-Seneste kørsel: **16 testfiler, 147 tests, alle bestået** (kørt gentagne gange for at udelukke ustabile tests). Alle tests kører i cloudmiljøet uden API-nøgler.
+Seneste kørsel: **17 testfiler, 159 tests, alle bestået** (kørt gentagne gange for at udelukke ustabile tests). Alle tests kører i cloudmiljøet uden API-nøgler.
 
 ### De 14 fejlscenarier fra Etape 4
 
@@ -53,6 +54,19 @@ Seneste kørsel: **16 testfiler, 147 tests, alle bestået** (kørt gentagne gang
 
 ## Driftssimulering
 
+**Matrix (v0.4.1):**
+
+```bash
+npm run simulate:matrix -- --strategies fifo,shortest_detour,economic,adaptive --out docs/simulation/v0.4.1/after.json
+```
+
+Kører 100/150/300/500/1.000 henvendelser × 4 seeds/profiler × strategier
+parallelt (ca. 7 min på 4 kerner). `--legacy-rules` kører med v0.4.0-reglerne.
+`node scripts/sim-report.mjs` laver før/efter-rapporten. Resultater og årsagsanalyse:
+`docs/simulation/v0.4.1/`.
+
+**Enkelt dag:**
+
 ```bash
 npm run simulate -- --orders 300 --drivers 8 --seed 42
 ```
@@ -69,7 +83,8 @@ eller pålidelighed mod rigtige Apple Messages-, Telegram- eller Google
 Maps-integrationer, rigtige køretider eller rigtige menneskers adfærd.
 Kundernes adresser, efterspørgselsprofil, produktmix, vognlager og
 adfærdssandsynligheder er antagelser. Der simuleres ingen medarbejder: samtaler
-der overdrages (fx under kortudfald), forbliver uafklarede.
+der overdrages (fx under kortudfald), forbliver uafklarede. Resultaterne fra v0.4.0 var
+påvirket af en fejl i chauffør-botten (rettet i v0.4.1, se `docs/simulation/v0.4.1/README.md`).
 
 ## Typecheck og build
 

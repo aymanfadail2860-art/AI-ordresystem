@@ -25,6 +25,8 @@ function setupData(ctx: Ctx) {
     installation: { automationEnabled: true },
     openingHours: Object.fromEntries(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].map((d) => [d, { open: '00:00', close: '00:00', closed: false }])) as never,
     pricing: { deliveryFeeOre: 3900, freeDeliveryThresholdOre: 0, minimumOrderOre: 0 },
+    // Scenarierne tester den økonomiske model (v0.2–0.4); standarden er nu den adaptive strategi
+    economics: { strategy: 'economic' },
   });
   const rb = ctx.catalog.create({ sku: 'RB25', name: 'Red Bull', category: 'Energidrik', priceOre: 2500, synonyms: ['red bull'] });
   const champ = ctx.catalog.create({ sku: 'CHAMP', name: 'Champagnekasse', category: 'Vin', priceOre: 500000 });

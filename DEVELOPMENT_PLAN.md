@@ -72,8 +72,16 @@
 - ✅ Hel-dags-driftssimulering med fast seed (300 ordrer, 8 chauffører, fejlvinduer)
 - ✅ Robusthedstests for 14 fejlscenarier; rettede fejl i periodiske jobs, opfyldningsløkke og Telegram-udfald
 - ✅ Kontrolpanel: Drift og overvågning
-- ⬜ Kalibrering af den økonomiske model, så den ikke øger andelen af forsinkede leverancer
+- ✅ Kalibrering af dispatch: adaptiv hybridstrategi med løftebeskyttelse (v0.4.1)
 - ⬜ Simulering med medarbejder-bot og rigtige historiske ordredata (anonymiserede)
+
+## Etape 4.1 – Forbedret dispatchstrategi (v0.4.1)
+- ✅ Årsagsanalyse (løfteudhuling, værdivægtning, opfyldninger, dobbelttalte indgreb, simuleringsfejl)
+- ✅ Adaptiv hybridstrategi med hysterese og løftebeskyttelse (standard)
+- ✅ Påfyldning ved lagerbesøg; overvågning tæller samme beslutning én gang
+- ✅ Simuleringsmatrix 100–1.000 ordrer × 4 seeds/profiler × 4 strategier
+- ⬜ Senere leveringstidspunkt med kundens accept i stedet for manuel eskalering ved meget høj belastning
+- ⬜ Kalibrering på rigtige (anonymiserede) ordredata
 
 ## Næste etape (forslag)
 

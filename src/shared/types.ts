@@ -319,6 +319,9 @@ export interface DecisionAnalysis {
   reassignmentCostOre: number;
   nearby: boolean;
   significantChange: boolean;
+  /** Antal allerede lovede stop, planen rykker (> 0,5 min), og hvor meget. */
+  promisedStopsDelayed?: number;
+  maxPromisedDelayMinutes?: number;
   explanation: string[];
 }
 
@@ -331,11 +334,12 @@ export interface RoutePlanSummary {
   alternatives: { driverId: number; driverName: string; score: number; feasible: boolean; reason: string }[];
 }
 
-export type DispatchStrategy = 'economic' | 'fifo' | 'shortest_detour';
+export type DispatchStrategy = 'economic' | 'fifo' | 'shortest_detour' | 'adaptive';
 export const DISPATCH_STRATEGY_LABELS: Record<DispatchStrategy, string> = {
   fifo: 'A. Først-til-mølle',
   shortest_detour: 'B. Korteste ekstra køretid',
-  economic: 'C. AI Dispatch (økonomisk)',
+  economic: 'C. Økonomisk (v0.4)',
+  adaptive: 'D. Adaptiv hybrid',
 };
 
 export type ManagementRole = 'admin' | 'manager' | 'observer';
@@ -421,7 +425,7 @@ export interface Replenishment {
   afterOrderId: number | null;
   items: { productId: number; productName: string; quantity: number }[];
   coversOrders: number[];
-  analysis: { chosen: ReplenishmentOption; alternatives: ReplenishmentOption[]; reasoning: string[]; rejectedOptions?: string[] } | null;
+  analysis: { chosen: ReplenishmentOption; alternatives: ReplenishmentOption[]; reasoning: string[]; rejectedOptions?: string[]; topUp?: { productId: number; productName: string; quantity: number }[] } | null;
   deadlineAt: string | null;
   sentAt: string | null;
   approvedBy: string | null;
@@ -613,6 +617,11 @@ export interface Settings {
     volumeMinOrders: number;
     /** Advar så mange minutter før en godkendelse udløber. */
     approvalWarnMinutes: number;
+    /**
+     * Tæl ikke den samme beslutning flere gange: lagerunderskud med et opfyldningsforslag til godkendelse,
+     * allerede eskalerede opfyldninger og valgfrie omfordelingsforslag giver ikke selvstændige indgreb (v0.4.1).
+     */
+    dedupeLinkedDecisions: boolean;
   };
   replenishment: {
     enabled: boolean;
@@ -622,6 +631,13 @@ export interface Settings {
     escalateLeadMinutes: number;
     /** Mindste forbedring (øre) før et ruteforslag sendes til chaufføren. */
     minRouteImprovementOre: number;
+    /**
+     * Påfyldning ved lagerbesøg: hent også varer til forventet efterspørgsel de næste N minutter
+     * (beregnet ud fra de seneste 2 timers salg pr. aktiv chauffør). 0 = slået fra.
+     */
+    topUpHorizonMinutes: number;
+    /** Maks. antal ekstra enheder pr. påfyldning. */
+    topUpMaxUnits: number;
   };
   economics: {
     /**
@@ -629,6 +645,18 @@ export interface Settings {
      * 'fifo' og 'shortest_detour' findes til sammenligning i driftssimuleringen.
      */
     strategy: DispatchStrategy;
+    /** Adaptiv hybridstrategi: belastningsgrænser, hysterese og løftebeskyttelse. */
+    adaptive: {
+      lowToMedium: number;
+      mediumToHigh: number;
+      highToMedium: number;
+      mediumToLow: number;
+      minDwellMinutes: number;
+      minutesPerWaitingOrder: number;
+      protectBufferMinutes: number;
+      maxPromisedDelayMedium: number;
+      maxPromisedDelayHigh: number;
+    };
     /** Vægt for ordrer, ledelsen har prioriteret. */
     priorityWeight: number;
     /** Avance (%) for varer uden registreret vareomkostning. */
@@ -859,6 +887,9 @@ export interface MonitorAlert {
 export interface SimulationMetrics {
   strategy: DispatchStrategy;
   seed: number;
+  profile?: string;
+  orders?: number;
+  drivers?: number;
   ordersGenerated: number;
   ordersAccepted: number;
   delivered: number;
@@ -873,6 +904,40 @@ export interface SimulationMetrics {
   p90DeliveryMinutes: number;
   lateShare: number;
   lateCount: number;
+  /** Minutter leveret efter første lovede tidspunkt + tolerance (sum). */
+  lateMinutes: number;
+  /** 90 %-fraktil af minutter efter første lovede tidspunkt (0 = til tiden). */
+  p90DelayMinutes: number;
+  /** Andel leveret mere end 60 min efter bekræftelse (uafhængigt af løftet). */
+  slaLateShare: number;
+  /** ETA-opdateringer sendt til kunder efter første løfte. */
+  etaChanges: number;
+  /** Nye ordrer indsat foran eksisterende stop. */
+  insertedAhead: number;
+  /** Accepterede ruteplaner der rykkede eksisterende stop ≥ 1 min. */
+  disruptiveInsertions: number;
+  routeChangeOffers: number;
+  /** Lovede stop rykket af accepterede ruteplaner (sum) og antal over 1 min. */
+  promisedStopsMoved: number;
+  /** Chauffør-bot genbesøgte en allerede leveret ordre (simuleringsfejl i v0.4.0 – skal være 0). */
+  botRevisits: number;
+  /** Andel leverede ordrer, der fik et tidspunkt ved tildelingen (resten først ved "der om 5 min"). */
+  initialPromiseShare: number;
+  /** Forsinkede blandt ordrer med løfte ved tildelingen. */
+  lateShareInitialPromise: number;
+  lateShareHighValue: number;
+  lateShareOtherValue: number;
+  /** Accepterede ordrer stadig åbne (ikke leveret/annulleret/manuel) ved dagens afslutning. */
+  openAtEnd: number;
+  needsManual: number;
+  waitForReplenishmentMinutes: number;
+  replenishmentsCentralOnly: number;
+  avgApprovalMinutes: number;
+  interventionsByCause: Record<string, number>;
+  /** Fejl i løfter givet ved tildeling, fordelt på rutepositon, lagerplacering og horisont. */
+  promiseDiagnostics?: Record<string, { n: number; late: number; meanErr: number }>;
+  /** Ledelsesindgreb uden dubletter (samme opfyldningsbeslutning tælles én gang). */
+  managementInterventionsDistinct: number;
   driveMinutes: number;
   driveMinutesPerDelivery: number;
   /** Sum af planlagt ekstra køretid ved indsættelse af nye ordrer (dispatchens egen beregning). */

@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.4.1] – 2026-11-10
+
+Etape 4.1: forbedret dispatchstrategi ud fra simuleringsresultaterne. Årsagsanalyse og resultater: `docs/simulation/v0.4.1/`.
+
+### Tilføjet
+- **Adaptiv hybridstrategi** (ny standard): belastning målt i kapacitet med hysterese; lav = hurtigst levering, mellem = mindst køretid med stærk løftebeskyttelse, høj = kapacitet først; lovede leveringer rykkes ikke (lav) eller kun kort og med margin (mellem/høj); mindst skadelige fallback i stedet for afvisning; værdivægt højst 1,25×; foretrækker chauffører med varerne eller et planlagt lagerbesøg.
+- **Påfyldning ved lagerbesøg** ud fra de seneste 2 timers salg (godkendes sammen med opfyldningen).
+- Overvågningen tæller samme beslutning én gang (`monitoring.dedupeLinkedDecisions`).
+- Simuleringsmatrix (`npm run simulate:matrix`) med 4 profiler (ordrestørrelser, adresser, varebehov), gennemsnit/spredning/dårligste; nye nøgletal: forsinkelsesminutter, P90 forsinkelse, ETA-ændringer, rykkede løfter, åbne ordrer ved dagens slutning, indgreb pr. årsag, løftediagnostik pr. ruteposition.
+- Kontrolpanel: valg af dispatchstrategi og adaptive grænser (Indstillinger → Logistik og økonomi); aktuel strategi og belastning under Drift og overvågning.
+- 12 nye regressionstests (i alt 159).
+
+### Rettet
+- **Simuleringens chauffør-bot genbesøgte leverede ordrer** (ca. 4–5 min spildt pr. stop) – v0.4.0-simuleringerne var derfor kunstigt overbelastede. Forsinkelse måles nu ved ankomst (det kunden får lovet).
+- Forberedte SQL-sætninger genbruges (simuleringen er ca. 5× hurtigere).
+
+### Ændret
+- Standardstrategi: `adaptive` (den økonomiske strategi kan stadig vælges). De oprindelige logistiktests kører eksplicit med `economic`, og to overvågningstests med v0.4.0-adfærden.
+
+
 ## [0.4.0] – 2026-11-10
 
 Etape 4: automatiske ledelsesrapporter, proaktiv overvågning og fuld driftssimulering. Arkitektur, Demo Mode og sikkerhedsregler er bevaret.

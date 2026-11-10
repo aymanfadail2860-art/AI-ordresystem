@@ -11,6 +11,7 @@ interface Overview {
   criticalEvents: SystemEvent[];
   lastReport: ManagementReport | null;
   settings: { monitoring: { enabled: boolean; notifyGroup: boolean }; hourlyReports: boolean; groupConfigured: boolean };
+  dispatch: { strategy: DispatchStrategy; load: { value: number; level: 'low' | 'medium' | 'high'; activeDrivers: number; waitingOrders: number } };
 }
 
 interface Comparison {
@@ -33,10 +34,14 @@ const COMPARED: { key: keyof SimulationMetrics; label: string; better: 'higher' 
   { key: 'avgDeliveryMinutes', label: 'Gns. leveringstid (min)', better: 'lower' },
   { key: 'p90DeliveryMinutes', label: '90 %-fraktil (min)', better: 'lower' },
   { key: 'lateShare', label: 'Andel forsinkede (%)', better: 'lower' },
+  { key: 'lateMinutes', label: 'Forsinkelsesminutter', better: 'lower' },
+  { key: 'p90DelayMinutes', label: 'P90 forsinkelse (min)', better: 'lower' },
+  { key: 'etaChanges', label: 'ETA-ændringer til kunder', better: 'lower' },
+  { key: 'openAtEnd', label: 'Åbne ved dagens slutning', better: 'lower' },
   { key: 'driveMinutesPerDelivery', label: 'Køretid pr. levering (min)', better: 'lower' },
   { key: 'depotDriveMinutes', label: 'Køretid til lager (min)', better: 'lower' },
   { key: 'stockProblems', label: 'Lagerproblemer', better: 'lower' },
-  { key: 'managementInterventions', label: 'Ledelsesindgreb', better: 'lower' },
+  { key: 'managementInterventionsDistinct', label: 'Ledelsesindgreb', better: 'lower' },
   { key: 'failedOrUnresolvedActions', label: 'Fejlede/uafklarede handlinger', better: 'lower' },
 ];
 
@@ -79,6 +84,20 @@ function OverviewTab({ data, go }: { data: Overview; go: (t: 'reports' | 'alerts
         <Stat label="Orienteringer (B)" value={by('inform')} />
         <Stat label="Håndteres automatisk (A)" value={by('auto')} />
       </div>
+      <Card title="Dispatch">
+        <p>
+          Strategi: <strong>{DISPATCH_STRATEGY_LABELS[data.dispatch.strategy]}</strong>
+          {data.dispatch.strategy === 'adaptive' && (
+            <>
+              {' '}
+              · belastning <span className={`badge ${data.dispatch.load.level === 'high' ? 'danger' : data.dispatch.load.level === 'medium' ? 'warn' : 'ok'}`}>{{ low: 'lav', medium: 'mellem', high: 'høj' }[data.dispatch.load.level]}</span>{' '}
+              <span className="muted small">
+                ({data.dispatch.load.value.toLocaleString('da-DK', { maximumFractionDigits: 2 })} timers arbejde pr. aktiv chauffør · {data.dispatch.load.activeDrivers} aktive · {data.dispatch.load.waitingOrders} venter)
+              </span>
+            </>
+          )}
+        </p>
+      </Card>
       <div className="grid cols-2">
         <Card title="Integrationsstatus">
           <table>

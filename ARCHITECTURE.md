@@ -234,6 +234,11 @@ bekræftet → Afsluttet (samt Afvist, Annulleret, Udløbet). Gyldige skift er l
 tabel; højst én aktiv opfyldning pr. chauffør (delvist unikt indeks). Alle skift logges
 i `replenishment_events`.
 
+**Påfyldning (v0.4.1):** når chaufføren alligevel skal på lager, foreslås også varer til
+den forventede efterspørgsel de næste `topUpHorizonMinutes` (salg de seneste 2 timer pr.
+aktiv chauffør, højst `topUpMaxUnits` enheder, begrænset af lagerets ledige beholdning).
+Påfyldningen står i godkendelsesbeskeden og flyttes til bilen ved bekræftet afhentning.
+
 **Godkendelse:** forslaget sendes til ledelsesgruppen med knapperne *Godkend / Vis
 alternativer / Afvis* og indeholder chauffør, nuværende lager, behov, mangel, lager,
 tidspunkt, antal, ekstra køretid, effekt på leveringer, alternativer og begrundelse.
@@ -300,15 +305,44 @@ Evalueres hvert minut og ved ændret integrationsstatus. Deterministisk, ingen A
   handlinger logges i `monitor_decisions` og i hændelsesloggen.
 - Hvor et andet modul allerede sender beskeden (opfyldningsforslag med knapper,
   påmindelser/eskalering), sender overvågningen ikke en ekstra besked.
+- **Samme beslutning tælles én gang (v0.4.1, `dedupeLinkedDecisions`):** lagerunderskud
+  med et opfyldningsforslag til godkendelse er kategori A (beslutningen er allerede bedt
+  om), der kommer ingen udløbsadvarsel efter opfyldningsmodulets egen eskalering, og
+  valgfrie omfordelingsforslag er kategori A.
 
 ## Dispatchstrategier
 
-`economics.strategy`: `economic` (standard – AI Dispatchs økonomiske model),
-`shortest_detour` (mindst ekstra køretid) og `fifo` (først-til-mølle: ordren
-sættes bagerst i ruten; chaufføren der kan levere først vælges). Alle tre bruger
-samme hårde begrænsninger (løfter, maks. leveringstid, lager, kapacitet, låste
-stop, chaufføraccept). Sammenligningsstrategierne findes kun for at kunne måle
-den økonomiske model objektivt i driftssimuleringen.
+`economics.strategy`:
+
+| Strategi | Valg af placering og chauffør |
+|---|---|
+| `adaptive` (**standard fra v0.4.1**) | Adaptiv hybrid – se nedenfor |
+| `economic` | v0.2–0.4-modellen: højeste økonomiske score (ventetid vægtet med ordreværdi) |
+| `shortest_detour` | Mindst ekstra køretid |
+| `fifo` | Først-til-mølle: ordren bagerst i ruten; chaufføren der kan levere først |
+
+Alle strategier bruger samme hårde begrænsninger (løfter inden for tolerance, maks.
+leveringstid, lager, kapacitet, låste stop, chaufføraccept) og accepterer de samme
+ordrer – ordreværdi afgør aldrig, om en ordre accepteres.
+
+### Adaptiv hybridstrategi (`core/routePlanning.ts`, `RoutingService.loadState`)
+
+- **Belastning i kapacitet:** timers planlagt arbejde pr. aktiv chauffør = (resterende
+  rute til sidste stops ETA for alle aktive chauffører + 12 min pr. ventende ordre) /
+  (aktive chauffører × 60). Niveauer lav/mellem/høj med hysterese (op 0,6/1,1, ned
+  0,85/0,4) og mindst 10 min mellem skift (`economics.adaptive`). Skift logges.
+- **Løftebeskyttelse** (`promiseProtected`): hver placering beregner, hvor meget allerede
+  lovede stop rykkes, og hvor meget margin der er tilbage. Lav belastning: lovede stop
+  rykkes ikke. Mellem/høj: højst 3/8 min og mindst 3 min margin. Findes ingen beskyttet
+  placering hos nogen chauffør, bruges den mindst skadelige gyldige (almindelige regler) –
+  det står i begrundelsen.
+- **Omkostning** (`adaptiveCost`): lav = hurtigst levering; mellem = køretid + ventetid +
+  stærk straf for at rykke løfter; høj = kapacitet først, værdivægt højst 1,25×.
+  Pr. chauffør lægges et tillæg for varer, der skal hentes på lager (bortfalder, hvis
+  besøget kan kombineres med en planlagt opfyldning), og ved mellem/høj belastning for
+  chaufførens resterende rute.
+- Ventende ordrer planlægges efter ventetid (let værdivægt kun ved høj belastning).
+- Analyse og begrundelse: se `docs/simulation/v0.4.1/README.md`.
 
 ## Driftssimulering (`src/server/sim/`)
 
@@ -322,6 +356,9 @@ den økonomiske model objektivt i driftssimuleringen.
 - Al tilfældighed er nøglet til faste enheder (ordre, chauffør+ordre,
   opfyldning), ikke til hændelsesrækkefølgen – så alle strategier møder samme
   kunder og samme adfærd.
+- Matrix (v0.4.1): `npm run simulate:matrix` kører belastninger × seeds/profiler ×
+  strategier parallelt i worker-tråde og beregner gennemsnit, spredning og dårligste
+  resultat. Profiler: standard, store ordrer, spredte adresser, flere centrallagervarer.
 - Kørsel: `npm run simulate` (CLI → `docs/simulation/`), worker-tråd fra
   kontrolpanelet (Drift og overvågning → Driftssimulering) eller i tests.
 - Simuleringen bruger de rigtige agenter, regler, jobkø og database, men
@@ -358,6 +395,7 @@ annullering, fradrag ved levering) udføres i samme transaktion.
 | Telegram-udfald: bevist ikke-afsendte beskeder prøves igen i ca. 35 min (op til 60 s mellem forsøg) | `TelegramGateway` |
 | Ledelseshandlinger overtages atomisk ved bekræftelse; afbrudt udførelse markeres *usikker* og gentages aldrig | `ManagementAgent` |
 | Timerapporter: én pr. periode, usikker afsendelse gensendes ikke | `ReportService` |
+| Forberedte SQL-sætninger genbruges (5× hurtigere simulering) | `openDatabase` |
 
 ## Omkostningsstyring (AI)
 

@@ -1,0 +1,7266 @@
+{
+ "simulated": true,
+ "generatedAt": "2026-11-10T18:30:18.519Z",
+ "results": [
+  {
+   "load": "1000",
+   "orders": 1000,
+   "drivers": 16,
+   "seed": 23,
+   "profile": "large",
+   "strategy": "fifo",
+   "metrics": {
+    "strategy": "fifo",
+    "profile": "large",
+    "orders": 1000,
+    "drivers": 16,
+    "seed": 23,
+    "ordersGenerated": 1000,
+    "ordersAccepted": 905,
+    "delivered": 642,
+    "cancelled": 32,
+    "unresolved": 231,
+    "revenueOre": 11063900,
+    "contributionOre": 7077200,
+    "operatingHours": 12,
+    "deliveriesPerHour": 53.5,
+    "deliveriesPerDriverHour": 3.1,
+    "avgDeliveryMinutes": 97.8,
+    "p90DeliveryMinutes": 139.5,
+    "lateShare": 2.2,
+    "lateCount": 14,
+    "lateMinutes": 82,
+    "p90DelayMinutes": 0.4,
+    "slaLateShare": 82.4,
+    "etaChanges": 23,
+    "insertedAhead": 0,
+    "disruptiveInsertions": 0,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 12.6,
+    "lateShareInitialPromise": 17.3,
+    "lateShareHighValue": 0,
+    "lateShareOtherValue": 2.9,
+    "openAtEnd": 0,
+    "needsManual": 231,
+    "waitForReplenishmentMinutes": 286,
+    "replenishmentsCentralOnly": 142,
+    "avgApprovalMinutes": 4.9,
+    "interventionsByCause": {
+     "replenishmentDecisions": 113,
+     "duplicateOfReplenishment": 151,
+     "reassignmentSuggestions": 16,
+     "delays": 0,
+     "driverNoResponse": 0,
+     "capacity": 2,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 15,
+      "late": 13.3,
+      "meanErr": -1.7
+     },
+     "pos1": {
+      "n": 9,
+      "late": 22.2,
+      "meanErr": 0.7
+     },
+     "pos2plus": {
+      "n": 57,
+      "late": 17.5,
+      "meanErr": -2.9
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 81,
+      "late": 17.3,
+      "meanErr": -2.2
+     },
+     "horizonUnder20": {
+      "n": 19,
+      "late": 15.8,
+      "meanErr": -1.4
+     },
+     "horizon20to40": {
+      "n": 13,
+      "late": 15.4,
+      "meanErr": -0.8
+     },
+     "horizon40plus": {
+      "n": 49,
+      "late": 18.4,
+      "meanErr": -3
+     }
+    },
+    "managementInterventionsDistinct": 132,
+    "driveMinutes": 7025,
+    "driveMinutesPerDelivery": 10.9,
+    "extraDriveMinutes": 8127,
+    "depotDriveMinutes": 931,
+    "stockProblems": 227,
+    "replenishments": 146,
+    "replenishmentsCompleted": 97,
+    "managementInterventions": 283,
+    "failedOrUnresolvedActions": 719,
+    "offersRejectedOrExpired": 176,
+    "conversationsNeedingStaff": 25,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 410,
+    "alertsByCategory": {
+     "auto": 223,
+     "inform": 17,
+     "approval": 167,
+     "takeover": 3
+    },
+    "driverHours": 205,
+    "simulatedEndAt": "2026-06-16T22:13:30.000Z",
+    "wallClockMs": 52055
+   }
+  },
+  {
+   "load": "1000",
+   "orders": 1000,
+   "drivers": 16,
+   "seed": 11,
+   "profile": "standard",
+   "strategy": "shortest_detour",
+   "metrics": {
+    "strategy": "shortest_detour",
+    "profile": "standard",
+    "orders": 1000,
+    "drivers": 16,
+    "seed": 11,
+    "ordersGenerated": 1000,
+    "ordersAccepted": 893,
+    "delivered": 697,
+    "cancelled": 44,
+    "unresolved": 152,
+    "revenueOre": 7765300,
+    "contributionOre": 5540150,
+    "operatingHours": 12,
+    "deliveriesPerHour": 58.1,
+    "deliveriesPerDriverHour": 3.5,
+    "avgDeliveryMinutes": 73.9,
+    "p90DeliveryMinutes": 143.5,
+    "lateShare": 15.4,
+    "lateCount": 107,
+    "lateMinutes": 911,
+    "p90DelayMinutes": 14.6,
+    "slaLateShare": 50.1,
+    "etaChanges": 151,
+    "insertedAhead": 401,
+    "disruptiveInsertions": 400,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 45.8,
+    "lateShareInitialPromise": 33.5,
+    "lateShareHighValue": 8,
+    "lateShareOtherValue": 17.8,
+    "openAtEnd": 0,
+    "needsManual": 152,
+    "waitForReplenishmentMinutes": 259,
+    "replenishmentsCentralOnly": 150,
+    "avgApprovalMinutes": 4.7,
+    "interventionsByCause": {
+     "replenishmentDecisions": 107,
+     "duplicateOfReplenishment": 160,
+     "reassignmentSuggestions": 46,
+     "delays": 0,
+     "driverNoResponse": 9,
+     "capacity": 1,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 79,
+      "late": 29.1,
+      "meanErr": 2
+     },
+     "pos1": {
+      "n": 65,
+      "late": 27.7,
+      "meanErr": 0.6
+     },
+     "pos2plus": {
+      "n": 175,
+      "late": 37.7,
+      "meanErr": 2.7
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 319,
+      "late": 33.5,
+      "meanErr": 2.1
+     },
+     "horizonUnder20": {
+      "n": 113,
+      "late": 25.7,
+      "meanErr": 1.3
+     },
+     "horizon20to40": {
+      "n": 81,
+      "late": 32.1,
+      "meanErr": 1
+     },
+     "horizon40plus": {
+      "n": 125,
+      "late": 41.6,
+      "meanErr": 3.5
+     }
+    },
+    "managementInterventionsDistinct": 164,
+    "driveMinutes": 5314,
+    "driveMinutesPerDelivery": 7.6,
+    "extraDriveMinutes": 5879,
+    "depotDriveMinutes": 729,
+    "stockProblems": 265,
+    "replenishments": 154,
+    "replenishmentsCompleted": 91,
+    "managementInterventions": 324,
+    "failedOrUnresolvedActions": 513,
+    "offersRejectedOrExpired": 157,
+    "conversationsNeedingStaff": 33,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 696,
+    "alertsByCategory": {
+     "auto": 445,
+     "inform": 34,
+     "approval": 206,
+     "takeover": 11
+    },
+    "driverHours": 200.4,
+    "simulatedEndAt": "2026-06-16T22:09:30.000Z",
+    "wallClockMs": 52975
+   }
+  },
+  {
+   "load": "1000",
+   "orders": 1000,
+   "drivers": 16,
+   "seed": 11,
+   "profile": "standard",
+   "strategy": "economic",
+   "metrics": {
+    "strategy": "economic",
+    "profile": "standard",
+    "orders": 1000,
+    "drivers": 16,
+    "seed": 11,
+    "ordersGenerated": 1000,
+    "ordersAccepted": 893,
+    "delivered": 713,
+    "cancelled": 44,
+    "unresolved": 136,
+    "revenueOre": 7997900,
+    "contributionOre": 5699250,
+    "operatingHours": 12,
+    "deliveriesPerHour": 59.4,
+    "deliveriesPerDriverHour": 3.6,
+    "avgDeliveryMinutes": 62.9,
+    "p90DeliveryMinutes": 131.5,
+    "lateShare": 10.5,
+    "lateCount": 75,
+    "lateMinutes": 782,
+    "p90DelayMinutes": 10.9,
+    "slaLateShare": 44,
+    "etaChanges": 102,
+    "insertedAhead": 281,
+    "disruptiveInsertions": 281,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 44.6,
+    "lateShareInitialPromise": 23.6,
+    "lateShareHighValue": 5.6,
+    "lateShareOtherValue": 12.1,
+    "openAtEnd": 0,
+    "needsManual": 136,
+    "waitForReplenishmentMinutes": 323,
+    "replenishmentsCentralOnly": 145,
+    "avgApprovalMinutes": 4.6,
+    "interventionsByCause": {
+     "replenishmentDecisions": 97,
+     "duplicateOfReplenishment": 154,
+     "reassignmentSuggestions": 27,
+     "delays": 0,
+     "driverNoResponse": 6,
+     "capacity": 1,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 88,
+      "late": 8,
+      "meanErr": -3.1
+     },
+     "pos1": {
+      "n": 95,
+      "late": 23.2,
+      "meanErr": -0.3
+     },
+     "pos2plus": {
+      "n": 135,
+      "late": 34.1,
+      "meanErr": 3.3
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 318,
+      "late": 23.6,
+      "meanErr": 0.4
+     },
+     "horizonUnder20": {
+      "n": 137,
+      "late": 8,
+      "meanErr": -2.7
+     },
+     "horizon20to40": {
+      "n": 99,
+      "late": 27.3,
+      "meanErr": 0.3
+     },
+     "horizon40plus": {
+      "n": 82,
+      "late": 45.1,
+      "meanErr": 5.8
+     }
+    },
+    "managementInterventionsDistinct": 132,
+    "driveMinutes": 5392,
+    "driveMinutesPerDelivery": 7.6,
+    "extraDriveMinutes": 5854,
+    "depotDriveMinutes": 739,
+    "stockProblems": 271,
+    "replenishments": 148,
+    "replenishmentsCompleted": 80,
+    "managementInterventions": 286,
+    "failedOrUnresolvedActions": 484,
+    "offersRejectedOrExpired": 214,
+    "conversationsNeedingStaff": 33,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 601,
+    "alertsByCategory": {
+     "auto": 377,
+     "inform": 35,
+     "approval": 181,
+     "takeover": 8
+    },
+    "driverHours": 199.8,
+    "simulatedEndAt": "2026-06-16T22:15:00.000Z",
+    "wallClockMs": 56031
+   }
+  },
+  {
+   "load": "1000",
+   "orders": 1000,
+   "drivers": 16,
+   "seed": 11,
+   "profile": "standard",
+   "strategy": "fifo",
+   "metrics": {
+    "strategy": "fifo",
+    "profile": "standard",
+    "orders": 1000,
+    "drivers": 16,
+    "seed": 11,
+    "ordersGenerated": 1000,
+    "ordersAccepted": 893,
+    "delivered": 668,
+    "cancelled": 44,
+    "unresolved": 181,
+    "revenueOre": 7483100,
+    "contributionOre": 5333550,
+    "operatingHours": 12,
+    "deliveriesPerHour": 55.7,
+    "deliveriesPerDriverHour": 3.3,
+    "avgDeliveryMinutes": 82.8,
+    "p90DeliveryMinutes": 127.5,
+    "lateShare": 8.5,
+    "lateCount": 57,
+    "lateMinutes": 612,
+    "p90DelayMinutes": 12.9,
+    "slaLateShare": 70.4,
+    "etaChanges": 89,
+    "insertedAhead": 0,
+    "disruptiveInsertions": 0,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 27.5,
+    "lateShareInitialPromise": 30.4,
+    "lateShareHighValue": 4.2,
+    "lateShareOtherValue": 10,
+    "openAtEnd": 0,
+    "needsManual": 181,
+    "waitForReplenishmentMinutes": 196,
+    "replenishmentsCentralOnly": 128,
+    "avgApprovalMinutes": 4.8,
+    "interventionsByCause": {
+     "replenishmentDecisions": 110,
+     "duplicateOfReplenishment": 123,
+     "reassignmentSuggestions": 54,
+     "delays": 0,
+     "driverNoResponse": 0,
+     "capacity": 1,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 25,
+      "late": 0,
+      "meanErr": -3.6
+     },
+     "pos1": {
+      "n": 11,
+      "late": 18.2,
+      "meanErr": -1
+     },
+     "pos2plus": {
+      "n": 148,
+      "late": 36.5,
+      "meanErr": 2.4
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 184,
+      "late": 30.4,
+      "meanErr": 1.4
+     },
+     "horizonUnder20": {
+      "n": 27,
+      "late": 0,
+      "meanErr": -3.9
+     },
+     "horizon20to40": {
+      "n": 45,
+      "late": 24.4,
+      "meanErr": -0.3
+     },
+     "horizon40plus": {
+      "n": 112,
+      "late": 40.2,
+      "meanErr": 3.3
+     }
+    },
+    "managementInterventionsDistinct": 166,
+    "driveMinutes": 6889,
+    "driveMinutesPerDelivery": 10.3,
+    "extraDriveMinutes": 7687,
+    "depotDriveMinutes": 879,
+    "stockProblems": 195,
+    "replenishments": 130,
+    "replenishmentsCompleted": 91,
+    "managementInterventions": 289,
+    "failedOrUnresolvedActions": 554,
+    "offersRejectedOrExpired": 210,
+    "conversationsNeedingStaff": 33,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 516,
+    "alertsByCategory": {
+     "auto": 304,
+     "inform": 33,
+     "approval": 177,
+     "takeover": 2
+    },
+    "driverHours": 203.1,
+    "simulatedEndAt": "2026-06-16T22:21:00.000Z",
+    "wallClockMs": 56592
+   }
+  },
+  {
+   "load": "1000",
+   "orders": 1000,
+   "drivers": 16,
+   "seed": 23,
+   "profile": "large",
+   "strategy": "shortest_detour",
+   "metrics": {
+    "strategy": "shortest_detour",
+    "profile": "large",
+    "orders": 1000,
+    "drivers": 16,
+    "seed": 23,
+    "ordersGenerated": 1000,
+    "ordersAccepted": 905,
+    "delivered": 660,
+    "cancelled": 31,
+    "unresolved": 214,
+    "revenueOre": 11464400,
+    "contributionOre": 7321400,
+    "operatingHours": 12,
+    "deliveriesPerHour": 55,
+    "deliveriesPerDriverHour": 3.2,
+    "avgDeliveryMinutes": 95.9,
+    "p90DeliveryMinutes": 175.5,
+    "lateShare": 11.4,
+    "lateCount": 75,
+    "lateMinutes": 895,
+    "p90DelayMinutes": 15.6,
+    "slaLateShare": 69.8,
+    "etaChanges": 115,
+    "insertedAhead": 420,
+    "disruptiveInsertions": 420,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 34.1,
+    "lateShareInitialPromise": 33.3,
+    "lateShareHighValue": 2.4,
+    "lateShareOtherValue": 14.3,
+    "openAtEnd": 1,
+    "needsManual": 213,
+    "waitForReplenishmentMinutes": 357,
+    "replenishmentsCentralOnly": 161,
+    "avgApprovalMinutes": 4.5,
+    "interventionsByCause": {
+     "replenishmentDecisions": 125,
+     "duplicateOfReplenishment": 171,
+     "reassignmentSuggestions": 38,
+     "delays": 0,
+     "driverNoResponse": 6,
+     "capacity": 2,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 34,
+      "late": 44.1,
+      "meanErr": 2.6
+     },
+     "pos1": {
+      "n": 39,
+      "late": 28.2,
+      "meanErr": 2.6
+     },
+     "pos2plus": {
+      "n": 152,
+      "late": 32.2,
+      "meanErr": 2.3
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 225,
+      "late": 33.3,
+      "meanErr": 2.4
+     },
+     "horizonUnder20": {
+      "n": 37,
+      "late": 37.8,
+      "meanErr": 6
+     },
+     "horizon20to40": {
+      "n": 56,
+      "late": 26.8,
+      "meanErr": -1.5
+     },
+     "horizon40plus": {
+      "n": 132,
+      "late": 34.8,
+      "meanErr": 3
+     }
+    },
+    "managementInterventionsDistinct": 172,
+    "driveMinutes": 6238,
+    "driveMinutesPerDelivery": 9.5,
+    "extraDriveMinutes": 6576,
+    "depotDriveMinutes": 1031,
+    "stockProblems": 287,
+    "replenishments": 166,
+    "replenishmentsCompleted": 106,
+    "managementInterventions": 343,
+    "failedOrUnresolvedActions": 680,
+    "offersRejectedOrExpired": 145,
+    "conversationsNeedingStaff": 26,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 632,
+    "alertsByCategory": {
+     "auto": 386,
+     "inform": 28,
+     "approval": 209,
+     "takeover": 9
+    },
+    "driverHours": 205.5,
+    "simulatedEndAt": "2026-06-16T23:00:00.000Z",
+    "wallClockMs": 54642
+   }
+  },
+  {
+   "load": "1000",
+   "orders": 1000,
+   "drivers": 16,
+   "seed": 23,
+   "profile": "large",
+   "strategy": "economic",
+   "metrics": {
+    "strategy": "economic",
+    "profile": "large",
+    "orders": 1000,
+    "drivers": 16,
+    "seed": 23,
+    "ordersGenerated": 1000,
+    "ordersAccepted": 905,
+    "delivered": 721,
+    "cancelled": 31,
+    "unresolved": 153,
+    "revenueOre": 13001600,
+    "contributionOre": 8254200,
+    "operatingHours": 12,
+    "deliveriesPerHour": 60.1,
+    "deliveriesPerDriverHour": 3.6,
+    "avgDeliveryMinutes": 77.6,
+    "p90DeliveryMinutes": 135.5,
+    "lateShare": 10.3,
+    "lateCount": 74,
+    "lateMinutes": 848,
+    "p90DelayMinutes": 14.2,
+    "slaLateShare": 61.3,
+    "etaChanges": 106,
+    "insertedAhead": 348,
+    "disruptiveInsertions": 348,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 32.7,
+    "lateShareInitialPromise": 31.4,
+    "lateShareHighValue": 2.2,
+    "lateShareOtherValue": 12.9,
+    "openAtEnd": 0,
+    "needsManual": 153,
+    "waitForReplenishmentMinutes": 330,
+    "replenishmentsCentralOnly": 169,
+    "avgApprovalMinutes": 4.7,
+    "interventionsByCause": {
+     "replenishmentDecisions": 119,
+     "duplicateOfReplenishment": 180,
+     "reassignmentSuggestions": 24,
+     "delays": 0,
+     "driverNoResponse": 6,
+     "capacity": 1,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 44,
+      "late": 31.8,
+      "meanErr": 2.4
+     },
+     "pos1": {
+      "n": 64,
+      "late": 28.1,
+      "meanErr": 0
+     },
+     "pos2plus": {
+      "n": 128,
+      "late": 32.8,
+      "meanErr": 2.4
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 236,
+      "late": 31.4,
+      "meanErr": 1.8
+     },
+     "horizonUnder20": {
+      "n": 68,
+      "late": 23.5,
+      "meanErr": 0.1
+     },
+     "horizon20to40": {
+      "n": 80,
+      "late": 26.3,
+      "meanErr": -0.2
+     },
+     "horizon40plus": {
+      "n": 88,
+      "late": 42,
+      "meanErr": 4.8
+     }
+    },
+    "managementInterventionsDistinct": 151,
+    "driveMinutes": 6124,
+    "driveMinutesPerDelivery": 8.5,
+    "extraDriveMinutes": 6510,
+    "depotDriveMinutes": 964,
+    "stockProblems": 314,
+    "replenishments": 171,
+    "replenishmentsCompleted": 101,
+    "managementInterventions": 331,
+    "failedOrUnresolvedActions": 517,
+    "offersRejectedOrExpired": 131,
+    "conversationsNeedingStaff": 26,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 593,
+    "alertsByCategory": {
+     "auto": 352,
+     "inform": 29,
+     "approval": 204,
+     "takeover": 8
+    },
+    "driverHours": 201.6,
+    "simulatedEndAt": "2026-06-16T22:06:00.000Z",
+    "wallClockMs": 59901
+   }
+  },
+  {
+   "load": "1000",
+   "orders": 1000,
+   "drivers": 16,
+   "seed": 37,
+   "profile": "spread",
+   "strategy": "shortest_detour",
+   "metrics": {
+    "strategy": "shortest_detour",
+    "profile": "spread",
+    "orders": 1000,
+    "drivers": 16,
+    "seed": 37,
+    "ordersGenerated": 1000,
+    "ordersAccepted": 915,
+    "delivered": 631,
+    "cancelled": 54,
+    "unresolved": 230,
+    "revenueOre": 6847200,
+    "contributionOre": 4891000,
+    "operatingHours": 12,
+    "deliveriesPerHour": 52.6,
+    "deliveriesPerDriverHour": 3,
+    "avgDeliveryMinutes": 92.8,
+    "p90DeliveryMinutes": 165,
+    "lateShare": 18.2,
+    "lateCount": 115,
+    "lateMinutes": 1444,
+    "p90DelayMinutes": 18,
+    "slaLateShare": 64.3,
+    "etaChanges": 182,
+    "insertedAhead": 384,
+    "disruptiveInsertions": 384,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 49.3,
+    "lateShareInitialPromise": 36.3,
+    "lateShareHighValue": 8.9,
+    "lateShareOtherValue": 21.3,
+    "openAtEnd": 0,
+    "needsManual": 230,
+    "waitForReplenishmentMinutes": 208,
+    "replenishmentsCentralOnly": 97,
+    "avgApprovalMinutes": 5,
+    "interventionsByCause": {
+     "replenishmentDecisions": 88,
+     "duplicateOfReplenishment": 98,
+     "reassignmentSuggestions": 74,
+     "delays": 0,
+     "driverNoResponse": 5,
+     "capacity": 1,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 53,
+      "late": 30.2,
+      "meanErr": 2
+     },
+     "pos1": {
+      "n": 52,
+      "late": 40.4,
+      "meanErr": 4
+     },
+     "pos2plus": {
+      "n": 206,
+      "late": 36.9,
+      "meanErr": 4
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 311,
+      "late": 36.3,
+      "meanErr": 3.7
+     },
+     "horizonUnder20": {
+      "n": 64,
+      "late": 23.4,
+      "meanErr": 0.9
+     },
+     "horizon20to40": {
+      "n": 70,
+      "late": 34.3,
+      "meanErr": 2.8
+     },
+     "horizon40plus": {
+      "n": 177,
+      "late": 41.8,
+      "meanErr": 5
+     }
+    },
+    "managementInterventionsDistinct": 169,
+    "driveMinutes": 7321,
+    "driveMinutesPerDelivery": 11.6,
+    "extraDriveMinutes": 7748,
+    "depotDriveMinutes": 971,
+    "stockProblems": 154,
+    "replenishments": 103,
+    "replenishmentsCompleted": 73,
+    "managementInterventions": 267,
+    "failedOrUnresolvedActions": 671,
+    "offersRejectedOrExpired": 131,
+    "conversationsNeedingStaff": 30,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 758,
+    "alertsByCategory": {
+     "auto": 512,
+     "inform": 67,
+     "approval": 172,
+     "takeover": 7
+    },
+    "driverHours": 212.7,
+    "simulatedEndAt": "2026-06-16T22:52:00.000Z",
+    "wallClockMs": 56338
+   }
+  },
+  {
+   "load": "1000",
+   "orders": 1000,
+   "drivers": 16,
+   "seed": 37,
+   "profile": "spread",
+   "strategy": "fifo",
+   "metrics": {
+    "strategy": "fifo",
+    "profile": "spread",
+    "orders": 1000,
+    "drivers": 16,
+    "seed": 37,
+    "ordersGenerated": 1000,
+    "ordersAccepted": 915,
+    "delivered": 612,
+    "cancelled": 56,
+    "unresolved": 247,
+    "revenueOre": 6452200,
+    "contributionOre": 4646800,
+    "operatingHours": 12,
+    "deliveriesPerHour": 51,
+    "deliveriesPerDriverHour": 3,
+    "avgDeliveryMinutes": 95.6,
+    "p90DeliveryMinutes": 139.5,
+    "lateShare": 6,
+    "lateCount": 37,
+    "lateMinutes": 411,
+    "p90DelayMinutes": 6.5,
+    "slaLateShare": 75.5,
+    "etaChanges": 61,
+    "insertedAhead": 0,
+    "disruptiveInsertions": 0,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 24.2,
+    "lateShareInitialPromise": 23,
+    "lateShareHighValue": 5.9,
+    "lateShareOtherValue": 6.1,
+    "openAtEnd": 0,
+    "needsManual": 247,
+    "waitForReplenishmentMinutes": 134,
+    "replenishmentsCentralOnly": 80,
+    "avgApprovalMinutes": 4.7,
+    "interventionsByCause": {
+     "replenishmentDecisions": 74,
+     "duplicateOfReplenishment": 81,
+     "reassignmentSuggestions": 54,
+     "delays": 0,
+     "driverNoResponse": 0,
+     "capacity": 2,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 25,
+      "late": 4,
+      "meanErr": -3
+     },
+     "pos1": {
+      "n": 27,
+      "late": 29.6,
+      "meanErr": 3.2
+     },
+     "pos2plus": {
+      "n": 96,
+      "late": 26,
+      "meanErr": -0.1
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 148,
+      "late": 23,
+      "meanErr": 0
+     },
+     "horizonUnder20": {
+      "n": 26,
+      "late": 7.7,
+      "meanErr": -1.1
+     },
+     "horizon20to40": {
+      "n": 41,
+      "late": 31.7,
+      "meanErr": 2.2
+     },
+     "horizon40plus": {
+      "n": 81,
+      "late": 23.5,
+      "meanErr": -0.8
+     }
+    },
+    "managementInterventionsDistinct": 131,
+    "driveMinutes": 7985,
+    "driveMinutesPerDelivery": 13,
+    "extraDriveMinutes": 8293,
+    "depotDriveMinutes": 693,
+    "stockProblems": 130,
+    "replenishments": 84,
+    "replenishmentsCompleted": 59,
+    "managementInterventions": 212,
+    "failedOrUnresolvedActions": 691,
+    "offersRejectedOrExpired": 161,
+    "conversationsNeedingStaff": 28,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 484,
+    "alertsByCategory": {
+     "auto": 296,
+     "inform": 50,
+     "approval": 135,
+     "takeover": 3
+    },
+    "driverHours": 206.7,
+    "simulatedEndAt": "2026-06-16T22:16:30.000Z",
+    "wallClockMs": 57195
+   }
+  },
+  {
+   "load": "1000",
+   "orders": 1000,
+   "drivers": 16,
+   "seed": 37,
+   "profile": "spread",
+   "strategy": "economic",
+   "metrics": {
+    "strategy": "economic",
+    "profile": "spread",
+    "orders": 1000,
+    "drivers": 16,
+    "seed": 37,
+    "ordersGenerated": 1000,
+    "ordersAccepted": 915,
+    "delivered": 651,
+    "cancelled": 51,
+    "unresolved": 213,
+    "revenueOre": 7237500,
+    "contributionOre": 5143000,
+    "operatingHours": 12,
+    "deliveriesPerHour": 54.3,
+    "deliveriesPerDriverHour": 3.1,
+    "avgDeliveryMinutes": 84.4,
+    "p90DeliveryMinutes": 149,
+    "lateShare": 14.7,
+    "lateCount": 96,
+    "lateMinutes": 1026,
+    "p90DelayMinutes": 14.1,
+    "slaLateShare": 59.4,
+    "etaChanges": 150,
+    "insertedAhead": 309,
+    "disruptiveInsertions": 308,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 52.8,
+    "lateShareInitialPromise": 27.6,
+    "lateShareHighValue": 10.5,
+    "lateShareOtherValue": 16.2,
+    "openAtEnd": 0,
+    "needsManual": 213,
+    "waitForReplenishmentMinutes": 194,
+    "replenishmentsCentralOnly": 103,
+    "avgApprovalMinutes": 4.8,
+    "interventionsByCause": {
+     "replenishmentDecisions": 91,
+     "duplicateOfReplenishment": 105,
+     "reassignmentSuggestions": 47,
+     "delays": 1,
+     "driverNoResponse": 2,
+     "capacity": 1,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 51,
+      "late": 19.6,
+      "meanErr": 0.1
+     },
+     "pos1": {
+      "n": 69,
+      "late": 36.2,
+      "meanErr": 2
+     },
+     "pos2plus": {
+      "n": 224,
+      "late": 26.8,
+      "meanErr": 0.2
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 344,
+      "late": 27.6,
+      "meanErr": 0.5
+     },
+     "horizonUnder20": {
+      "n": 67,
+      "late": 20.9,
+      "meanErr": 0.8
+     },
+     "horizon20to40": {
+      "n": 81,
+      "late": 27.2,
+      "meanErr": 0.3
+     },
+     "horizon40plus": {
+      "n": 196,
+      "late": 30.1,
+      "meanErr": 0.5
+     }
+    },
+    "managementInterventionsDistinct": 143,
+    "driveMinutes": 7525,
+    "driveMinutesPerDelivery": 11.6,
+    "extraDriveMinutes": 7946,
+    "depotDriveMinutes": 958,
+    "stockProblems": 169,
+    "replenishments": 107,
+    "replenishmentsCompleted": 76,
+    "managementInterventions": 248,
+    "failedOrUnresolvedActions": 620,
+    "offersRejectedOrExpired": 158,
+    "conversationsNeedingStaff": 33,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 750,
+    "alertsByCategory": {
+     "auto": 533,
+     "inform": 60,
+     "approval": 152,
+     "takeover": 5
+    },
+    "driverHours": 210,
+    "simulatedEndAt": "2026-06-16T22:46:30.000Z",
+    "wallClockMs": 61314
+   }
+  },
+  {
+   "load": "1000",
+   "orders": 1000,
+   "drivers": 16,
+   "seed": 42,
+   "profile": "central",
+   "strategy": "shortest_detour",
+   "metrics": {
+    "strategy": "shortest_detour",
+    "profile": "central",
+    "orders": 1000,
+    "drivers": 16,
+    "seed": 42,
+    "ordersGenerated": 1000,
+    "ordersAccepted": 910,
+    "delivered": 632,
+    "cancelled": 37,
+    "unresolved": 241,
+    "revenueOre": 7723100,
+    "contributionOre": 5404250,
+    "operatingHours": 12,
+    "deliveriesPerHour": 52.7,
+    "deliveriesPerDriverHour": 3.1,
+    "avgDeliveryMinutes": 102.9,
+    "p90DeliveryMinutes": 191,
+    "lateShare": 12.8,
+    "lateCount": 81,
+    "lateMinutes": 912,
+    "p90DelayMinutes": 16.3,
+    "slaLateShare": 72.5,
+    "etaChanges": 110,
+    "insertedAhead": 421,
+    "disruptiveInsertions": 421,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 31,
+    "lateShareInitialPromise": 40.8,
+    "lateShareHighValue": 3.2,
+    "lateShareOtherValue": 16,
+    "openAtEnd": 0,
+    "needsManual": 241,
+    "waitForReplenishmentMinutes": 271,
+    "replenishmentsCentralOnly": 172,
+    "avgApprovalMinutes": 4.9,
+    "interventionsByCause": {
+     "replenishmentDecisions": 131,
+     "duplicateOfReplenishment": 180,
+     "reassignmentSuggestions": 24,
+     "delays": 0,
+     "driverNoResponse": 8,
+     "capacity": 2,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 35,
+      "late": 37.1,
+      "meanErr": 3.1
+     },
+     "pos1": {
+      "n": 50,
+      "late": 30,
+      "meanErr": 4.1
+     },
+     "pos2plus": {
+      "n": 111,
+      "late": 46.8,
+      "meanErr": 5.1
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 196,
+      "late": 40.8,
+      "meanErr": 4.5
+     },
+     "horizonUnder20": {
+      "n": 42,
+      "late": 42.9,
+      "meanErr": 5.9
+     },
+     "horizon20to40": {
+      "n": 55,
+      "late": 25.5,
+      "meanErr": 2
+     },
+     "horizon40plus": {
+      "n": 99,
+      "late": 48.5,
+      "meanErr": 5.3
+     }
+    },
+    "managementInterventionsDistinct": 166,
+    "driveMinutes": 6021,
+    "driveMinutesPerDelivery": 9.5,
+    "extraDriveMinutes": 6642,
+    "depotDriveMinutes": 1104,
+    "stockProblems": 266,
+    "replenishments": 172,
+    "replenishmentsCompleted": 118,
+    "managementInterventions": 346,
+    "failedOrUnresolvedActions": 800,
+    "offersRejectedOrExpired": 180,
+    "conversationsNeedingStaff": 30,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 618,
+    "alertsByCategory": {
+     "auto": 377,
+     "inform": 26,
+     "approval": 204,
+     "takeover": 11
+    },
+    "driverHours": 201.1,
+    "simulatedEndAt": "2026-06-16T22:04:30.000Z",
+    "wallClockMs": 56222
+   }
+  },
+  {
+   "load": "1000",
+   "orders": 1000,
+   "drivers": 16,
+   "seed": 42,
+   "profile": "central",
+   "strategy": "fifo",
+   "metrics": {
+    "strategy": "fifo",
+    "profile": "central",
+    "orders": 1000,
+    "drivers": 16,
+    "seed": 42,
+    "ordersGenerated": 1000,
+    "ordersAccepted": 910,
+    "delivered": 623,
+    "cancelled": 38,
+    "unresolved": 249,
+    "revenueOre": 7579600,
+    "contributionOre": 5313650,
+    "operatingHours": 12,
+    "deliveriesPerHour": 51.9,
+    "deliveriesPerDriverHour": 3.1,
+    "avgDeliveryMinutes": 101.9,
+    "p90DeliveryMinutes": 140.5,
+    "lateShare": 1.4,
+    "lateCount": 9,
+    "lateMinutes": 62,
+    "p90DelayMinutes": 0,
+    "slaLateShare": 83.5,
+    "etaChanges": 10,
+    "insertedAhead": 0,
+    "disruptiveInsertions": 0,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 7.5,
+    "lateShareInitialPromise": 17,
+    "lateShareHighValue": 0.6,
+    "lateShareOtherValue": 1.7,
+    "openAtEnd": 0,
+    "needsManual": 249,
+    "waitForReplenishmentMinutes": 225,
+    "replenishmentsCentralOnly": 132,
+    "avgApprovalMinutes": 4.9,
+    "interventionsByCause": {
+     "replenishmentDecisions": 115,
+     "duplicateOfReplenishment": 139,
+     "reassignmentSuggestions": 5,
+     "delays": 0,
+     "driverNoResponse": 0,
+     "capacity": 3,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 16,
+      "late": 12.5,
+      "meanErr": -1.7
+     },
+     "pos1": {
+      "n": 7,
+      "late": 42.9,
+      "meanErr": 2.2
+     },
+     "pos2plus": {
+      "n": 24,
+      "late": 12.5,
+      "meanErr": -3.2
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 47,
+      "late": 17,
+      "meanErr": -1.9
+     },
+     "horizonUnder20": {
+      "n": 20,
+      "late": 15,
+      "meanErr": -1.9
+     },
+     "horizon20to40": {
+      "n": 8,
+      "late": 25,
+      "meanErr": -1.1
+     },
+     "horizon40plus": {
+      "n": 19,
+      "late": 15.8,
+      "meanErr": -2.3
+     }
+    },
+    "managementInterventionsDistinct": 124,
+    "driveMinutes": 7043,
+    "driveMinutesPerDelivery": 11.3,
+    "extraDriveMinutes": 8149,
+    "depotDriveMinutes": 930,
+    "stockProblems": 191,
+    "replenishments": 132,
+    "replenishmentsCompleted": 101,
+    "managementInterventions": 263,
+    "failedOrUnresolvedActions": 761,
+    "offersRejectedOrExpired": 261,
+    "conversationsNeedingStaff": 29,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 342,
+    "alertsByCategory": {
+     "auto": 179,
+     "inform": 15,
+     "approval": 144,
+     "takeover": 4
+    },
+    "driverHours": 202.2,
+    "simulatedEndAt": "2026-06-16T21:58:00.000Z",
+    "wallClockMs": 60048
+   }
+  },
+  {
+   "load": "1000",
+   "orders": 1000,
+   "drivers": 16,
+   "seed": 42,
+   "profile": "central",
+   "strategy": "economic",
+   "metrics": {
+    "strategy": "economic",
+    "profile": "central",
+    "orders": 1000,
+    "drivers": 16,
+    "seed": 42,
+    "ordersGenerated": 1000,
+    "ordersAccepted": 910,
+    "delivered": 720,
+    "cancelled": 37,
+    "unresolved": 153,
+    "revenueOre": 8881300,
+    "contributionOre": 6216900,
+    "operatingHours": 12,
+    "deliveriesPerHour": 60,
+    "deliveriesPerDriverHour": 3.5,
+    "avgDeliveryMinutes": 85.2,
+    "p90DeliveryMinutes": 144.5,
+    "lateShare": 8.3,
+    "lateCount": 60,
+    "lateMinutes": 584,
+    "p90DelayMinutes": 10.2,
+    "slaLateShare": 66.9,
+    "etaChanges": 87,
+    "insertedAhead": 409,
+    "disruptiveInsertions": 409,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 31.4,
+    "lateShareInitialPromise": 26.5,
+    "lateShareHighValue": 3.3,
+    "lateShareOtherValue": 10,
+    "openAtEnd": 0,
+    "needsManual": 153,
+    "waitForReplenishmentMinutes": 225,
+    "replenishmentsCentralOnly": 148,
+    "avgApprovalMinutes": 4.3,
+    "interventionsByCause": {
+     "replenishmentDecisions": 119,
+     "duplicateOfReplenishment": 154,
+     "reassignmentSuggestions": 21,
+     "delays": 0,
+     "driverNoResponse": 7,
+     "capacity": 3,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 36,
+      "late": 30.6,
+      "meanErr": 3.1
+     },
+     "pos1": {
+      "n": 53,
+      "late": 24.5,
+      "meanErr": 1.2
+     },
+     "pos2plus": {
+      "n": 137,
+      "late": 26.3,
+      "meanErr": 0.3
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 226,
+      "late": 26.5,
+      "meanErr": 1
+     },
+     "horizonUnder20": {
+      "n": 56,
+      "late": 26.8,
+      "meanErr": 2.7
+     },
+     "horizon20to40": {
+      "n": 63,
+      "late": 23.8,
+      "meanErr": -1.1
+     },
+     "horizon40plus": {
+      "n": 107,
+      "late": 28,
+      "meanErr": 1.3
+     }
+    },
+    "managementInterventionsDistinct": 151,
+    "driveMinutes": 6213,
+    "driveMinutesPerDelivery": 8.6,
+    "extraDriveMinutes": 6554,
+    "depotDriveMinutes": 1028,
+    "stockProblems": 226,
+    "replenishments": 148,
+    "replenishmentsCompleted": 106,
+    "managementInterventions": 305,
+    "failedOrUnresolvedActions": 535,
+    "offersRejectedOrExpired": 147,
+    "conversationsNeedingStaff": 30,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 584,
+    "alertsByCategory": {
+     "auto": 375,
+     "inform": 23,
+     "approval": 175,
+     "takeover": 11
+    },
+    "driverHours": 203.2,
+    "simulatedEndAt": "2026-06-16T22:35:00.000Z",
+    "wallClockMs": 60035
+   }
+  },
+  {
+   "load": "500",
+   "orders": 500,
+   "drivers": 10,
+   "seed": 11,
+   "profile": "standard",
+   "strategy": "fifo",
+   "metrics": {
+    "strategy": "fifo",
+    "profile": "standard",
+    "orders": 500,
+    "drivers": 10,
+    "seed": 11,
+    "ordersGenerated": 500,
+    "ordersAccepted": 447,
+    "delivered": 376,
+    "cancelled": 17,
+    "unresolved": 54,
+    "revenueOre": 4216300,
+    "contributionOre": 3002200,
+    "operatingHours": 12,
+    "deliveriesPerHour": 31.3,
+    "deliveriesPerDriverHour": 3.1,
+    "avgDeliveryMinutes": 81.1,
+    "p90DeliveryMinutes": 133,
+    "lateShare": 8,
+    "lateCount": 30,
+    "lateMinutes": 254,
+    "p90DelayMinutes": 10.4,
+    "slaLateShare": 66.8,
+    "etaChanges": 41,
+    "insertedAhead": 0,
+    "disruptiveInsertions": 0,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 32.4,
+    "lateShareInitialPromise": 23.8,
+    "lateShareHighValue": 6.4,
+    "lateShareOtherValue": 8.5,
+    "openAtEnd": 0,
+    "needsManual": 54,
+    "waitForReplenishmentMinutes": 134,
+    "replenishmentsCentralOnly": 75,
+    "avgApprovalMinutes": 5.1,
+    "interventionsByCause": {
+     "replenishmentDecisions": 64,
+     "duplicateOfReplenishment": 72,
+     "reassignmentSuggestions": 30,
+     "delays": 0,
+     "driverNoResponse": 1,
+     "capacity": 1,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 14,
+      "late": 7.1,
+      "meanErr": -2.4
+     },
+     "pos1": {
+      "n": 15,
+      "late": 26.7,
+      "meanErr": -0.2
+     },
+     "pos2plus": {
+      "n": 93,
+      "late": 25.8,
+      "meanErr": -0.5
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 122,
+      "late": 23.8,
+      "meanErr": -0.7
+     },
+     "horizonUnder20": {
+      "n": 14,
+      "late": 7.1,
+      "meanErr": -1.9
+     },
+     "horizon20to40": {
+      "n": 28,
+      "late": 28.6,
+      "meanErr": -0.5
+     },
+     "horizon40plus": {
+      "n": 80,
+      "late": 25,
+      "meanErr": -0.5
+     }
+    },
+    "managementInterventionsDistinct": 97,
+    "driveMinutes": 4180,
+    "driveMinutesPerDelivery": 11.1,
+    "extraDriveMinutes": 4704,
+    "depotDriveMinutes": 480,
+    "stockProblems": 118,
+    "replenishments": 75,
+    "replenishmentsCompleted": 50,
+    "managementInterventions": 169,
+    "failedOrUnresolvedActions": 197,
+    "offersRejectedOrExpired": 87,
+    "conversationsNeedingStaff": 18,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 310,
+    "alertsByCategory": {
+     "auto": 178,
+     "inform": 27,
+     "approval": 102,
+     "takeover": 3
+    },
+    "driverHours": 120.2,
+    "simulatedEndAt": "2026-06-16T22:00:00.000Z",
+    "wallClockMs": 21954
+   }
+  },
+  {
+   "load": "500",
+   "orders": 500,
+   "drivers": 10,
+   "seed": 11,
+   "profile": "standard",
+   "strategy": "shortest_detour",
+   "metrics": {
+    "strategy": "shortest_detour",
+    "profile": "standard",
+    "orders": 500,
+    "drivers": 10,
+    "seed": 11,
+    "ordersGenerated": 500,
+    "ordersAccepted": 447,
+    "delivered": 398,
+    "cancelled": 16,
+    "unresolved": 33,
+    "revenueOre": 4505200,
+    "contributionOre": 3202000,
+    "operatingHours": 12,
+    "deliveriesPerHour": 33.2,
+    "deliveriesPerDriverHour": 3.4,
+    "avgDeliveryMinutes": 68.7,
+    "p90DeliveryMinutes": 136.5,
+    "lateShare": 13.8,
+    "lateCount": 55,
+    "lateMinutes": 541,
+    "p90DelayMinutes": 13.7,
+    "slaLateShare": 49.2,
+    "etaChanges": 78,
+    "insertedAhead": 194,
+    "disruptiveInsertions": 194,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 47.2,
+    "lateShareInitialPromise": 29.3,
+    "lateShareHighValue": 5.1,
+    "lateShareOtherValue": 16.7,
+    "openAtEnd": 0,
+    "needsManual": 33,
+    "waitForReplenishmentMinutes": 141,
+    "replenishmentsCentralOnly": 79,
+    "avgApprovalMinutes": 4.8,
+    "interventionsByCause": {
+     "replenishmentDecisions": 62,
+     "duplicateOfReplenishment": 82,
+     "reassignmentSuggestions": 40,
+     "delays": 0,
+     "driverNoResponse": 3,
+     "capacity": 1,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 54,
+      "late": 16.7,
+      "meanErr": -1.8
+     },
+     "pos1": {
+      "n": 51,
+      "late": 27.5,
+      "meanErr": -0.1
+     },
+     "pos2plus": {
+      "n": 83,
+      "late": 38.6,
+      "meanErr": 3.3
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 188,
+      "late": 29.3,
+      "meanErr": 0.9
+     },
+     "horizonUnder20": {
+      "n": 70,
+      "late": 15.7,
+      "meanErr": -1
+     },
+     "horizon20to40": {
+      "n": 50,
+      "late": 28,
+      "meanErr": -1.2
+     },
+     "horizon40plus": {
+      "n": 68,
+      "late": 44.1,
+      "meanErr": 4.4
+     }
+    },
+    "managementInterventionsDistinct": 107,
+    "driveMinutes": 3304,
+    "driveMinutesPerDelivery": 8.3,
+    "extraDriveMinutes": 3534,
+    "depotDriveMinutes": 440,
+    "stockProblems": 138,
+    "replenishments": 79,
+    "replenishmentsCompleted": 49,
+    "managementInterventions": 189,
+    "failedOrUnresolvedActions": 138,
+    "offersRejectedOrExpired": 90,
+    "conversationsNeedingStaff": 19,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 394,
+    "alertsByCategory": {
+     "auto": 241,
+     "inform": 26,
+     "approval": 122,
+     "takeover": 5
+    },
+    "driverHours": 116.8,
+    "simulatedEndAt": "2026-06-16T21:47:00.000Z",
+    "wallClockMs": 20950
+   }
+  },
+  {
+   "load": "500",
+   "orders": 500,
+   "drivers": 10,
+   "seed": 11,
+   "profile": "standard",
+   "strategy": "economic",
+   "metrics": {
+    "strategy": "economic",
+    "profile": "standard",
+    "orders": 500,
+    "drivers": 10,
+    "seed": 11,
+    "ordersGenerated": 500,
+    "ordersAccepted": 447,
+    "delivered": 408,
+    "cancelled": 16,
+    "unresolved": 23,
+    "revenueOre": 4643500,
+    "contributionOre": 3297800,
+    "operatingHours": 12,
+    "deliveriesPerHour": 34,
+    "deliveriesPerDriverHour": 3.5,
+    "avgDeliveryMinutes": 65.6,
+    "p90DeliveryMinutes": 128,
+    "lateShare": 16.9,
+    "lateCount": 69,
+    "lateMinutes": 642,
+    "p90DelayMinutes": 14.7,
+    "slaLateShare": 50.7,
+    "etaChanges": 96,
+    "insertedAhead": 163,
+    "disruptiveInsertions": 163,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 46.8,
+    "lateShareInitialPromise": 36.1,
+    "lateShareHighValue": 9.8,
+    "lateShareOtherValue": 19.3,
+    "openAtEnd": 0,
+    "needsManual": 23,
+    "waitForReplenishmentMinutes": 118,
+    "replenishmentsCentralOnly": 83,
+    "avgApprovalMinutes": 4.9,
+    "interventionsByCause": {
+     "replenishmentDecisions": 67,
+     "duplicateOfReplenishment": 84,
+     "reassignmentSuggestions": 20,
+     "delays": 0,
+     "driverNoResponse": 2,
+     "capacity": 1,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 41,
+      "late": 24.4,
+      "meanErr": -1.7
+     },
+     "pos1": {
+      "n": 46,
+      "late": 30.4,
+      "meanErr": 0.6
+     },
+     "pos2plus": {
+      "n": 104,
+      "late": 43.3,
+      "meanErr": 3.4
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 191,
+      "late": 36.1,
+      "meanErr": 1.6
+     },
+     "horizonUnder20": {
+      "n": 58,
+      "late": 25.9,
+      "meanErr": -0.3
+     },
+     "horizon20to40": {
+      "n": 61,
+      "late": 29.5,
+      "meanErr": -0.9
+     },
+     "horizon40plus": {
+      "n": 72,
+      "late": 50,
+      "meanErr": 5.4
+     }
+    },
+    "managementInterventionsDistinct": 91,
+    "driveMinutes": 3424,
+    "driveMinutesPerDelivery": 8.4,
+    "extraDriveMinutes": 3680,
+    "depotDriveMinutes": 495,
+    "stockProblems": 145,
+    "replenishments": 83,
+    "replenishmentsCompleted": 54,
+    "managementInterventions": 175,
+    "failedOrUnresolvedActions": 133,
+    "offersRejectedOrExpired": 80,
+    "conversationsNeedingStaff": 19,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 391,
+    "alertsByCategory": {
+     "auto": 260,
+     "inform": 23,
+     "approval": 104,
+     "takeover": 4
+    },
+    "driverHours": 117.6,
+    "simulatedEndAt": "2026-06-16T21:57:00.000Z",
+    "wallClockMs": 22366
+   }
+  },
+  {
+   "load": "500",
+   "orders": 500,
+   "drivers": 10,
+   "seed": 23,
+   "profile": "large",
+   "strategy": "fifo",
+   "metrics": {
+    "strategy": "fifo",
+    "profile": "large",
+    "orders": 500,
+    "drivers": 10,
+    "seed": 23,
+    "ordersGenerated": 500,
+    "ordersAccepted": 452,
+    "delivered": 378,
+    "cancelled": 11,
+    "unresolved": 63,
+    "revenueOre": 6622600,
+    "contributionOre": 4217500,
+    "operatingHours": 12,
+    "deliveriesPerHour": 31.5,
+    "deliveriesPerDriverHour": 3.1,
+    "avgDeliveryMinutes": 87,
+    "p90DeliveryMinutes": 131,
+    "lateShare": 2.6,
+    "lateCount": 10,
+    "lateMinutes": 90,
+    "p90DelayMinutes": 2.4,
+    "slaLateShare": 76.7,
+    "etaChanges": 20,
+    "insertedAhead": 0,
+    "disruptiveInsertions": 0,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 16.4,
+    "lateShareInitialPromise": 14.5,
+    "lateShareHighValue": 1.1,
+    "lateShareOtherValue": 3.2,
+    "openAtEnd": 0,
+    "needsManual": 63,
+    "waitForReplenishmentMinutes": 230,
+    "replenishmentsCentralOnly": 88,
+    "avgApprovalMinutes": 4.7,
+    "interventionsByCause": {
+     "replenishmentDecisions": 64,
+     "duplicateOfReplenishment": 101,
+     "reassignmentSuggestions": 15,
+     "delays": 0,
+     "driverNoResponse": 2,
+     "capacity": 2,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 9,
+      "late": 11.1,
+      "meanErr": -0.5
+     },
+     "pos1": {
+      "n": 2,
+      "late": 0,
+      "meanErr": -7.7
+     },
+     "pos2plus": {
+      "n": 51,
+      "late": 15.7,
+      "meanErr": -4.7
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 62,
+      "late": 14.5,
+      "meanErr": -4.2
+     },
+     "horizonUnder20": {
+      "n": 9,
+      "late": 11.1,
+      "meanErr": -1.7
+     },
+     "horizon20to40": {
+      "n": 5,
+      "late": 0,
+      "meanErr": -3.3
+     },
+     "horizon40plus": {
+      "n": 48,
+      "late": 16.7,
+      "meanErr": -4.7
+     }
+    },
+    "managementInterventionsDistinct": 84,
+    "driveMinutes": 4202,
+    "driveMinutesPerDelivery": 11.1,
+    "extraDriveMinutes": 4617,
+    "depotDriveMinutes": 523,
+    "stockProblems": 156,
+    "replenishments": 90,
+    "replenishmentsCompleted": 55,
+    "managementInterventions": 185,
+    "failedOrUnresolvedActions": 199,
+    "offersRejectedOrExpired": 119,
+    "conversationsNeedingStaff": 13,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 266,
+    "alertsByCategory": {
+     "auto": 126,
+     "inform": 19,
+     "approval": 116,
+     "takeover": 5
+    },
+    "driverHours": 121.8,
+    "simulatedEndAt": "2026-06-16T22:11:00.000Z",
+    "wallClockMs": 23798
+   }
+  },
+  {
+   "load": "500",
+   "orders": 500,
+   "drivers": 10,
+   "seed": 23,
+   "profile": "large",
+   "strategy": "shortest_detour",
+   "metrics": {
+    "strategy": "shortest_detour",
+    "profile": "large",
+    "orders": 500,
+    "drivers": 10,
+    "seed": 23,
+    "ordersGenerated": 500,
+    "ordersAccepted": 452,
+    "delivered": 376,
+    "cancelled": 11,
+    "unresolved": 65,
+    "revenueOre": 6567200,
+    "contributionOre": 4180500,
+    "operatingHours": 12,
+    "deliveriesPerHour": 31.3,
+    "deliveriesPerDriverHour": 3.1,
+    "avgDeliveryMinutes": 88.6,
+    "p90DeliveryMinutes": 148.5,
+    "lateShare": 9,
+    "lateCount": 34,
+    "lateMinutes": 373,
+    "p90DelayMinutes": 15.4,
+    "slaLateShare": 67,
+    "etaChanges": 49,
+    "insertedAhead": 221,
+    "disruptiveInsertions": 221,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 31.9,
+    "lateShareInitialPromise": 28.3,
+    "lateShareHighValue": 1.1,
+    "lateShareOtherValue": 11.7,
+    "openAtEnd": 0,
+    "needsManual": 65,
+    "waitForReplenishmentMinutes": 197,
+    "replenishmentsCentralOnly": 95,
+    "avgApprovalMinutes": 4.6,
+    "interventionsByCause": {
+     "replenishmentDecisions": 69,
+     "duplicateOfReplenishment": 103,
+     "reassignmentSuggestions": 13,
+     "delays": 0,
+     "driverNoResponse": 8,
+     "capacity": 3,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 23,
+      "late": 34.8,
+      "meanErr": 2.7
+     },
+     "pos1": {
+      "n": 30,
+      "late": 20,
+      "meanErr": 0
+     },
+     "pos2plus": {
+      "n": 67,
+      "late": 29.9,
+      "meanErr": 1.2
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 120,
+      "late": 28.3,
+      "meanErr": 1.2
+     },
+     "horizonUnder20": {
+      "n": 29,
+      "late": 17.2,
+      "meanErr": -0.1
+     },
+     "horizon20to40": {
+      "n": 29,
+      "late": 31,
+      "meanErr": 1.2
+     },
+     "horizon40plus": {
+      "n": 62,
+      "late": 32.3,
+      "meanErr": 1.8
+     }
+    },
+    "managementInterventionsDistinct": 94,
+    "driveMinutes": 3477,
+    "driveMinutesPerDelivery": 9.2,
+    "extraDriveMinutes": 3752,
+    "depotDriveMinutes": 614,
+    "stockProblems": 171,
+    "replenishments": 96,
+    "replenishmentsCompleted": 63,
+    "managementInterventions": 197,
+    "failedOrUnresolvedActions": 224,
+    "offersRejectedOrExpired": 99,
+    "conversationsNeedingStaff": 13,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 342,
+    "alertsByCategory": {
+     "auto": 192,
+     "inform": 22,
+     "approval": 116,
+     "takeover": 12
+    },
+    "driverHours": 119.4,
+    "simulatedEndAt": "2026-06-16T21:51:00.000Z",
+    "wallClockMs": 23131
+   }
+  },
+  {
+   "load": "500",
+   "orders": 500,
+   "drivers": 10,
+   "seed": 23,
+   "profile": "large",
+   "strategy": "economic",
+   "metrics": {
+    "strategy": "economic",
+    "profile": "large",
+    "orders": 500,
+    "drivers": 10,
+    "seed": 23,
+    "ordersGenerated": 500,
+    "ordersAccepted": 452,
+    "delivered": 400,
+    "cancelled": 12,
+    "unresolved": 40,
+    "revenueOre": 7024500,
+    "contributionOre": 4476100,
+    "operatingHours": 12,
+    "deliveriesPerHour": 33.3,
+    "deliveriesPerDriverHour": 3.3,
+    "avgDeliveryMinutes": 76,
+    "p90DeliveryMinutes": 133,
+    "lateShare": 11,
+    "lateCount": 44,
+    "lateMinutes": 516,
+    "p90DelayMinutes": 15.1,
+    "slaLateShare": 61.3,
+    "etaChanges": 66,
+    "insertedAhead": 194,
+    "disruptiveInsertions": 194,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 32,
+    "lateShareInitialPromise": 34.4,
+    "lateShareHighValue": 3,
+    "lateShareOtherValue": 13.7,
+    "openAtEnd": 0,
+    "needsManual": 40,
+    "waitForReplenishmentMinutes": 205,
+    "replenishmentsCentralOnly": 103,
+    "avgApprovalMinutes": 4.9,
+    "interventionsByCause": {
+     "replenishmentDecisions": 67,
+     "duplicateOfReplenishment": 112,
+     "reassignmentSuggestions": 23,
+     "delays": 0,
+     "driverNoResponse": 5,
+     "capacity": 1,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 34,
+      "late": 29.4,
+      "meanErr": 1.3
+     },
+     "pos1": {
+      "n": 33,
+      "late": 21.2,
+      "meanErr": -1.5
+     },
+     "pos2plus": {
+      "n": 61,
+      "late": 44.3,
+      "meanErr": 6.3
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 128,
+      "late": 34.4,
+      "meanErr": 2.9
+     },
+     "horizonUnder20": {
+      "n": 39,
+      "late": 25.6,
+      "meanErr": 0.8
+     },
+     "horizon20to40": {
+      "n": 41,
+      "late": 26.8,
+      "meanErr": 0.4
+     },
+     "horizon40plus": {
+      "n": 48,
+      "late": 47.9,
+      "meanErr": 6.9
+     }
+    },
+    "managementInterventionsDistinct": 97,
+    "driveMinutes": 3656,
+    "driveMinutesPerDelivery": 9.1,
+    "extraDriveMinutes": 3927,
+    "depotDriveMinutes": 528,
+    "stockProblems": 184,
+    "replenishments": 105,
+    "replenishmentsCompleted": 58,
+    "managementInterventions": 209,
+    "failedOrUnresolvedActions": 153,
+    "offersRejectedOrExpired": 123,
+    "conversationsNeedingStaff": 12,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 382,
+    "alertsByCategory": {
+     "auto": 219,
+     "inform": 21,
+     "approval": 135,
+     "takeover": 7
+    },
+    "driverHours": 120,
+    "simulatedEndAt": "2026-06-16T21:58:00.000Z",
+    "wallClockMs": 24985
+   }
+  },
+  {
+   "load": "500",
+   "orders": 500,
+   "drivers": 10,
+   "seed": 37,
+   "profile": "spread",
+   "strategy": "fifo",
+   "metrics": {
+    "strategy": "fifo",
+    "profile": "spread",
+    "orders": 500,
+    "drivers": 10,
+    "seed": 37,
+    "ordersGenerated": 500,
+    "ordersAccepted": 458,
+    "delivered": 325,
+    "cancelled": 28,
+    "unresolved": 105,
+    "revenueOre": 3396800,
+    "contributionOre": 2453500,
+    "operatingHours": 12,
+    "deliveriesPerHour": 27.1,
+    "deliveriesPerDriverHour": 2.7,
+    "avgDeliveryMinutes": 93.3,
+    "p90DeliveryMinutes": 142,
+    "lateShare": 10.2,
+    "lateCount": 33,
+    "lateMinutes": 302,
+    "p90DelayMinutes": 10.3,
+    "slaLateShare": 75.7,
+    "etaChanges": 53,
+    "insertedAhead": 0,
+    "disruptiveInsertions": 0,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 34.2,
+    "lateShareInitialPromise": 29.7,
+    "lateShareHighValue": 12.3,
+    "lateShareOtherValue": 9.4,
+    "openAtEnd": 0,
+    "needsManual": 105,
+    "waitForReplenishmentMinutes": 79,
+    "replenishmentsCentralOnly": 51,
+    "avgApprovalMinutes": 5.1,
+    "interventionsByCause": {
+     "replenishmentDecisions": 47,
+     "duplicateOfReplenishment": 46,
+     "reassignmentSuggestions": 58,
+     "delays": 0,
+     "driverNoResponse": 2,
+     "capacity": 1,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 15,
+      "late": 6.7,
+      "meanErr": -2.3
+     },
+     "pos1": {
+      "n": 19,
+      "late": 36.8,
+      "meanErr": 2.8
+     },
+     "pos2plus": {
+      "n": 77,
+      "late": 32.5,
+      "meanErr": 1.4
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 111,
+      "late": 29.7,
+      "meanErr": 1.1
+     },
+     "horizonUnder20": {
+      "n": 16,
+      "late": 6.3,
+      "meanErr": -2.6
+     },
+     "horizon20to40": {
+      "n": 17,
+      "late": 29.4,
+      "meanErr": 1
+     },
+     "horizon40plus": {
+      "n": 78,
+      "late": 34.6,
+      "meanErr": 1.9
+     }
+    },
+    "managementInterventionsDistinct": 109,
+    "driveMinutes": 4680,
+    "driveMinutesPerDelivery": 14.4,
+    "extraDriveMinutes": 5076,
+    "depotDriveMinutes": 467,
+    "stockProblems": 79,
+    "replenishments": 53,
+    "replenishmentsCompleted": 38,
+    "managementInterventions": 155,
+    "failedOrUnresolvedActions": 302,
+    "offersRejectedOrExpired": 88,
+    "conversationsNeedingStaff": 18,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 358,
+    "alertsByCategory": {
+     "auto": 217,
+     "inform": 33,
+     "approval": 104,
+     "takeover": 4
+    },
+    "driverHours": 120.8,
+    "simulatedEndAt": "2026-06-16T22:24:00.000Z",
+    "wallClockMs": 20421
+   }
+  },
+  {
+   "load": "500",
+   "orders": 500,
+   "drivers": 10,
+   "seed": 37,
+   "profile": "spread",
+   "strategy": "shortest_detour",
+   "metrics": {
+    "strategy": "shortest_detour",
+    "profile": "spread",
+    "orders": 500,
+    "drivers": 10,
+    "seed": 37,
+    "ordersGenerated": 500,
+    "ordersAccepted": 458,
+    "delivered": 325,
+    "cancelled": 28,
+    "unresolved": 105,
+    "revenueOre": 3463200,
+    "contributionOre": 2485100,
+    "operatingHours": 12,
+    "deliveriesPerHour": 27.1,
+    "deliveriesPerDriverHour": 2.7,
+    "avgDeliveryMinutes": 92.4,
+    "p90DeliveryMinutes": 175,
+    "lateShare": 16.3,
+    "lateCount": 53,
+    "lateMinutes": 693,
+    "p90DelayMinutes": 15.7,
+    "slaLateShare": 61.2,
+    "etaChanges": 80,
+    "insertedAhead": 187,
+    "disruptiveInsertions": 187,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 54.2,
+    "lateShareInitialPromise": 29.5,
+    "lateShareHighValue": 8.6,
+    "lateShareOtherValue": 18.9,
+    "openAtEnd": 0,
+    "needsManual": 105,
+    "waitForReplenishmentMinutes": 133,
+    "replenishmentsCentralOnly": 64,
+    "avgApprovalMinutes": 4.9,
+    "interventionsByCause": {
+     "replenishmentDecisions": 54,
+     "duplicateOfReplenishment": 64,
+     "reassignmentSuggestions": 45,
+     "delays": 0,
+     "driverNoResponse": 5,
+     "capacity": 1,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 44,
+      "late": 22.7,
+      "meanErr": 1.6
+     },
+     "pos1": {
+      "n": 40,
+      "late": 27.5,
+      "meanErr": 0.3
+     },
+     "pos2plus": {
+      "n": 92,
+      "late": 33.7,
+      "meanErr": 2.8
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 176,
+      "late": 29.5,
+      "meanErr": 1.9
+     },
+     "horizonUnder20": {
+      "n": 47,
+      "late": 12.8,
+      "meanErr": 0.7
+     },
+     "horizon20to40": {
+      "n": 36,
+      "late": 41.7,
+      "meanErr": 3
+     },
+     "horizon40plus": {
+      "n": 93,
+      "late": 33.3,
+      "meanErr": 2.2
+     }
+    },
+    "managementInterventionsDistinct": 106,
+    "driveMinutes": 4070,
+    "driveMinutesPerDelivery": 12.5,
+    "extraDriveMinutes": 4234,
+    "depotDriveMinutes": 510,
+    "stockProblems": 112,
+    "replenishments": 65,
+    "replenishmentsCompleted": 42,
+    "managementInterventions": 170,
+    "failedOrUnresolvedActions": 296,
+    "offersRejectedOrExpired": 55,
+    "conversationsNeedingStaff": 18,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 444,
+    "alertsByCategory": {
+     "auto": 287,
+     "inform": 41,
+     "approval": 109,
+     "takeover": 7
+    },
+    "driverHours": 120.4,
+    "simulatedEndAt": "2026-06-16T22:30:00.000Z",
+    "wallClockMs": 21409
+   }
+  },
+  {
+   "load": "500",
+   "orders": 500,
+   "drivers": 10,
+   "seed": 37,
+   "profile": "spread",
+   "strategy": "economic",
+   "metrics": {
+    "strategy": "economic",
+    "profile": "spread",
+    "orders": 500,
+    "drivers": 10,
+    "seed": 37,
+    "ordersGenerated": 500,
+    "ordersAccepted": 458,
+    "delivered": 343,
+    "cancelled": 26,
+    "unresolved": 89,
+    "revenueOre": 3691100,
+    "contributionOre": 2654000,
+    "operatingHours": 12,
+    "deliveriesPerHour": 28.6,
+    "deliveriesPerDriverHour": 2.8,
+    "avgDeliveryMinutes": 86,
+    "p90DeliveryMinutes": 158.5,
+    "lateShare": 16,
+    "lateCount": 55,
+    "lateMinutes": 553,
+    "p90DelayMinutes": 14,
+    "slaLateShare": 62.1,
+    "etaChanges": 88,
+    "insertedAhead": 170,
+    "disruptiveInsertions": 170,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 56,
+    "lateShareInitialPromise": 28.6,
+    "lateShareHighValue": 7.1,
+    "lateShareOtherValue": 19,
+    "openAtEnd": 0,
+    "needsManual": 89,
+    "waitForReplenishmentMinutes": 108,
+    "replenishmentsCentralOnly": 65,
+    "avgApprovalMinutes": 4.7,
+    "interventionsByCause": {
+     "replenishmentDecisions": 54,
+     "duplicateOfReplenishment": 66,
+     "reassignmentSuggestions": 19,
+     "delays": 0,
+     "driverNoResponse": 0,
+     "capacity": 1,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 31,
+      "late": 6.5,
+      "meanErr": -3.7
+     },
+     "pos1": {
+      "n": 57,
+      "late": 38.6,
+      "meanErr": 2.6
+     },
+     "pos2plus": {
+      "n": 104,
+      "late": 29.8,
+      "meanErr": 0.2
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 192,
+      "late": 28.6,
+      "meanErr": 0.3
+     },
+     "horizonUnder20": {
+      "n": 37,
+      "late": 8.1,
+      "meanErr": -1.8
+     },
+     "horizon20to40": {
+      "n": 54,
+      "late": 25.9,
+      "meanErr": 0.5
+     },
+     "horizon40plus": {
+      "n": 101,
+      "late": 37.6,
+      "meanErr": 0.8
+     }
+    },
+    "managementInterventionsDistinct": 75,
+    "driveMinutes": 4285,
+    "driveMinutesPerDelivery": 12.5,
+    "extraDriveMinutes": 4447,
+    "depotDriveMinutes": 584,
+    "stockProblems": 115,
+    "replenishments": 66,
+    "replenishmentsCompleted": 44,
+    "managementInterventions": 141,
+    "failedOrUnresolvedActions": 268,
+    "offersRejectedOrExpired": 50,
+    "conversationsNeedingStaff": 20,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 410,
+    "alertsByCategory": {
+     "auto": 285,
+     "inform": 38,
+     "approval": 85,
+     "takeover": 2
+    },
+    "driverHours": 121.3,
+    "simulatedEndAt": "2026-06-16T22:03:00.000Z",
+    "wallClockMs": 21450
+   }
+  },
+  {
+   "load": "500",
+   "orders": 500,
+   "drivers": 10,
+   "seed": 42,
+   "profile": "central",
+   "strategy": "fifo",
+   "metrics": {
+    "strategy": "fifo",
+    "profile": "central",
+    "orders": 500,
+    "drivers": 10,
+    "seed": 42,
+    "ordersGenerated": 500,
+    "ordersAccepted": 453,
+    "delivered": 368,
+    "cancelled": 16,
+    "unresolved": 69,
+    "revenueOre": 4359300,
+    "contributionOre": 3070700,
+    "operatingHours": 12,
+    "deliveriesPerHour": 30.7,
+    "deliveriesPerDriverHour": 3,
+    "avgDeliveryMinutes": 85.9,
+    "p90DeliveryMinutes": 126.5,
+    "lateShare": 6.8,
+    "lateCount": 25,
+    "lateMinutes": 239,
+    "p90DelayMinutes": 10.4,
+    "slaLateShare": 77.7,
+    "etaChanges": 36,
+    "insertedAhead": 0,
+    "disruptiveInsertions": 0,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 17.9,
+    "lateShareInitialPromise": 37.9,
+    "lateShareHighValue": 2.2,
+    "lateShareOtherValue": 8.3,
+    "openAtEnd": 0,
+    "needsManual": 69,
+    "waitForReplenishmentMinutes": 139,
+    "replenishmentsCentralOnly": 87,
+    "avgApprovalMinutes": 5.3,
+    "interventionsByCause": {
+     "replenishmentDecisions": 76,
+     "duplicateOfReplenishment": 90,
+     "reassignmentSuggestions": 29,
+     "delays": 0,
+     "driverNoResponse": 0,
+     "capacity": 2,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 7,
+      "late": 0,
+      "meanErr": -3.1
+     },
+     "pos1": {
+      "n": 9,
+      "late": 33.3,
+      "meanErr": -1
+     },
+     "pos2plus": {
+      "n": 50,
+      "late": 44,
+      "meanErr": 4.7
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 66,
+      "late": 37.9,
+      "meanErr": 3.1
+     },
+     "horizonUnder20": {
+      "n": 10,
+      "late": 20,
+      "meanErr": -0.5
+     },
+     "horizon20to40": {
+      "n": 10,
+      "late": 50,
+      "meanErr": 6.9
+     },
+     "horizon40plus": {
+      "n": 46,
+      "late": 39.1,
+      "meanErr": 3.1
+     }
+    },
+    "managementInterventionsDistinct": 108,
+    "driveMinutes": 4115,
+    "driveMinutesPerDelivery": 11.2,
+    "extraDriveMinutes": 4689,
+    "depotDriveMinutes": 603,
+    "stockProblems": 127,
+    "replenishments": 87,
+    "replenishmentsCompleted": 66,
+    "managementInterventions": 198,
+    "failedOrUnresolvedActions": 212,
+    "offersRejectedOrExpired": 99,
+    "conversationsNeedingStaff": 13,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 300,
+    "alertsByCategory": {
+     "auto": 159,
+     "inform": 19,
+     "approval": 119,
+     "takeover": 3
+    },
+    "driverHours": 121.1,
+    "simulatedEndAt": "2026-06-16T22:02:00.000Z",
+    "wallClockMs": 22625
+   }
+  },
+  {
+   "load": "500",
+   "orders": 500,
+   "drivers": 10,
+   "seed": 42,
+   "profile": "central",
+   "strategy": "shortest_detour",
+   "metrics": {
+    "strategy": "shortest_detour",
+    "profile": "central",
+    "orders": 500,
+    "drivers": 10,
+    "seed": 42,
+    "ordersGenerated": 500,
+    "ordersAccepted": 453,
+    "delivered": 384,
+    "cancelled": 14,
+    "unresolved": 55,
+    "revenueOre": 4520800,
+    "contributionOre": 3191000,
+    "operatingHours": 12,
+    "deliveriesPerHour": 32,
+    "deliveriesPerDriverHour": 3.2,
+    "avgDeliveryMinutes": 90.5,
+    "p90DeliveryMinutes": 150,
+    "lateShare": 13.8,
+    "lateCount": 53,
+    "lateMinutes": 538,
+    "p90DelayMinutes": 18.8,
+    "slaLateShare": 69.3,
+    "etaChanges": 66,
+    "insertedAhead": 250,
+    "disruptiveInsertions": 250,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 36.5,
+    "lateShareInitialPromise": 37.9,
+    "lateShareHighValue": 1,
+    "lateShareOtherValue": 18.1,
+    "openAtEnd": 0,
+    "needsManual": 55,
+    "waitForReplenishmentMinutes": 190,
+    "replenishmentsCentralOnly": 93,
+    "avgApprovalMinutes": 4.9,
+    "interventionsByCause": {
+     "replenishmentDecisions": 75,
+     "duplicateOfReplenishment": 100,
+     "reassignmentSuggestions": 21,
+     "delays": 0,
+     "driverNoResponse": 2,
+     "capacity": 2,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 25,
+      "late": 32,
+      "meanErr": 1.2
+     },
+     "pos1": {
+      "n": 33,
+      "late": 33.3,
+      "meanErr": 3.1
+     },
+     "pos2plus": {
+      "n": 82,
+      "late": 41.5,
+      "meanErr": 4.6
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 140,
+      "late": 37.9,
+      "meanErr": 3.6
+     },
+     "horizonUnder20": {
+      "n": 20,
+      "late": 30,
+      "meanErr": 2.9
+     },
+     "horizon20to40": {
+      "n": 47,
+      "late": 25.5,
+      "meanErr": -0.9
+     },
+     "horizon40plus": {
+      "n": 73,
+      "late": 47.9,
+      "meanErr": 6.7
+     }
+    },
+    "managementInterventionsDistinct": 101,
+    "driveMinutes": 3658,
+    "driveMinutesPerDelivery": 9.5,
+    "extraDriveMinutes": 3890,
+    "depotDriveMinutes": 638,
+    "stockProblems": 155,
+    "replenishments": 93,
+    "replenishmentsCompleted": 66,
+    "managementInterventions": 201,
+    "failedOrUnresolvedActions": 219,
+    "offersRejectedOrExpired": 73,
+    "conversationsNeedingStaff": 15,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 400,
+    "alertsByCategory": {
+     "auto": 252,
+     "inform": 22,
+     "approval": 121,
+     "takeover": 5
+    },
+    "driverHours": 121.1,
+    "simulatedEndAt": "2026-06-16T22:16:30.000Z",
+    "wallClockMs": 22143
+   }
+  },
+  {
+   "load": "500",
+   "orders": 500,
+   "drivers": 10,
+   "seed": 42,
+   "profile": "central",
+   "strategy": "economic",
+   "metrics": {
+    "strategy": "economic",
+    "profile": "central",
+    "orders": 500,
+    "drivers": 10,
+    "seed": 42,
+    "ordersGenerated": 500,
+    "ordersAccepted": 453,
+    "delivered": 400,
+    "cancelled": 15,
+    "unresolved": 38,
+    "revenueOre": 4713900,
+    "contributionOre": 3318850,
+    "operatingHours": 12,
+    "deliveriesPerHour": 33.3,
+    "deliveriesPerDriverHour": 3.4,
+    "avgDeliveryMinutes": 71.9,
+    "p90DeliveryMinutes": 132.5,
+    "lateShare": 11,
+    "lateCount": 44,
+    "lateMinutes": 371,
+    "p90DelayMinutes": 14,
+    "slaLateShare": 53,
+    "etaChanges": 57,
+    "insertedAhead": 197,
+    "disruptiveInsertions": 197,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 35,
+    "lateShareInitialPromise": 31.4,
+    "lateShareHighValue": 3,
+    "lateShareOtherValue": 13.7,
+    "openAtEnd": 0,
+    "needsManual": 38,
+    "waitForReplenishmentMinutes": 227,
+    "replenishmentsCentralOnly": 93,
+    "avgApprovalMinutes": 4.5,
+    "interventionsByCause": {
+     "replenishmentDecisions": 67,
+     "duplicateOfReplenishment": 104,
+     "reassignmentSuggestions": 18,
+     "delays": 0,
+     "driverNoResponse": 2,
+     "capacity": 3,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 30,
+      "late": 26.7,
+      "meanErr": 1.8
+     },
+     "pos1": {
+      "n": 41,
+      "late": 19.5,
+      "meanErr": -0.5
+     },
+     "pos2plus": {
+      "n": 69,
+      "late": 40.6,
+      "meanErr": 3.2
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 140,
+      "late": 31.4,
+      "meanErr": 1.8
+     },
+     "horizonUnder20": {
+      "n": 39,
+      "late": 28.2,
+      "meanErr": 2
+     },
+     "horizon20to40": {
+      "n": 48,
+      "late": 27.1,
+      "meanErr": 0.7
+     },
+     "horizon40plus": {
+      "n": 53,
+      "late": 37.7,
+      "meanErr": 2.6
+     }
+    },
+    "managementInterventionsDistinct": 91,
+    "driveMinutes": 3497,
+    "driveMinutesPerDelivery": 8.7,
+    "extraDriveMinutes": 3750,
+    "depotDriveMinutes": 589,
+    "stockProblems": 162,
+    "replenishments": 93,
+    "replenishmentsCompleted": 61,
+    "managementInterventions": 195,
+    "failedOrUnresolvedActions": 144,
+    "offersRejectedOrExpired": 92,
+    "conversationsNeedingStaff": 14,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 361,
+    "alertsByCategory": {
+     "auto": 213,
+     "inform": 20,
+     "approval": 122,
+     "takeover": 6
+    },
+    "driverHours": 119,
+    "simulatedEndAt": "2026-06-16T21:53:00.000Z",
+    "wallClockMs": 23563
+   }
+  },
+  {
+   "load": "300",
+   "orders": 300,
+   "drivers": 8,
+   "seed": 11,
+   "profile": "standard",
+   "strategy": "fifo",
+   "metrics": {
+    "strategy": "fifo",
+    "profile": "standard",
+    "orders": 300,
+    "drivers": 8,
+    "seed": 11,
+    "ordersGenerated": 300,
+    "ordersAccepted": 270,
+    "delivered": 257,
+    "cancelled": 13,
+    "unresolved": 0,
+    "revenueOre": 3002000,
+    "contributionOre": 2105850,
+    "operatingHours": 12,
+    "deliveriesPerHour": 21.4,
+    "deliveriesPerDriverHour": 2.9,
+    "avgDeliveryMinutes": 56.4,
+    "p90DeliveryMinutes": 96,
+    "lateShare": 8.9,
+    "lateCount": 23,
+    "lateMinutes": 273,
+    "p90DelayMinutes": 10.4,
+    "slaLateShare": 43.2,
+    "etaChanges": 35,
+    "insertedAhead": 0,
+    "disruptiveInsertions": 0,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 45.1,
+    "lateShareInitialPromise": 19.8,
+    "lateShareHighValue": 7.8,
+    "lateShareOtherValue": 9.3,
+    "openAtEnd": 0,
+    "needsManual": 0,
+    "waitForReplenishmentMinutes": 176,
+    "replenishmentsCentralOnly": 58,
+    "avgApprovalMinutes": 4.8,
+    "interventionsByCause": {
+     "replenishmentDecisions": 46,
+     "duplicateOfReplenishment": 67,
+     "reassignmentSuggestions": 28,
+     "delays": 0,
+     "driverNoResponse": 1,
+     "capacity": 0,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 30,
+      "late": 6.7,
+      "meanErr": -1.9
+     },
+     "pos1": {
+      "n": 23,
+      "late": 39.1,
+      "meanErr": 3
+     },
+     "pos2plus": {
+      "n": 63,
+      "late": 19,
+      "meanErr": -1.2
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 116,
+      "late": 19.8,
+      "meanErr": -0.5
+     },
+     "horizonUnder20": {
+      "n": 31,
+      "late": 12.9,
+      "meanErr": -0.4
+     },
+     "horizon20to40": {
+      "n": 49,
+      "late": 26.5,
+      "meanErr": 0.2
+     },
+     "horizon40plus": {
+      "n": 36,
+      "late": 16.7,
+      "meanErr": -1.7
+     }
+    },
+    "managementInterventionsDistinct": 76,
+    "driveMinutes": 2829,
+    "driveMinutesPerDelivery": 11,
+    "extraDriveMinutes": 3205,
+    "depotDriveMinutes": 396,
+    "stockProblems": 100,
+    "replenishments": 58,
+    "replenishmentsCompleted": 39,
+    "managementInterventions": 143,
+    "failedOrUnresolvedActions": 1,
+    "offersRejectedOrExpired": 57,
+    "conversationsNeedingStaff": 9,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 237,
+    "alertsByCategory": {
+     "auto": 114,
+     "inform": 26,
+     "approval": 95,
+     "takeover": 2
+    },
+    "driverHours": 89.8,
+    "simulatedEndAt": "2026-06-16T21:46:00.000Z",
+    "wallClockMs": 13797
+   }
+  },
+  {
+   "load": "300",
+   "orders": 300,
+   "drivers": 8,
+   "seed": 11,
+   "profile": "standard",
+   "strategy": "shortest_detour",
+   "metrics": {
+    "strategy": "shortest_detour",
+    "profile": "standard",
+    "orders": 300,
+    "drivers": 8,
+    "seed": 11,
+    "ordersGenerated": 300,
+    "ordersAccepted": 270,
+    "delivered": 261,
+    "cancelled": 9,
+    "unresolved": 0,
+    "revenueOre": 3034600,
+    "contributionOre": 2130850,
+    "operatingHours": 12,
+    "deliveriesPerHour": 21.8,
+    "deliveriesPerDriverHour": 3,
+    "avgDeliveryMinutes": 59.7,
+    "p90DeliveryMinutes": 120.5,
+    "lateShare": 15.7,
+    "lateCount": 41,
+    "lateMinutes": 402,
+    "p90DelayMinutes": 18.4,
+    "slaLateShare": 41.8,
+    "etaChanges": 61,
+    "insertedAhead": 94,
+    "disruptiveInsertions": 94,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 48.3,
+    "lateShareInitialPromise": 32.5,
+    "lateShareHighValue": 7.7,
+    "lateShareOtherValue": 18.4,
+    "openAtEnd": 0,
+    "needsManual": 0,
+    "waitForReplenishmentMinutes": 102,
+    "replenishmentsCentralOnly": 56,
+    "avgApprovalMinutes": 4.8,
+    "interventionsByCause": {
+     "replenishmentDecisions": 46,
+     "duplicateOfReplenishment": 59,
+     "reassignmentSuggestions": 26,
+     "delays": 0,
+     "driverNoResponse": 4,
+     "capacity": 0,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 45,
+      "late": 11.1,
+      "meanErr": -2.8
+     },
+     "pos1": {
+      "n": 30,
+      "late": 36.7,
+      "meanErr": 1.5
+     },
+     "pos2plus": {
+      "n": 51,
+      "late": 49,
+      "meanErr": 6.2
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 126,
+      "late": 32.5,
+      "meanErr": 1.9
+     },
+     "horizonUnder20": {
+      "n": 50,
+      "late": 16,
+      "meanErr": -1.8
+     },
+     "horizon20to40": {
+      "n": 38,
+      "late": 44.7,
+      "meanErr": 3.3
+     },
+     "horizon40plus": {
+      "n": 38,
+      "late": 42.1,
+      "meanErr": 5.2
+     }
+    },
+    "managementInterventionsDistinct": 77,
+    "driveMinutes": 2151,
+    "driveMinutesPerDelivery": 8.2,
+    "extraDriveMinutes": 2445,
+    "depotDriveMinutes": 307,
+    "stockProblems": 90,
+    "replenishments": 56,
+    "replenishmentsCompleted": 38,
+    "managementInterventions": 136,
+    "failedOrUnresolvedActions": 8,
+    "offersRejectedOrExpired": 62,
+    "conversationsNeedingStaff": 13,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 264,
+    "alertsByCategory": {
+     "auto": 152,
+     "inform": 22,
+     "approval": 85,
+     "takeover": 5
+    },
+    "driverHours": 87.6,
+    "simulatedEndAt": "2026-06-16T21:10:30.000Z",
+    "wallClockMs": 13888
+   }
+  },
+  {
+   "load": "300",
+   "orders": 300,
+   "drivers": 8,
+   "seed": 11,
+   "profile": "standard",
+   "strategy": "economic",
+   "metrics": {
+    "strategy": "economic",
+    "profile": "standard",
+    "orders": 300,
+    "drivers": 8,
+    "seed": 11,
+    "ordersGenerated": 300,
+    "ordersAccepted": 270,
+    "delivered": 262,
+    "cancelled": 8,
+    "unresolved": 0,
+    "revenueOre": 3050000,
+    "contributionOre": 2141500,
+    "operatingHours": 12,
+    "deliveriesPerHour": 21.8,
+    "deliveriesPerDriverHour": 3.1,
+    "avgDeliveryMinutes": 44.8,
+    "p90DeliveryMinutes": 84,
+    "lateShare": 10.3,
+    "lateCount": 27,
+    "lateMinutes": 266,
+    "p90DelayMinutes": 12.8,
+    "slaLateShare": 27.9,
+    "etaChanges": 46,
+    "insertedAhead": 85,
+    "disruptiveInsertions": 85,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 48.9,
+    "lateShareInitialPromise": 21.1,
+    "lateShareHighValue": 10.8,
+    "lateShareOtherValue": 10.2,
+    "openAtEnd": 0,
+    "needsManual": 0,
+    "waitForReplenishmentMinutes": 170,
+    "replenishmentsCentralOnly": 58,
+    "avgApprovalMinutes": 4.6,
+    "interventionsByCause": {
+     "replenishmentDecisions": 42,
+     "duplicateOfReplenishment": 69,
+     "reassignmentSuggestions": 10,
+     "delays": 0,
+     "driverNoResponse": 6,
+     "capacity": 0,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 41,
+      "late": 12.2,
+      "meanErr": -1.7
+     },
+     "pos1": {
+      "n": 43,
+      "late": 23.3,
+      "meanErr": 0.3
+     },
+     "pos2plus": {
+      "n": 44,
+      "late": 27.3,
+      "meanErr": 0.9
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 128,
+      "late": 21.1,
+      "meanErr": -0.1
+     },
+     "horizonUnder20": {
+      "n": 54,
+      "late": 9.3,
+      "meanErr": -1.9
+     },
+     "horizon20to40": {
+      "n": 52,
+      "late": 30.8,
+      "meanErr": 1
+     },
+     "horizon40plus": {
+      "n": 22,
+      "late": 27.3,
+      "meanErr": 1.5
+     }
+    },
+    "managementInterventionsDistinct": 59,
+    "driveMinutes": 2102,
+    "driveMinutesPerDelivery": 8,
+    "extraDriveMinutes": 2304,
+    "depotDriveMinutes": 314,
+    "stockProblems": 112,
+    "replenishments": 58,
+    "replenishmentsCompleted": 36,
+    "managementInterventions": 128,
+    "failedOrUnresolvedActions": 11,
+    "offersRejectedOrExpired": 40,
+    "conversationsNeedingStaff": 14,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 233,
+    "alertsByCategory": {
+     "auto": 128,
+     "inform": 19,
+     "approval": 79,
+     "takeover": 7
+    },
+    "driverHours": 84.4,
+    "simulatedEndAt": "2026-06-16T20:52:00.000Z",
+    "wallClockMs": 14303
+   }
+  },
+  {
+   "load": "300",
+   "orders": 300,
+   "drivers": 8,
+   "seed": 23,
+   "profile": "large",
+   "strategy": "fifo",
+   "metrics": {
+    "strategy": "fifo",
+    "profile": "large",
+    "orders": 300,
+    "drivers": 8,
+    "seed": 23,
+    "ordersGenerated": 300,
+    "ordersAccepted": 268,
+    "delivered": 258,
+    "cancelled": 6,
+    "unresolved": 4,
+    "revenueOre": 4738100,
+    "contributionOre": 2998700,
+    "operatingHours": 12,
+    "deliveriesPerHour": 21.5,
+    "deliveriesPerDriverHour": 2.8,
+    "avgDeliveryMinutes": 68.4,
+    "p90DeliveryMinutes": 113.5,
+    "lateShare": 4.7,
+    "lateCount": 12,
+    "lateMinutes": 153,
+    "p90DelayMinutes": 5.1,
+    "slaLateShare": 54.3,
+    "etaChanges": 19,
+    "insertedAhead": 0,
+    "disruptiveInsertions": 0,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 24,
+    "lateShareInitialPromise": 19.4,
+    "lateShareHighValue": 3.1,
+    "lateShareOtherValue": 5.2,
+    "openAtEnd": 0,
+    "needsManual": 4,
+    "waitForReplenishmentMinutes": 202,
+    "replenishmentsCentralOnly": 81,
+    "avgApprovalMinutes": 5.1,
+    "interventionsByCause": {
+     "replenishmentDecisions": 61,
+     "duplicateOfReplenishment": 91,
+     "reassignmentSuggestions": 18,
+     "delays": 0,
+     "driverNoResponse": 3,
+     "capacity": 2,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 14,
+      "late": 7.1,
+      "meanErr": -1.5
+     },
+     "pos1": {
+      "n": 11,
+      "late": 27.3,
+      "meanErr": 1.3
+     },
+     "pos2plus": {
+      "n": 37,
+      "late": 21.6,
+      "meanErr": 2.4
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 62,
+      "late": 19.4,
+      "meanErr": 1.3
+     },
+     "horizonUnder20": {
+      "n": 12,
+      "late": 8.3,
+      "meanErr": -1.5
+     },
+     "horizon20to40": {
+      "n": 26,
+      "late": 23.1,
+      "meanErr": 2
+     },
+     "horizon40plus": {
+      "n": 24,
+      "late": 20.8,
+      "meanErr": 2
+     }
+    },
+    "managementInterventionsDistinct": 85,
+    "driveMinutes": 2859,
+    "driveMinutesPerDelivery": 11.1,
+    "extraDriveMinutes": 3352,
+    "depotDriveMinutes": 480,
+    "stockProblems": 141,
+    "replenishments": 82,
+    "replenishmentsCompleted": 52,
+    "managementInterventions": 176,
+    "failedOrUnresolvedActions": 19,
+    "offersRejectedOrExpired": 84,
+    "conversationsNeedingStaff": 8,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 255,
+    "alertsByCategory": {
+     "auto": 123,
+     "inform": 17,
+     "approval": 109,
+     "takeover": 6
+    },
+    "driverHours": 93.2,
+    "simulatedEndAt": "2026-06-16T22:19:00.000Z",
+    "wallClockMs": 15981
+   }
+  },
+  {
+   "load": "300",
+   "orders": 300,
+   "drivers": 8,
+   "seed": 23,
+   "profile": "large",
+   "strategy": "shortest_detour",
+   "metrics": {
+    "strategy": "shortest_detour",
+    "profile": "large",
+    "orders": 300,
+    "drivers": 8,
+    "seed": 23,
+    "ordersGenerated": 300,
+    "ordersAccepted": 268,
+    "delivered": 260,
+    "cancelled": 6,
+    "unresolved": 2,
+    "revenueOre": 4762700,
+    "contributionOre": 3014450,
+    "operatingHours": 12,
+    "deliveriesPerHour": 21.7,
+    "deliveriesPerDriverHour": 2.8,
+    "avgDeliveryMinutes": 75.7,
+    "p90DeliveryMinutes": 132.5,
+    "lateShare": 10.4,
+    "lateCount": 27,
+    "lateMinutes": 271,
+    "p90DelayMinutes": 12,
+    "slaLateShare": 57.7,
+    "etaChanges": 45,
+    "insertedAhead": 138,
+    "disruptiveInsertions": 138,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 33.1,
+    "lateShareInitialPromise": 31.4,
+    "lateShareHighValue": 1.5,
+    "lateShareOtherValue": 13.3,
+    "openAtEnd": 0,
+    "needsManual": 2,
+    "waitForReplenishmentMinutes": 194,
+    "replenishmentsCentralOnly": 84,
+    "avgApprovalMinutes": 4.9,
+    "interventionsByCause": {
+     "replenishmentDecisions": 53,
+     "duplicateOfReplenishment": 90,
+     "reassignmentSuggestions": 18,
+     "delays": 0,
+     "driverNoResponse": 8,
+     "capacity": 1,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 26,
+      "late": 23.1,
+      "meanErr": 0.5
+     },
+     "pos1": {
+      "n": 25,
+      "late": 28,
+      "meanErr": 1
+     },
+     "pos2plus": {
+      "n": 35,
+      "late": 40,
+      "meanErr": 4.1
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 86,
+      "late": 31.4,
+      "meanErr": 2.1
+     },
+     "horizonUnder20": {
+      "n": 33,
+      "late": 15.2,
+      "meanErr": -0.4
+     },
+     "horizon20to40": {
+      "n": 19,
+      "late": 36.8,
+      "meanErr": 1.8
+     },
+     "horizon40plus": {
+      "n": 34,
+      "late": 44.1,
+      "meanErr": 4.6
+     }
+    },
+    "managementInterventionsDistinct": 81,
+    "driveMinutes": 2391,
+    "driveMinutesPerDelivery": 9.2,
+    "extraDriveMinutes": 2492,
+    "depotDriveMinutes": 438,
+    "stockProblems": 153,
+    "replenishments": 84,
+    "replenishmentsCompleted": 45,
+    "managementInterventions": 171,
+    "failedOrUnresolvedActions": 23,
+    "offersRejectedOrExpired": 48,
+    "conversationsNeedingStaff": 8,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 272,
+    "alertsByCategory": {
+     "auto": 131,
+     "inform": 23,
+     "approval": 108,
+     "takeover": 10
+    },
+    "driverHours": 92.7,
+    "simulatedEndAt": "2026-06-16T22:07:30.000Z",
+    "wallClockMs": 14339
+   }
+  },
+  {
+   "load": "300",
+   "orders": 300,
+   "drivers": 8,
+   "seed": 37,
+   "profile": "spread",
+   "strategy": "fifo",
+   "metrics": {
+    "strategy": "fifo",
+    "profile": "spread",
+    "orders": 300,
+    "drivers": 8,
+    "seed": 37,
+    "ordersGenerated": 300,
+    "ordersAccepted": 274,
+    "delivered": 229,
+    "cancelled": 17,
+    "unresolved": 28,
+    "revenueOre": 2493800,
+    "contributionOre": 1784900,
+    "operatingHours": 12,
+    "deliveriesPerHour": 19.1,
+    "deliveriesPerDriverHour": 2.5,
+    "avgDeliveryMinutes": 81.8,
+    "p90DeliveryMinutes": 132,
+    "lateShare": 8.7,
+    "lateCount": 20,
+    "lateMinutes": 225,
+    "p90DelayMinutes": 8.5,
+    "slaLateShare": 63.8,
+    "etaChanges": 36,
+    "insertedAhead": 0,
+    "disruptiveInsertions": 0,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 38.4,
+    "lateShareInitialPromise": 22.7,
+    "lateShareHighValue": 3.5,
+    "lateShareOtherValue": 10.5,
+    "openAtEnd": 0,
+    "needsManual": 28,
+    "waitForReplenishmentMinutes": 117,
+    "replenishmentsCentralOnly": 51,
+    "avgApprovalMinutes": 4.9,
+    "interventionsByCause": {
+     "replenishmentDecisions": 46,
+     "duplicateOfReplenishment": 49,
+     "reassignmentSuggestions": 36,
+     "delays": 0,
+     "driverNoResponse": 1,
+     "capacity": 1,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 18,
+      "late": 5.6,
+      "meanErr": -1.1
+     },
+     "pos1": {
+      "n": 22,
+      "late": 31.8,
+      "meanErr": 2.4
+     },
+     "pos2plus": {
+      "n": 48,
+      "late": 25,
+      "meanErr": -0.2
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 88,
+      "late": 22.7,
+      "meanErr": 0.2
+     },
+     "horizonUnder20": {
+      "n": 19,
+      "late": 5.3,
+      "meanErr": -2.4
+     },
+     "horizon20to40": {
+      "n": 27,
+      "late": 25.9,
+      "meanErr": 2.9
+     },
+     "horizon40plus": {
+      "n": 42,
+      "late": 28.6,
+      "meanErr": -0.3
+     }
+    },
+    "managementInterventionsDistinct": 85,
+    "driveMinutes": 3518,
+    "driveMinutesPerDelivery": 15.4,
+    "extraDriveMinutes": 3788,
+    "depotDriveMinutes": 474,
+    "stockProblems": 81,
+    "replenishments": 51,
+    "replenishmentsCompleted": 36,
+    "managementInterventions": 134,
+    "failedOrUnresolvedActions": 95,
+    "offersRejectedOrExpired": 64,
+    "conversationsNeedingStaff": 11,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 258,
+    "alertsByCategory": {
+     "auto": 138,
+     "inform": 32,
+     "approval": 85,
+     "takeover": 3
+    },
+    "driverHours": 92.7,
+    "simulatedEndAt": "2026-06-16T22:02:30.000Z",
+    "wallClockMs": 14697
+   }
+  },
+  {
+   "load": "300",
+   "orders": 300,
+   "drivers": 8,
+   "seed": 23,
+   "profile": "large",
+   "strategy": "economic",
+   "metrics": {
+    "strategy": "economic",
+    "profile": "large",
+    "orders": 300,
+    "drivers": 8,
+    "seed": 23,
+    "ordersGenerated": 300,
+    "ordersAccepted": 268,
+    "delivered": 261,
+    "cancelled": 6,
+    "unresolved": 1,
+    "revenueOre": 4771300,
+    "contributionOre": 3019700,
+    "operatingHours": 12,
+    "deliveriesPerHour": 21.8,
+    "deliveriesPerDriverHour": 3,
+    "avgDeliveryMinutes": 56.9,
+    "p90DeliveryMinutes": 111.5,
+    "lateShare": 9.2,
+    "lateCount": 24,
+    "lateMinutes": 209,
+    "p90DelayMinutes": 10.6,
+    "slaLateShare": 37.9,
+    "etaChanges": 35,
+    "insertedAhead": 103,
+    "disruptiveInsertions": 103,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 32.6,
+    "lateShareInitialPromise": 28.2,
+    "lateShareHighValue": 1.5,
+    "lateShareOtherValue": 11.7,
+    "openAtEnd": 0,
+    "needsManual": 1,
+    "waitForReplenishmentMinutes": 225,
+    "replenishmentsCentralOnly": 72,
+    "avgApprovalMinutes": 4.5,
+    "interventionsByCause": {
+     "replenishmentDecisions": 47,
+     "duplicateOfReplenishment": 94,
+     "reassignmentSuggestions": 8,
+     "delays": 0,
+     "driverNoResponse": 5,
+     "capacity": 1,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 34,
+      "late": 20.6,
+      "meanErr": -1.5
+     },
+     "pos1": {
+      "n": 17,
+      "late": 29.4,
+      "meanErr": 0.1
+     },
+     "pos2plus": {
+      "n": 34,
+      "late": 35.3,
+      "meanErr": 0.9
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 85,
+      "late": 28.2,
+      "meanErr": -0.2
+     },
+     "horizonUnder20": {
+      "n": 36,
+      "late": 16.7,
+      "meanErr": -1.6
+     },
+     "horizon20to40": {
+      "n": 27,
+      "late": 37,
+      "meanErr": 0.1
+     },
+     "horizon40plus": {
+      "n": 22,
+      "late": 36.4,
+      "meanErr": 1.6
+     }
+    },
+    "managementInterventionsDistinct": 62,
+    "driveMinutes": 2213,
+    "driveMinutesPerDelivery": 8.5,
+    "extraDriveMinutes": 2358,
+    "depotDriveMinutes": 378,
+    "stockProblems": 143,
+    "replenishments": 72,
+    "replenishmentsCompleted": 41,
+    "managementInterventions": 156,
+    "failedOrUnresolvedActions": 3,
+    "offersRejectedOrExpired": 56,
+    "conversationsNeedingStaff": 8,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 240,
+    "alertsByCategory": {
+     "auto": 106,
+     "inform": 25,
+     "approval": 102,
+     "takeover": 7
+    },
+    "driverHours": 88.2,
+    "simulatedEndAt": "2026-06-16T21:23:00.000Z",
+    "wallClockMs": 15464
+   }
+  },
+  {
+   "load": "300",
+   "orders": 300,
+   "drivers": 8,
+   "seed": 37,
+   "profile": "spread",
+   "strategy": "shortest_detour",
+   "metrics": {
+    "strategy": "shortest_detour",
+    "profile": "spread",
+    "orders": 300,
+    "drivers": 8,
+    "seed": 37,
+    "ordersGenerated": 300,
+    "ordersAccepted": 274,
+    "delivered": 230,
+    "cancelled": 14,
+    "unresolved": 30,
+    "revenueOre": 2555000,
+    "contributionOre": 1816250,
+    "operatingHours": 12,
+    "deliveriesPerHour": 19.2,
+    "deliveriesPerDriverHour": 2.5,
+    "avgDeliveryMinutes": 83.9,
+    "p90DeliveryMinutes": 147.5,
+    "lateShare": 13.5,
+    "lateCount": 31,
+    "lateMinutes": 390,
+    "p90DelayMinutes": 9.9,
+    "slaLateShare": 57.8,
+    "etaChanges": 51,
+    "insertedAhead": 106,
+    "disruptiveInsertions": 106,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 52.6,
+    "lateShareInitialPromise": 24.8,
+    "lateShareHighValue": 5.3,
+    "lateShareOtherValue": 16.2,
+    "openAtEnd": 0,
+    "needsManual": 30,
+    "waitForReplenishmentMinutes": 92,
+    "replenishmentsCentralOnly": 48,
+    "avgApprovalMinutes": 4.9,
+    "interventionsByCause": {
+     "replenishmentDecisions": 40,
+     "duplicateOfReplenishment": 44,
+     "reassignmentSuggestions": 32,
+     "delays": 0,
+     "driverNoResponse": 2,
+     "capacity": 1,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 37,
+      "late": 10.8,
+      "meanErr": -2.3
+     },
+     "pos1": {
+      "n": 21,
+      "late": 28.6,
+      "meanErr": 1.3
+     },
+     "pos2plus": {
+      "n": 63,
+      "late": 31.7,
+      "meanErr": 4.3
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 121,
+      "late": 24.8,
+      "meanErr": 1.8
+     },
+     "horizonUnder20": {
+      "n": 33,
+      "late": 12.1,
+      "meanErr": -1.1
+     },
+     "horizon20to40": {
+      "n": 19,
+      "late": 10.5,
+      "meanErr": -2.6
+     },
+     "horizon40plus": {
+      "n": 69,
+      "late": 34.8,
+      "meanErr": 4.4
+     }
+    },
+    "managementInterventionsDistinct": 76,
+    "driveMinutes": 2994,
+    "driveMinutesPerDelivery": 13,
+    "extraDriveMinutes": 3120,
+    "depotDriveMinutes": 449,
+    "stockProblems": 80,
+    "replenishments": 48,
+    "replenishmentsCompleted": 31,
+    "managementInterventions": 120,
+    "failedOrUnresolvedActions": 104,
+    "offersRejectedOrExpired": 40,
+    "conversationsNeedingStaff": 14,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 314,
+    "alertsByCategory": {
+     "auto": 193,
+     "inform": 41,
+     "approval": 76,
+     "takeover": 4
+    },
+    "driverHours": 90.7,
+    "simulatedEndAt": "2026-06-16T22:27:00.000Z",
+    "wallClockMs": 13886
+   }
+  },
+  {
+   "load": "300",
+   "orders": 300,
+   "drivers": 8,
+   "seed": 37,
+   "profile": "spread",
+   "strategy": "economic",
+   "metrics": {
+    "strategy": "economic",
+    "profile": "spread",
+    "orders": 300,
+    "drivers": 8,
+    "seed": 37,
+    "ordersGenerated": 300,
+    "ordersAccepted": 274,
+    "delivered": 228,
+    "cancelled": 13,
+    "unresolved": 33,
+    "revenueOre": 2487100,
+    "contributionOre": 1782650,
+    "operatingHours": 12,
+    "deliveriesPerHour": 19,
+    "deliveriesPerDriverHour": 2.5,
+    "avgDeliveryMinutes": 80.2,
+    "p90DeliveryMinutes": 144.5,
+    "lateShare": 14.5,
+    "lateCount": 33,
+    "lateMinutes": 313,
+    "p90DelayMinutes": 12.3,
+    "slaLateShare": 54.4,
+    "etaChanges": 57,
+    "insertedAhead": 108,
+    "disruptiveInsertions": 108,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 53.9,
+    "lateShareInitialPromise": 26.8,
+    "lateShareHighValue": 3.5,
+    "lateShareOtherValue": 18.1,
+    "openAtEnd": 0,
+    "needsManual": 33,
+    "waitForReplenishmentMinutes": 98,
+    "replenishmentsCentralOnly": 50,
+    "avgApprovalMinutes": 4.6,
+    "interventionsByCause": {
+     "replenishmentDecisions": 44,
+     "duplicateOfReplenishment": 48,
+     "reassignmentSuggestions": 18,
+     "delays": 0,
+     "driverNoResponse": 2,
+     "capacity": 2,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 35,
+      "late": 14.3,
+      "meanErr": -3.4
+     },
+     "pos1": {
+      "n": 38,
+      "late": 28.9,
+      "meanErr": 2.1
+     },
+     "pos2plus": {
+      "n": 50,
+      "late": 34,
+      "meanErr": 2.2
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 123,
+      "late": 26.8,
+      "meanErr": 0.6
+     },
+     "horizonUnder20": {
+      "n": 36,
+      "late": 8.3,
+      "meanErr": -1.7
+     },
+     "horizon20to40": {
+      "n": 29,
+      "late": 31,
+      "meanErr": -1.3
+     },
+     "horizon40plus": {
+      "n": 58,
+      "late": 36.2,
+      "meanErr": 2.9
+     }
+    },
+    "managementInterventionsDistinct": 67,
+    "driveMinutes": 3032,
+    "driveMinutesPerDelivery": 13.3,
+    "extraDriveMinutes": 3110,
+    "depotDriveMinutes": 418,
+    "stockProblems": 89,
+    "replenishments": 50,
+    "replenishmentsCompleted": 33,
+    "managementInterventions": 115,
+    "failedOrUnresolvedActions": 95,
+    "offersRejectedOrExpired": 44,
+    "conversationsNeedingStaff": 15,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 275,
+    "alertsByCategory": {
+     "auto": 169,
+     "inform": 35,
+     "approval": 66,
+     "takeover": 5
+    },
+    "driverHours": 90.9,
+    "simulatedEndAt": "2026-06-16T22:05:30.000Z",
+    "wallClockMs": 13880
+   }
+  },
+  {
+   "load": "300",
+   "orders": 300,
+   "drivers": 8,
+   "seed": 42,
+   "profile": "central",
+   "strategy": "fifo",
+   "metrics": {
+    "strategy": "fifo",
+    "profile": "central",
+    "orders": 300,
+    "drivers": 8,
+    "seed": 42,
+    "ordersGenerated": 300,
+    "ordersAccepted": 276,
+    "delivered": 248,
+    "cancelled": 11,
+    "unresolved": 17,
+    "revenueOre": 2986500,
+    "contributionOre": 2081950,
+    "operatingHours": 12,
+    "deliveriesPerHour": 20.7,
+    "deliveriesPerDriverHour": 2.7,
+    "avgDeliveryMinutes": 72.4,
+    "p90DeliveryMinutes": 126,
+    "lateShare": 6.5,
+    "lateCount": 16,
+    "lateMinutes": 153,
+    "p90DelayMinutes": 10.8,
+    "slaLateShare": 54.8,
+    "etaChanges": 22,
+    "insertedAhead": 0,
+    "disruptiveInsertions": 0,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 25,
+    "lateShareInitialPromise": 25.8,
+    "lateShareHighValue": 4.8,
+    "lateShareOtherValue": 7,
+    "openAtEnd": 0,
+    "needsManual": 17,
+    "waitForReplenishmentMinutes": 193,
+    "replenishmentsCentralOnly": 79,
+    "avgApprovalMinutes": 4.9,
+    "interventionsByCause": {
+     "replenishmentDecisions": 67,
+     "duplicateOfReplenishment": 88,
+     "reassignmentSuggestions": 16,
+     "delays": 0,
+     "driverNoResponse": 1,
+     "capacity": 2,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 7,
+      "late": 0,
+      "meanErr": -4.1
+     },
+     "pos1": {
+      "n": 22,
+      "late": 31.8,
+      "meanErr": 2.4
+     },
+     "pos2plus": {
+      "n": 33,
+      "late": 27.3,
+      "meanErr": 0
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 62,
+      "late": 25.8,
+      "meanErr": 0.4
+     },
+     "horizonUnder20": {
+      "n": 11,
+      "late": 9.1,
+      "meanErr": -0.3
+     },
+     "horizon20to40": {
+      "n": 27,
+      "late": 18.5,
+      "meanErr": -1.7
+     },
+     "horizon40plus": {
+      "n": 24,
+      "late": 41.7,
+      "meanErr": 3
+     }
+    },
+    "managementInterventionsDistinct": 87,
+    "driveMinutes": 3014,
+    "driveMinutesPerDelivery": 12.2,
+    "extraDriveMinutes": 3560,
+    "depotDriveMinutes": 538,
+    "stockProblems": 140,
+    "replenishments": 79,
+    "replenishmentsCompleted": 57,
+    "managementInterventions": 175,
+    "failedOrUnresolvedActions": 56,
+    "offersRejectedOrExpired": 71,
+    "conversationsNeedingStaff": 7,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 235,
+    "alertsByCategory": {
+     "auto": 110,
+     "inform": 17,
+     "approval": 104,
+     "takeover": 4
+    },
+    "driverHours": 93.4,
+    "simulatedEndAt": "2026-06-16T22:14:00.000Z",
+    "wallClockMs": 14447
+   }
+  },
+  {
+   "load": "300",
+   "orders": 300,
+   "drivers": 8,
+   "seed": 42,
+   "profile": "central",
+   "strategy": "shortest_detour",
+   "metrics": {
+    "strategy": "shortest_detour",
+    "profile": "central",
+    "orders": 300,
+    "drivers": 8,
+    "seed": 42,
+    "ordersGenerated": 300,
+    "ordersAccepted": 276,
+    "delivered": 256,
+    "cancelled": 11,
+    "unresolved": 9,
+    "revenueOre": 3099400,
+    "contributionOre": 2156100,
+    "operatingHours": 12,
+    "deliveriesPerHour": 21.3,
+    "deliveriesPerDriverHour": 2.8,
+    "avgDeliveryMinutes": 80.1,
+    "p90DeliveryMinutes": 142.5,
+    "lateShare": 13.3,
+    "lateCount": 34,
+    "lateMinutes": 237,
+    "p90DelayMinutes": 11.9,
+    "slaLateShare": 55.9,
+    "etaChanges": 47,
+    "insertedAhead": 154,
+    "disruptiveInsertions": 154,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 31.6,
+    "lateShareInitialPromise": 42,
+    "lateShareHighValue": 1.6,
+    "lateShareOtherValue": 17.2,
+    "openAtEnd": 0,
+    "needsManual": 9,
+    "waitForReplenishmentMinutes": 131,
+    "replenishmentsCentralOnly": 75,
+    "avgApprovalMinutes": 4.8,
+    "interventionsByCause": {
+     "replenishmentDecisions": 60,
+     "duplicateOfReplenishment": 85,
+     "reassignmentSuggestions": 12,
+     "delays": 0,
+     "driverNoResponse": 5,
+     "capacity": 2,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 21,
+      "late": 33.3,
+      "meanErr": -0.8
+     },
+     "pos1": {
+      "n": 30,
+      "late": 43.3,
+      "meanErr": 2.8
+     },
+     "pos2plus": {
+      "n": 30,
+      "late": 46.7,
+      "meanErr": 5.4
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 81,
+      "late": 42,
+      "meanErr": 2.8
+     },
+     "horizonUnder20": {
+      "n": 22,
+      "late": 27.3,
+      "meanErr": -1.4
+     },
+     "horizon20to40": {
+      "n": 35,
+      "late": 48.6,
+      "meanErr": 1.8
+     },
+     "horizon40plus": {
+      "n": 24,
+      "late": 45.8,
+      "meanErr": 8.2
+     }
+    },
+    "managementInterventionsDistinct": 80,
+    "driveMinutes": 2326,
+    "driveMinutesPerDelivery": 9.1,
+    "extraDriveMinutes": 2627,
+    "depotDriveMinutes": 407,
+    "stockProblems": 134,
+    "replenishments": 75,
+    "replenishmentsCompleted": 52,
+    "managementInterventions": 165,
+    "failedOrUnresolvedActions": 49,
+    "offersRejectedOrExpired": 56,
+    "conversationsNeedingStaff": 7,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 256,
+    "alertsByCategory": {
+     "auto": 129,
+     "inform": 22,
+     "approval": 97,
+     "takeover": 8
+    },
+    "driverHours": 91.6,
+    "simulatedEndAt": "2026-06-16T21:51:00.000Z",
+    "wallClockMs": 15102
+   }
+  },
+  {
+   "load": "150",
+   "orders": 150,
+   "drivers": 8,
+   "seed": 11,
+   "profile": "standard",
+   "strategy": "fifo",
+   "metrics": {
+    "strategy": "fifo",
+    "profile": "standard",
+    "orders": 150,
+    "drivers": 8,
+    "seed": 11,
+    "ordersGenerated": 150,
+    "ordersAccepted": 133,
+    "delivered": 131,
+    "cancelled": 2,
+    "unresolved": 0,
+    "revenueOre": 1443000,
+    "contributionOre": 1026050,
+    "operatingHours": 12,
+    "deliveriesPerHour": 10.9,
+    "deliveriesPerDriverHour": 1.6,
+    "avgDeliveryMinutes": 28.3,
+    "p90DeliveryMinutes": 53,
+    "lateShare": 8.4,
+    "lateCount": 11,
+    "lateMinutes": 74,
+    "p90DelayMinutes": 8.9,
+    "slaLateShare": 3.8,
+    "etaChanges": 14,
+    "insertedAhead": 0,
+    "disruptiveInsertions": 0,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 64.1,
+    "lateShareInitialPromise": 13.1,
+    "lateShareHighValue": 6.3,
+    "lateShareOtherValue": 9.1,
+    "openAtEnd": 0,
+    "needsManual": 0,
+    "waitForReplenishmentMinutes": 229,
+    "replenishmentsCentralOnly": 46,
+    "avgApprovalMinutes": 5.2,
+    "interventionsByCause": {
+     "replenishmentDecisions": 38,
+     "duplicateOfReplenishment": 55,
+     "reassignmentSuggestions": 3,
+     "delays": 0,
+     "driverNoResponse": 3,
+     "capacity": 0,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 69,
+      "late": 13,
+      "meanErr": -1.6
+     },
+     "pos1": {
+      "n": 15,
+      "late": 13.3,
+      "meanErr": -0.7
+     },
+     "pos2plus": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 84,
+      "late": 13.1,
+      "meanErr": -1.5
+     },
+     "horizonUnder20": {
+      "n": 70,
+      "late": 12.9,
+      "meanErr": -1.6
+     },
+     "horizon20to40": {
+      "n": 14,
+      "late": 14.3,
+      "meanErr": -0.6
+     },
+     "horizon40plus": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     }
+    },
+    "managementInterventionsDistinct": 45,
+    "driveMinutes": 1550,
+    "driveMinutesPerDelivery": 11.8,
+    "extraDriveMinutes": 1679,
+    "depotDriveMinutes": 307,
+    "stockProblems": 98,
+    "replenishments": 46,
+    "replenishmentsCompleted": 30,
+    "managementInterventions": 100,
+    "failedOrUnresolvedActions": 0,
+    "offersRejectedOrExpired": 25,
+    "conversationsNeedingStaff": 8,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 159,
+    "alertsByCategory": {
+     "auto": 73,
+     "inform": 24,
+     "approval": 58,
+     "takeover": 4
+    },
+    "driverHours": 82.3,
+    "simulatedEndAt": "2026-06-16T20:39:30.000Z",
+    "wallClockMs": 6080
+   }
+  },
+  {
+   "load": "300",
+   "orders": 300,
+   "drivers": 8,
+   "seed": 42,
+   "profile": "central",
+   "strategy": "economic",
+   "metrics": {
+    "strategy": "economic",
+    "profile": "central",
+    "orders": 300,
+    "drivers": 8,
+    "seed": 42,
+    "ordersGenerated": 300,
+    "ordersAccepted": 276,
+    "delivered": 258,
+    "cancelled": 10,
+    "unresolved": 8,
+    "revenueOre": 3096600,
+    "contributionOre": 2159050,
+    "operatingHours": 12,
+    "deliveriesPerHour": 21.5,
+    "deliveriesPerDriverHour": 2.8,
+    "avgDeliveryMinutes": 70.7,
+    "p90DeliveryMinutes": 128,
+    "lateShare": 12.4,
+    "lateCount": 32,
+    "lateMinutes": 290,
+    "p90DelayMinutes": 11.9,
+    "slaLateShare": 59.3,
+    "etaChanges": 44,
+    "insertedAhead": 105,
+    "disruptiveInsertions": 105,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 36,
+    "lateShareInitialPromise": 34.4,
+    "lateShareHighValue": 1.6,
+    "lateShareOtherValue": 16,
+    "openAtEnd": 0,
+    "needsManual": 8,
+    "waitForReplenishmentMinutes": 181,
+    "replenishmentsCentralOnly": 77,
+    "avgApprovalMinutes": 4.8,
+    "interventionsByCause": {
+     "replenishmentDecisions": 60,
+     "duplicateOfReplenishment": 85,
+     "reassignmentSuggestions": 16,
+     "delays": 0,
+     "driverNoResponse": 6,
+     "capacity": 1,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 30,
+      "late": 16.7,
+      "meanErr": -2.2
+     },
+     "pos1": {
+      "n": 18,
+      "late": 33.3,
+      "meanErr": 3
+     },
+     "pos2plus": {
+      "n": 45,
+      "late": 46.7,
+      "meanErr": 5.4
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 93,
+      "late": 34.4,
+      "meanErr": 2.5
+     },
+     "horizonUnder20": {
+      "n": 27,
+      "late": 11.1,
+      "meanErr": -2.4
+     },
+     "horizon20to40": {
+      "n": 31,
+      "late": 38.7,
+      "meanErr": 2.4
+     },
+     "horizon40plus": {
+      "n": 35,
+      "late": 48.6,
+      "meanErr": 6.3
+     }
+    },
+    "managementInterventionsDistinct": 84,
+    "driveMinutes": 2495,
+    "driveMinutesPerDelivery": 9.7,
+    "extraDriveMinutes": 2744,
+    "depotDriveMinutes": 470,
+    "stockProblems": 138,
+    "replenishments": 77,
+    "replenishmentsCompleted": 50,
+    "managementInterventions": 169,
+    "failedOrUnresolvedActions": 36,
+    "offersRejectedOrExpired": 66,
+    "conversationsNeedingStaff": 8,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 292,
+    "alertsByCategory": {
+     "auto": 162,
+     "inform": 21,
+     "approval": 101,
+     "takeover": 8
+    },
+    "driverHours": 92.7,
+    "simulatedEndAt": "2026-06-16T22:15:30.000Z",
+    "wallClockMs": 15784
+   }
+  },
+  {
+   "load": "150",
+   "orders": 150,
+   "drivers": 8,
+   "seed": 11,
+   "profile": "standard",
+   "strategy": "shortest_detour",
+   "metrics": {
+    "strategy": "shortest_detour",
+    "profile": "standard",
+    "orders": 150,
+    "drivers": 8,
+    "seed": 11,
+    "ordersGenerated": 150,
+    "ordersAccepted": 133,
+    "delivered": 130,
+    "cancelled": 3,
+    "unresolved": 0,
+    "revenueOre": 1442800,
+    "contributionOre": 1024000,
+    "operatingHours": 12,
+    "deliveriesPerHour": 10.8,
+    "deliveriesPerDriverHour": 1.6,
+    "avgDeliveryMinutes": 37.8,
+    "p90DeliveryMinutes": 85,
+    "lateShare": 10.8,
+    "lateCount": 14,
+    "lateMinutes": 91,
+    "p90DelayMinutes": 10.6,
+    "slaLateShare": 18.5,
+    "etaChanges": 18,
+    "insertedAhead": 34,
+    "disruptiveInsertions": 34,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 56.2,
+    "lateShareInitialPromise": 19.2,
+    "lateShareHighValue": 6.3,
+    "lateShareOtherValue": 12.2,
+    "openAtEnd": 0,
+    "needsManual": 0,
+    "waitForReplenishmentMinutes": 107,
+    "replenishmentsCentralOnly": 32,
+    "avgApprovalMinutes": 5.7,
+    "interventionsByCause": {
+     "replenishmentDecisions": 29,
+     "duplicateOfReplenishment": 43,
+     "reassignmentSuggestions": 7,
+     "delays": 0,
+     "driverNoResponse": 10,
+     "capacity": 0,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 55,
+      "late": 9.1,
+      "meanErr": -1.9
+     },
+     "pos1": {
+      "n": 12,
+      "late": 58.3,
+      "meanErr": 5.7
+     },
+     "pos2plus": {
+      "n": 6,
+      "late": 33.3,
+      "meanErr": 3.2
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 73,
+      "late": 19.2,
+      "meanErr": -0.2
+     },
+     "horizonUnder20": {
+      "n": 61,
+      "late": 11.5,
+      "meanErr": -1.5
+     },
+     "horizon20to40": {
+      "n": 10,
+      "late": 60,
+      "meanErr": 6.6
+     },
+     "horizon40plus": {
+      "n": 2,
+      "late": 50,
+      "meanErr": 4.8
+     }
+    },
+    "managementInterventionsDistinct": 47,
+    "driveMinutes": 981,
+    "driveMinutesPerDelivery": 7.5,
+    "extraDriveMinutes": 1115,
+    "depotDriveMinutes": 150,
+    "stockProblems": 63,
+    "replenishments": 32,
+    "replenishmentsCompleted": 25,
+    "managementInterventions": 90,
+    "failedOrUnresolvedActions": 0,
+    "offersRejectedOrExpired": 21,
+    "conversationsNeedingStaff": 7,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 136,
+    "alertsByCategory": {
+     "auto": 57,
+     "inform": 18,
+     "approval": 50,
+     "takeover": 11
+    },
+    "driverHours": 82.1,
+    "simulatedEndAt": "2026-06-16T20:36:30.000Z",
+    "wallClockMs": 6488
+   }
+  },
+  {
+   "load": "150",
+   "orders": 150,
+   "drivers": 8,
+   "seed": 11,
+   "profile": "standard",
+   "strategy": "economic",
+   "metrics": {
+    "strategy": "economic",
+    "profile": "standard",
+    "orders": 150,
+    "drivers": 8,
+    "seed": 11,
+    "ordersGenerated": 150,
+    "ordersAccepted": 133,
+    "delivered": 129,
+    "cancelled": 4,
+    "unresolved": 0,
+    "revenueOre": 1428900,
+    "contributionOre": 1014500,
+    "operatingHours": 12,
+    "deliveriesPerHour": 10.8,
+    "deliveriesPerDriverHour": 1.6,
+    "avgDeliveryMinutes": 33.7,
+    "p90DeliveryMinutes": 71.5,
+    "lateShare": 14.7,
+    "lateCount": 19,
+    "lateMinutes": 154,
+    "p90DelayMinutes": 12.2,
+    "slaLateShare": 12.4,
+    "etaChanges": 20,
+    "insertedAhead": 17,
+    "disruptiveInsertions": 17,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 59.7,
+    "lateShareInitialPromise": 24.7,
+    "lateShareHighValue": 12.5,
+    "lateShareOtherValue": 15.5,
+    "openAtEnd": 0,
+    "needsManual": 0,
+    "waitForReplenishmentMinutes": 155,
+    "replenishmentsCentralOnly": 35,
+    "avgApprovalMinutes": 5,
+    "interventionsByCause": {
+     "replenishmentDecisions": 27,
+     "duplicateOfReplenishment": 43,
+     "reassignmentSuggestions": 5,
+     "delays": 0,
+     "driverNoResponse": 11,
+     "capacity": 0,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 58,
+      "late": 13.8,
+      "meanErr": -2.1
+     },
+     "pos1": {
+      "n": 17,
+      "late": 58.8,
+      "meanErr": 7.7
+     },
+     "pos2plus": {
+      "n": 2,
+      "late": 50,
+      "meanErr": 5.6
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 77,
+      "late": 24.7,
+      "meanErr": 0.3
+     },
+     "horizonUnder20": {
+      "n": 69,
+      "late": 18.8,
+      "meanErr": -0.4
+     },
+     "horizon20to40": {
+      "n": 7,
+      "late": 71.4,
+      "meanErr": 5.3
+     },
+     "horizon40plus": {
+      "n": 1,
+      "late": 100,
+      "meanErr": 12.2
+     }
+    },
+    "managementInterventionsDistinct": 44,
+    "driveMinutes": 1165,
+    "driveMinutesPerDelivery": 9,
+    "extraDriveMinutes": 1241,
+    "depotDriveMinutes": 190,
+    "stockProblems": 73,
+    "replenishments": 35,
+    "replenishmentsCompleted": 23,
+    "managementInterventions": 87,
+    "failedOrUnresolvedActions": 0,
+    "offersRejectedOrExpired": 25,
+    "conversationsNeedingStaff": 6,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 142,
+    "alertsByCategory": {
+     "auto": 59,
+     "inform": 23,
+     "approval": 48,
+     "takeover": 12
+    },
+    "driverHours": 82,
+    "simulatedEndAt": "2026-06-16T20:42:00.000Z",
+    "wallClockMs": 6753
+   }
+  },
+  {
+   "load": "150",
+   "orders": 150,
+   "drivers": 8,
+   "seed": 23,
+   "profile": "large",
+   "strategy": "fifo",
+   "metrics": {
+    "strategy": "fifo",
+    "profile": "large",
+    "orders": 150,
+    "drivers": 8,
+    "seed": 23,
+    "ordersGenerated": 150,
+    "ordersAccepted": 136,
+    "delivered": 132,
+    "cancelled": 2,
+    "unresolved": 2,
+    "revenueOre": 2484400,
+    "contributionOre": 1569000,
+    "operatingHours": 12,
+    "deliveriesPerHour": 11,
+    "deliveriesPerDriverHour": 1.6,
+    "avgDeliveryMinutes": 33.8,
+    "p90DeliveryMinutes": 53.5,
+    "lateShare": 6.1,
+    "lateCount": 8,
+    "lateMinutes": 52,
+    "p90DelayMinutes": 7.5,
+    "slaLateShare": 3,
+    "etaChanges": 10,
+    "insertedAhead": 0,
+    "disruptiveInsertions": 0,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 38.6,
+    "lateShareInitialPromise": 15.7,
+    "lateShareHighValue": 3,
+    "lateShareOtherValue": 7.1,
+    "openAtEnd": 0,
+    "needsManual": 2,
+    "waitForReplenishmentMinutes": 411,
+    "replenishmentsCentralOnly": 70,
+    "avgApprovalMinutes": 5.5,
+    "interventionsByCause": {
+     "replenishmentDecisions": 59,
+     "duplicateOfReplenishment": 103,
+     "reassignmentSuggestions": 0,
+     "delays": 0,
+     "driverNoResponse": 5,
+     "capacity": 1,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 44,
+      "late": 6.8,
+      "meanErr": -2.5
+     },
+     "pos1": {
+      "n": 7,
+      "late": 71.4,
+      "meanErr": 7.2
+     },
+     "pos2plus": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 51,
+      "late": 15.7,
+      "meanErr": -1.2
+     },
+     "horizonUnder20": {
+      "n": 39,
+      "late": 7.7,
+      "meanErr": -2.3
+     },
+     "horizon20to40": {
+      "n": 12,
+      "late": 41.7,
+      "meanErr": 2.3
+     },
+     "horizon40plus": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     }
+    },
+    "managementInterventionsDistinct": 66,
+    "driveMinutes": 1602,
+    "driveMinutesPerDelivery": 12.1,
+    "extraDriveMinutes": 1900,
+    "depotDriveMinutes": 491,
+    "stockProblems": 151,
+    "replenishments": 72,
+    "replenishmentsCompleted": 51,
+    "managementInterventions": 169,
+    "failedOrUnresolvedActions": 8,
+    "offersRejectedOrExpired": 37,
+    "conversationsNeedingStaff": 6,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 186,
+    "alertsByCategory": {
+     "auto": 51,
+     "inform": 25,
+     "approval": 103,
+     "takeover": 7
+    },
+    "driverHours": 82.9,
+    "simulatedEndAt": "2026-06-16T20:41:00.000Z",
+    "wallClockMs": 7049
+   }
+  },
+  {
+   "load": "150",
+   "orders": 150,
+   "drivers": 8,
+   "seed": 37,
+   "profile": "spread",
+   "strategy": "fifo",
+   "metrics": {
+    "strategy": "fifo",
+    "profile": "spread",
+    "orders": 150,
+    "drivers": 8,
+    "seed": 37,
+    "ordersGenerated": 150,
+    "ordersAccepted": 133,
+    "delivered": 129,
+    "cancelled": 4,
+    "unresolved": 0,
+    "revenueOre": 1400400,
+    "contributionOre": 1001100,
+    "operatingHours": 12,
+    "deliveriesPerHour": 10.8,
+    "deliveriesPerDriverHour": 1.6,
+    "avgDeliveryMinutes": 37.7,
+    "p90DeliveryMinutes": 68,
+    "lateShare": 10.1,
+    "lateCount": 13,
+    "lateMinutes": 95,
+    "p90DelayMinutes": 7.2,
+    "slaLateShare": 14,
+    "etaChanges": 18,
+    "insertedAhead": 0,
+    "disruptiveInsertions": 0,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 58.9,
+    "lateShareInitialPromise": 17.1,
+    "lateShareHighValue": 6.3,
+    "lateShareOtherValue": 11.3,
+    "openAtEnd": 0,
+    "needsManual": 0,
+    "waitForReplenishmentMinutes": 218,
+    "replenishmentsCentralOnly": 45,
+    "avgApprovalMinutes": 5.2,
+    "interventionsByCause": {
+     "replenishmentDecisions": 40,
+     "duplicateOfReplenishment": 51,
+     "reassignmentSuggestions": 5,
+     "delays": 0,
+     "driverNoResponse": 3,
+     "capacity": 0,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 50,
+      "late": 6,
+      "meanErr": -2.5
+     },
+     "pos1": {
+      "n": 19,
+      "late": 42.1,
+      "meanErr": 4
+     },
+     "pos2plus": {
+      "n": 7,
+      "late": 28.6,
+      "meanErr": 2.6
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 76,
+      "late": 17.1,
+      "meanErr": -0.4
+     },
+     "horizonUnder20": {
+      "n": 33,
+      "late": 9.1,
+      "meanErr": -1.6
+     },
+     "horizon20to40": {
+      "n": 34,
+      "late": 20.6,
+      "meanErr": 0
+     },
+     "horizon40plus": {
+      "n": 9,
+      "late": 33.3,
+      "meanErr": 2.6
+     }
+    },
+    "managementInterventionsDistinct": 49,
+    "driveMinutes": 2208,
+    "driveMinutesPerDelivery": 17.1,
+    "extraDriveMinutes": 2334,
+    "depotDriveMinutes": 503,
+    "stockProblems": 98,
+    "replenishments": 45,
+    "replenishmentsCompleted": 29,
+    "managementInterventions": 100,
+    "failedOrUnresolvedActions": 0,
+    "offersRejectedOrExpired": 31,
+    "conversationsNeedingStaff": 10,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 166,
+    "alertsByCategory": {
+     "auto": 81,
+     "inform": 25,
+     "approval": 56,
+     "takeover": 4
+    },
+    "driverHours": 83,
+    "simulatedEndAt": "2026-06-16T20:59:30.000Z",
+    "wallClockMs": 6660
+   }
+  },
+  {
+   "load": "150",
+   "orders": 150,
+   "drivers": 8,
+   "seed": 23,
+   "profile": "large",
+   "strategy": "economic",
+   "metrics": {
+    "strategy": "economic",
+    "profile": "large",
+    "orders": 150,
+    "drivers": 8,
+    "seed": 23,
+    "ordersGenerated": 150,
+    "ordersAccepted": 136,
+    "delivered": 134,
+    "cancelled": 2,
+    "unresolved": 0,
+    "revenueOre": 2482800,
+    "contributionOre": 1572400,
+    "operatingHours": 12,
+    "deliveriesPerHour": 11.2,
+    "deliveriesPerDriverHour": 1.6,
+    "avgDeliveryMinutes": 43.2,
+    "p90DeliveryMinutes": 80,
+    "lateShare": 6.7,
+    "lateCount": 9,
+    "lateMinutes": 116,
+    "p90DelayMinutes": 8.1,
+    "slaLateShare": 26.9,
+    "etaChanges": 12,
+    "insertedAhead": 24,
+    "disruptiveInsertions": 24,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 35.8,
+    "lateShareInitialPromise": 18.8,
+    "lateShareHighValue": 0,
+    "lateShareOtherValue": 8.9,
+    "openAtEnd": 0,
+    "needsManual": 0,
+    "waitForReplenishmentMinutes": 247,
+    "replenishmentsCentralOnly": 59,
+    "avgApprovalMinutes": 5,
+    "interventionsByCause": {
+     "replenishmentDecisions": 41,
+     "duplicateOfReplenishment": 75,
+     "reassignmentSuggestions": 3,
+     "delays": 0,
+     "driverNoResponse": 14,
+     "capacity": 0,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 35,
+      "late": 8.6,
+      "meanErr": -2.6
+     },
+     "pos1": {
+      "n": 8,
+      "late": 37.5,
+      "meanErr": 5
+     },
+     "pos2plus": {
+      "n": 5,
+      "late": 60,
+      "meanErr": 14
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 48,
+      "late": 18.8,
+      "meanErr": 0.4
+     },
+     "horizonUnder20": {
+      "n": 39,
+      "late": 10.3,
+      "meanErr": -2.7
+     },
+     "horizon20to40": {
+      "n": 8,
+      "late": 50,
+      "meanErr": 9.6
+     },
+     "horizon40plus": {
+      "n": 1,
+      "late": 100,
+      "meanErr": 45.3
+     }
+    },
+    "managementInterventionsDistinct": 59,
+    "driveMinutes": 1219,
+    "driveMinutesPerDelivery": 9.1,
+    "extraDriveMinutes": 1339,
+    "depotDriveMinutes": 279,
+    "stockProblems": 124,
+    "replenishments": 59,
+    "replenishmentsCompleted": 32,
+    "managementInterventions": 134,
+    "failedOrUnresolvedActions": 0,
+    "offersRejectedOrExpired": 34,
+    "conversationsNeedingStaff": 6,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 164,
+    "alertsByCategory": {
+     "auto": 49,
+     "inform": 22,
+     "approval": 78,
+     "takeover": 15
+    },
+    "driverHours": 83.4,
+    "simulatedEndAt": "2026-06-16T21:11:00.000Z",
+    "wallClockMs": 8323
+   }
+  },
+  {
+   "load": "150",
+   "orders": 150,
+   "drivers": 8,
+   "seed": 23,
+   "profile": "large",
+   "strategy": "shortest_detour",
+   "metrics": {
+    "strategy": "shortest_detour",
+    "profile": "large",
+    "orders": 150,
+    "drivers": 8,
+    "seed": 23,
+    "ordersGenerated": 150,
+    "ordersAccepted": 136,
+    "delivered": 133,
+    "cancelled": 3,
+    "unresolved": 0,
+    "revenueOre": 2490900,
+    "contributionOre": 1574500,
+    "operatingHours": 12,
+    "deliveriesPerHour": 11.1,
+    "deliveriesPerDriverHour": 1.6,
+    "avgDeliveryMinutes": 56.7,
+    "p90DeliveryMinutes": 110,
+    "lateShare": 9,
+    "lateCount": 12,
+    "lateMinutes": 138,
+    "p90DelayMinutes": 11.1,
+    "slaLateShare": 36.1,
+    "etaChanges": 13,
+    "insertedAhead": 49,
+    "disruptiveInsertions": 49,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 28.6,
+    "lateShareInitialPromise": 31.6,
+    "lateShareHighValue": 3,
+    "lateShareOtherValue": 11,
+    "openAtEnd": 0,
+    "needsManual": 0,
+    "waitForReplenishmentMinutes": 166,
+    "replenishmentsCentralOnly": 56,
+    "avgApprovalMinutes": 4.9,
+    "interventionsByCause": {
+     "replenishmentDecisions": 31,
+     "duplicateOfReplenishment": 67,
+     "reassignmentSuggestions": 4,
+     "delays": 0,
+     "driverNoResponse": 12,
+     "capacity": 0,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 21,
+      "late": 14.3,
+      "meanErr": -2
+     },
+     "pos1": {
+      "n": 13,
+      "late": 38.5,
+      "meanErr": 1.6
+     },
+     "pos2plus": {
+      "n": 4,
+      "late": 100,
+      "meanErr": 28.1
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 38,
+      "late": 31.6,
+      "meanErr": 2.4
+     },
+     "horizonUnder20": {
+      "n": 24,
+      "late": 16.7,
+      "meanErr": -1.3
+     },
+     "horizon20to40": {
+      "n": 10,
+      "late": 40,
+      "meanErr": 4.7
+     },
+     "horizon40plus": {
+      "n": 4,
+      "late": 100,
+      "meanErr": 19.2
+     }
+    },
+    "managementInterventionsDistinct": 48,
+    "driveMinutes": 1167,
+    "driveMinutesPerDelivery": 8.8,
+    "extraDriveMinutes": 1249,
+    "depotDriveMinutes": 231,
+    "stockProblems": 111,
+    "replenishments": 56,
+    "replenishmentsCompleted": 28,
+    "managementInterventions": 115,
+    "failedOrUnresolvedActions": 3,
+    "offersRejectedOrExpired": 40,
+    "conversationsNeedingStaff": 5,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 146,
+    "alertsByCategory": {
+     "auto": 47,
+     "inform": 15,
+     "approval": 71,
+     "takeover": 13
+    },
+    "driverHours": 84.9,
+    "simulatedEndAt": "2026-06-16T21:12:30.000Z",
+    "wallClockMs": 8681
+   }
+  },
+  {
+   "load": "150",
+   "orders": 150,
+   "drivers": 8,
+   "seed": 37,
+   "profile": "spread",
+   "strategy": "shortest_detour",
+   "metrics": {
+    "strategy": "shortest_detour",
+    "profile": "spread",
+    "orders": 150,
+    "drivers": 8,
+    "seed": 37,
+    "ordersGenerated": 150,
+    "ordersAccepted": 133,
+    "delivered": 130,
+    "cancelled": 3,
+    "unresolved": 0,
+    "revenueOre": 1397900,
+    "contributionOre": 1002400,
+    "operatingHours": 12,
+    "deliveriesPerHour": 10.8,
+    "deliveriesPerDriverHour": 1.6,
+    "avgDeliveryMinutes": 53.5,
+    "p90DeliveryMinutes": 114,
+    "lateShare": 11.5,
+    "lateCount": 15,
+    "lateMinutes": 223,
+    "p90DelayMinutes": 14.7,
+    "slaLateShare": 36.9,
+    "etaChanges": 23,
+    "insertedAhead": 33,
+    "disruptiveInsertions": 33,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 59.2,
+    "lateShareInitialPromise": 19.5,
+    "lateShareHighValue": 3.1,
+    "lateShareOtherValue": 14.3,
+    "openAtEnd": 0,
+    "needsManual": 0,
+    "waitForReplenishmentMinutes": 96,
+    "replenishmentsCentralOnly": 27,
+    "avgApprovalMinutes": 5,
+    "interventionsByCause": {
+     "replenishmentDecisions": 22,
+     "duplicateOfReplenishment": 31,
+     "reassignmentSuggestions": 14,
+     "delays": 0,
+     "driverNoResponse": 13,
+     "capacity": 0,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 39,
+      "late": 7.7,
+      "meanErr": -2.7
+     },
+     "pos1": {
+      "n": 17,
+      "late": 23.5,
+      "meanErr": 3.9
+     },
+     "pos2plus": {
+      "n": 21,
+      "late": 38.1,
+      "meanErr": 5.4
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 77,
+      "late": 19.5,
+      "meanErr": 1
+     },
+     "horizonUnder20": {
+      "n": 46,
+      "late": 8.7,
+      "meanErr": -1.4
+     },
+     "horizon20to40": {
+      "n": 13,
+      "late": 30.8,
+      "meanErr": 1.7
+     },
+     "horizon40plus": {
+      "n": 18,
+      "late": 38.9,
+      "meanErr": 6.6
+     }
+    },
+    "managementInterventionsDistinct": 50,
+    "driveMinutes": 1521,
+    "driveMinutesPerDelivery": 11.7,
+    "extraDriveMinutes": 1515,
+    "depotDriveMinutes": 253,
+    "stockProblems": 57,
+    "replenishments": 27,
+    "replenishmentsCompleted": 18,
+    "managementInterventions": 81,
+    "failedOrUnresolvedActions": 0,
+    "offersRejectedOrExpired": 27,
+    "conversationsNeedingStaff": 11,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 163,
+    "alertsByCategory": {
+     "auto": 84,
+     "inform": 20,
+     "approval": 45,
+     "takeover": 14
+    },
+    "driverHours": 83,
+    "simulatedEndAt": "2026-06-16T21:49:00.000Z",
+    "wallClockMs": 7724
+   }
+  },
+  {
+   "load": "150",
+   "orders": 150,
+   "drivers": 8,
+   "seed": 42,
+   "profile": "central",
+   "strategy": "fifo",
+   "metrics": {
+    "strategy": "fifo",
+    "profile": "central",
+    "orders": 150,
+    "drivers": 8,
+    "seed": 42,
+    "ordersGenerated": 150,
+    "ordersAccepted": 137,
+    "delivered": 133,
+    "cancelled": 4,
+    "unresolved": 0,
+    "revenueOre": 1605800,
+    "contributionOre": 1128300,
+    "operatingHours": 12,
+    "deliveriesPerHour": 11.1,
+    "deliveriesPerDriverHour": 1.6,
+    "avgDeliveryMinutes": 34,
+    "p90DeliveryMinutes": 56,
+    "lateShare": 4.5,
+    "lateCount": 6,
+    "lateMinutes": 40,
+    "p90DelayMinutes": 1.8,
+    "slaLateShare": 6,
+    "etaChanges": 7,
+    "insertedAhead": 0,
+    "disruptiveInsertions": 0,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 41.4,
+    "lateShareInitialPromise": 10.9,
+    "lateShareHighValue": 0,
+    "lateShareOtherValue": 6,
+    "openAtEnd": 0,
+    "needsManual": 0,
+    "waitForReplenishmentMinutes": 377,
+    "replenishmentsCentralOnly": 78,
+    "avgApprovalMinutes": 5,
+    "interventionsByCause": {
+     "replenishmentDecisions": 62,
+     "duplicateOfReplenishment": 101,
+     "reassignmentSuggestions": 2,
+     "delays": 0,
+     "driverNoResponse": 5,
+     "capacity": 0,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 40,
+      "late": 0,
+      "meanErr": -3.2
+     },
+     "pos1": {
+      "n": 15,
+      "late": 40,
+      "meanErr": 2.6
+     },
+     "pos2plus": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 55,
+      "late": 10.9,
+      "meanErr": -1.6
+     },
+     "horizonUnder20": {
+      "n": 41,
+      "late": 7.3,
+      "meanErr": -1.6
+     },
+     "horizon20to40": {
+      "n": 14,
+      "late": 21.4,
+      "meanErr": -1.7
+     },
+     "horizon40plus": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     }
+    },
+    "managementInterventionsDistinct": 70,
+    "driveMinutes": 1789,
+    "driveMinutesPerDelivery": 13.4,
+    "extraDriveMinutes": 2067,
+    "depotDriveMinutes": 526,
+    "stockProblems": 163,
+    "replenishments": 78,
+    "replenishmentsCompleted": 52,
+    "managementInterventions": 171,
+    "failedOrUnresolvedActions": 0,
+    "offersRejectedOrExpired": 23,
+    "conversationsNeedingStaff": 4,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 186,
+    "alertsByCategory": {
+     "auto": 57,
+     "inform": 20,
+     "approval": 103,
+     "takeover": 6
+    },
+    "driverHours": 82.2,
+    "simulatedEndAt": "2026-06-16T20:32:00.000Z",
+    "wallClockMs": 7020
+   }
+  },
+  {
+   "load": "150",
+   "orders": 150,
+   "drivers": 8,
+   "seed": 37,
+   "profile": "spread",
+   "strategy": "economic",
+   "metrics": {
+    "strategy": "economic",
+    "profile": "spread",
+    "orders": 150,
+    "drivers": 8,
+    "seed": 37,
+    "ordersGenerated": 150,
+    "ordersAccepted": 133,
+    "delivered": 131,
+    "cancelled": 2,
+    "unresolved": 0,
+    "revenueOre": 1417800,
+    "contributionOre": 1014300,
+    "operatingHours": 12,
+    "deliveriesPerHour": 10.9,
+    "deliveriesPerDriverHour": 1.6,
+    "avgDeliveryMinutes": 38.8,
+    "p90DeliveryMinutes": 80,
+    "lateShare": 6.1,
+    "lateCount": 8,
+    "lateMinutes": 109,
+    "p90DelayMinutes": 4.6,
+    "slaLateShare": 26,
+    "etaChanges": 12,
+    "insertedAhead": 16,
+    "disruptiveInsertions": 16,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 58.8,
+    "lateShareInitialPromise": 10.4,
+    "lateShareHighValue": 0,
+    "lateShareOtherValue": 8.1,
+    "openAtEnd": 0,
+    "needsManual": 0,
+    "waitForReplenishmentMinutes": 141,
+    "replenishmentsCentralOnly": 34,
+    "avgApprovalMinutes": 4.8,
+    "interventionsByCause": {
+     "replenishmentDecisions": 27,
+     "duplicateOfReplenishment": 36,
+     "reassignmentSuggestions": 2,
+     "delays": 0,
+     "driverNoResponse": 10,
+     "capacity": 0,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 55,
+      "late": 5.5,
+      "meanErr": -2.8
+     },
+     "pos1": {
+      "n": 17,
+      "late": 17.6,
+      "meanErr": 0.7
+     },
+     "pos2plus": {
+      "n": 5,
+      "late": 40,
+      "meanErr": 5.5
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 77,
+      "late": 10.4,
+      "meanErr": -1.5
+     },
+     "horizonUnder20": {
+      "n": 54,
+      "late": 5.6,
+      "meanErr": -2.7
+     },
+     "horizon20to40": {
+      "n": 19,
+      "late": 15.8,
+      "meanErr": 0
+     },
+     "horizon40plus": {
+      "n": 4,
+      "late": 50,
+      "meanErr": 7.2
+     }
+    },
+    "managementInterventionsDistinct": 40,
+    "driveMinutes": 1629,
+    "driveMinutesPerDelivery": 12.4,
+    "extraDriveMinutes": 1679,
+    "depotDriveMinutes": 266,
+    "stockProblems": 69,
+    "replenishments": 34,
+    "replenishmentsCompleted": 21,
+    "managementInterventions": 76,
+    "failedOrUnresolvedActions": 0,
+    "offersRejectedOrExpired": 34,
+    "conversationsNeedingStaff": 12,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 153,
+    "alertsByCategory": {
+     "auto": 78,
+     "inform": 26,
+     "approval": 38,
+     "takeover": 11
+    },
+    "driverHours": 82.4,
+    "simulatedEndAt": "2026-06-16T20:48:00.000Z",
+    "wallClockMs": 7538
+   }
+  },
+  {
+   "load": "150",
+   "orders": 150,
+   "drivers": 8,
+   "seed": 42,
+   "profile": "central",
+   "strategy": "shortest_detour",
+   "metrics": {
+    "strategy": "shortest_detour",
+    "profile": "central",
+    "orders": 150,
+    "drivers": 8,
+    "seed": 42,
+    "ordersGenerated": 150,
+    "ordersAccepted": 137,
+    "delivered": 134,
+    "cancelled": 3,
+    "unresolved": 0,
+    "revenueOre": 1619200,
+    "contributionOre": 1136450,
+    "operatingHours": 12,
+    "deliveriesPerHour": 11.2,
+    "deliveriesPerDriverHour": 1.6,
+    "avgDeliveryMinutes": 55.2,
+    "p90DeliveryMinutes": 106.5,
+    "lateShare": 11.2,
+    "lateCount": 15,
+    "lateMinutes": 90,
+    "p90DelayMinutes": 12.4,
+    "slaLateShare": 33.6,
+    "etaChanges": 13,
+    "insertedAhead": 51,
+    "disruptiveInsertions": 51,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 36.6,
+    "lateShareInitialPromise": 30.6,
+    "lateShareHighValue": 0,
+    "lateShareOtherValue": 14.9,
+    "openAtEnd": 0,
+    "needsManual": 0,
+    "waitForReplenishmentMinutes": 144,
+    "replenishmentsCentralOnly": 51,
+    "avgApprovalMinutes": 5.1,
+    "interventionsByCause": {
+     "replenishmentDecisions": 36,
+     "duplicateOfReplenishment": 61,
+     "reassignmentSuggestions": 3,
+     "delays": 0,
+     "driverNoResponse": 14,
+     "capacity": 0,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 32,
+      "late": 21.9,
+      "meanErr": -0.7
+     },
+     "pos1": {
+      "n": 8,
+      "late": 75,
+      "meanErr": 9.1
+     },
+     "pos2plus": {
+      "n": 9,
+      "late": 22.2,
+      "meanErr": -1.6
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 49,
+      "late": 30.6,
+      "meanErr": 0.8
+     },
+     "horizonUnder20": {
+      "n": 30,
+      "late": 23.3,
+      "meanErr": 0.2
+     },
+     "horizon20to40": {
+      "n": 13,
+      "late": 38.5,
+      "meanErr": 1.7
+     },
+     "horizon40plus": {
+      "n": 6,
+      "late": 50,
+      "meanErr": 1.6
+     }
+    },
+    "managementInterventionsDistinct": 54,
+    "driveMinutes": 1176,
+    "driveMinutesPerDelivery": 8.8,
+    "extraDriveMinutes": 1304,
+    "depotDriveMinutes": 233,
+    "stockProblems": 106,
+    "replenishments": 51,
+    "replenishmentsCompleted": 30,
+    "managementInterventions": 115,
+    "failedOrUnresolvedActions": 1,
+    "offersRejectedOrExpired": 15,
+    "conversationsNeedingStaff": 5,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 152,
+    "alertsByCategory": {
+     "auto": 63,
+     "inform": 10,
+     "approval": 64,
+     "takeover": 15
+    },
+    "driverHours": 83.6,
+    "simulatedEndAt": "2026-06-16T21:21:00.000Z",
+    "wallClockMs": 8476
+   }
+  },
+  {
+   "load": "150",
+   "orders": 150,
+   "drivers": 8,
+   "seed": 42,
+   "profile": "central",
+   "strategy": "economic",
+   "metrics": {
+    "strategy": "economic",
+    "profile": "central",
+    "orders": 150,
+    "drivers": 8,
+    "seed": 42,
+    "ordersGenerated": 150,
+    "ordersAccepted": 137,
+    "delivered": 133,
+    "cancelled": 4,
+    "unresolved": 0,
+    "revenueOre": 1605800,
+    "contributionOre": 1128300,
+    "operatingHours": 12,
+    "deliveriesPerHour": 11.1,
+    "deliveriesPerDriverHour": 1.6,
+    "avgDeliveryMinutes": 38.4,
+    "p90DeliveryMinutes": 73,
+    "lateShare": 7.5,
+    "lateCount": 10,
+    "lateMinutes": 83,
+    "p90DelayMinutes": 6.6,
+    "slaLateShare": 21.1,
+    "etaChanges": 10,
+    "insertedAhead": 25,
+    "disruptiveInsertions": 25,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 42.1,
+    "lateShareInitialPromise": 17.9,
+    "lateShareHighValue": 0,
+    "lateShareOtherValue": 10,
+    "openAtEnd": 0,
+    "needsManual": 0,
+    "waitForReplenishmentMinutes": 218,
+    "replenishmentsCentralOnly": 51,
+    "avgApprovalMinutes": 5.1,
+    "interventionsByCause": {
+     "replenishmentDecisions": 34,
+     "duplicateOfReplenishment": 65,
+     "reassignmentSuggestions": 2,
+     "delays": 0,
+     "driverNoResponse": 15,
+     "capacity": 0,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 48,
+      "late": 12.5,
+      "meanErr": -1.4
+     },
+     "pos1": {
+      "n": 7,
+      "late": 42.9,
+      "meanErr": 4.7
+     },
+     "pos2plus": {
+      "n": 1,
+      "late": 100,
+      "meanErr": 6.4
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 56,
+      "late": 17.9,
+      "meanErr": -0.5
+     },
+     "horizonUnder20": {
+      "n": 51,
+      "late": 13.7,
+      "meanErr": -1.2
+     },
+     "horizon20to40": {
+      "n": 5,
+      "late": 60,
+      "meanErr": 6.9
+     },
+     "horizon40plus": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     }
+    },
+    "managementInterventionsDistinct": 52,
+    "driveMinutes": 1216,
+    "driveMinutesPerDelivery": 9.1,
+    "extraDriveMinutes": 1311,
+    "depotDriveMinutes": 234,
+    "stockProblems": 104,
+    "replenishments": 51,
+    "replenishmentsCompleted": 29,
+    "managementInterventions": 117,
+    "failedOrUnresolvedActions": 0,
+    "offersRejectedOrExpired": 12,
+    "conversationsNeedingStaff": 4,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 163,
+    "alertsByCategory": {
+     "auto": 64,
+     "inform": 16,
+     "approval": 67,
+     "takeover": 16
+    },
+    "driverHours": 82.5,
+    "simulatedEndAt": "2026-06-16T20:43:30.000Z",
+    "wallClockMs": 7782
+   }
+  },
+  {
+   "load": "100",
+   "orders": 100,
+   "drivers": 8,
+   "seed": 11,
+   "profile": "standard",
+   "strategy": "shortest_detour",
+   "metrics": {
+    "strategy": "shortest_detour",
+    "profile": "standard",
+    "orders": 100,
+    "drivers": 8,
+    "seed": 11,
+    "ordersGenerated": 100,
+    "ordersAccepted": 89,
+    "delivered": 86,
+    "cancelled": 2,
+    "unresolved": 1,
+    "revenueOre": 972500,
+    "contributionOre": 687600,
+    "operatingHours": 12,
+    "deliveriesPerHour": 7.2,
+    "deliveriesPerDriverHour": 1.1,
+    "avgDeliveryMinutes": 33.5,
+    "p90DeliveryMinutes": 62,
+    "lateShare": 8.1,
+    "lateCount": 7,
+    "lateMinutes": 39,
+    "p90DelayMinutes": 9.5,
+    "slaLateShare": 11.6,
+    "etaChanges": 7,
+    "insertedAhead": 15,
+    "disruptiveInsertions": 15,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 48.8,
+    "lateShareInitialPromise": 16.7,
+    "lateShareHighValue": 0,
+    "lateShareOtherValue": 10.8,
+    "openAtEnd": 0,
+    "needsManual": 1,
+    "waitForReplenishmentMinutes": 94,
+    "replenishmentsCentralOnly": 21,
+    "avgApprovalMinutes": 5.2,
+    "interventionsByCause": {
+     "replenishmentDecisions": 18,
+     "duplicateOfReplenishment": 28,
+     "reassignmentSuggestions": 0,
+     "delays": 0,
+     "driverNoResponse": 19,
+     "capacity": 1,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 34,
+      "late": 8.8,
+      "meanErr": -2.3
+     },
+     "pos1": {
+      "n": 5,
+      "late": 20,
+      "meanErr": 0.8
+     },
+     "pos2plus": {
+      "n": 3,
+      "late": 100,
+      "meanErr": 7.6
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 42,
+      "late": 16.7,
+      "meanErr": -1.2
+     },
+     "horizonUnder20": {
+      "n": 35,
+      "late": 8.6,
+      "meanErr": -2.4
+     },
+     "horizon20to40": {
+      "n": 6,
+      "late": 50,
+      "meanErr": 3.9
+     },
+     "horizon40plus": {
+      "n": 1,
+      "late": 100,
+      "meanErr": 9.5
+     }
+    },
+    "managementInterventionsDistinct": 39,
+    "driveMinutes": 726,
+    "driveMinutesPerDelivery": 8.4,
+    "extraDriveMinutes": 825,
+    "depotDriveMinutes": 118,
+    "stockProblems": 42,
+    "replenishments": 21,
+    "replenishmentsCompleted": 18,
+    "managementInterventions": 67,
+    "failedOrUnresolvedActions": 1,
+    "offersRejectedOrExpired": 30,
+    "conversationsNeedingStaff": 5,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 95,
+    "alertsByCategory": {
+     "auto": 36,
+     "inform": 10,
+     "approval": 28,
+     "takeover": 21
+    },
+    "driverHours": 81.2,
+    "simulatedEndAt": "2026-06-16T20:14:30.000Z",
+    "wallClockMs": 4811
+   }
+  },
+  {
+   "load": "100",
+   "orders": 100,
+   "drivers": 8,
+   "seed": 11,
+   "profile": "standard",
+   "strategy": "fifo",
+   "metrics": {
+    "strategy": "fifo",
+    "profile": "standard",
+    "orders": 100,
+    "drivers": 8,
+    "seed": 11,
+    "ordersGenerated": 100,
+    "ordersAccepted": 89,
+    "delivered": 89,
+    "cancelled": 0,
+    "unresolved": 0,
+    "revenueOre": 1000300,
+    "contributionOre": 708350,
+    "operatingHours": 12,
+    "deliveriesPerHour": 7.4,
+    "deliveriesPerDriverHour": 1.1,
+    "avgDeliveryMinutes": 27.5,
+    "p90DeliveryMinutes": 50.5,
+    "lateShare": 3.4,
+    "lateCount": 3,
+    "lateMinutes": 37,
+    "p90DelayMinutes": 0.5,
+    "slaLateShare": 3.4,
+    "etaChanges": 3,
+    "insertedAhead": 0,
+    "disruptiveInsertions": 0,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 61.8,
+    "lateShareInitialPromise": 5.5,
+    "lateShareHighValue": 0,
+    "lateShareOtherValue": 4.5,
+    "openAtEnd": 0,
+    "needsManual": 0,
+    "waitForReplenishmentMinutes": 208,
+    "replenishmentsCentralOnly": 35,
+    "avgApprovalMinutes": 5.3,
+    "interventionsByCause": {
+     "replenishmentDecisions": 32,
+     "duplicateOfReplenishment": 46,
+     "reassignmentSuggestions": 1,
+     "delays": 0,
+     "driverNoResponse": 15,
+     "capacity": 0,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 51,
+      "late": 3.9,
+      "meanErr": -3.1
+     },
+     "pos1": {
+      "n": 4,
+      "late": 25,
+      "meanErr": 4.9
+     },
+     "pos2plus": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 55,
+      "late": 5.5,
+      "meanErr": -2.6
+     },
+     "horizonUnder20": {
+      "n": 46,
+      "late": 6.5,
+      "meanErr": -2.4
+     },
+     "horizon20to40": {
+      "n": 9,
+      "late": 0,
+      "meanErr": -3.2
+     },
+     "horizon40plus": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     }
+    },
+    "managementInterventionsDistinct": 49,
+    "driveMinutes": 1083,
+    "driveMinutesPerDelivery": 12.2,
+    "extraDriveMinutes": 1196,
+    "depotDriveMinutes": 246,
+    "stockProblems": 74,
+    "replenishments": 35,
+    "replenishmentsCompleted": 27,
+    "managementInterventions": 95,
+    "failedOrUnresolvedActions": 0,
+    "offersRejectedOrExpired": 25,
+    "conversationsNeedingStaff": 7,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 119,
+    "alertsByCategory": {
+     "auto": 34,
+     "inform": 22,
+     "approval": 47,
+     "takeover": 16
+    },
+    "driverHours": 81.3,
+    "simulatedEndAt": "2026-06-16T20:18:30.000Z",
+    "wallClockMs": 4931
+   }
+  },
+  {
+   "load": "100",
+   "orders": 100,
+   "drivers": 8,
+   "seed": 11,
+   "profile": "standard",
+   "strategy": "economic",
+   "metrics": {
+    "strategy": "economic",
+    "profile": "standard",
+    "orders": 100,
+    "drivers": 8,
+    "seed": 11,
+    "ordersGenerated": 100,
+    "ordersAccepted": 89,
+    "delivered": 89,
+    "cancelled": 0,
+    "unresolved": 0,
+    "revenueOre": 1000300,
+    "contributionOre": 708350,
+    "operatingHours": 12,
+    "deliveriesPerHour": 7.4,
+    "deliveriesPerDriverHour": 1.1,
+    "avgDeliveryMinutes": 29.6,
+    "p90DeliveryMinutes": 62.5,
+    "lateShare": 6.7,
+    "lateCount": 6,
+    "lateMinutes": 42,
+    "p90DelayMinutes": 6.6,
+    "slaLateShare": 10.1,
+    "etaChanges": 6,
+    "insertedAhead": 11,
+    "disruptiveInsertions": 11,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 59.6,
+    "lateShareInitialPromise": 11.3,
+    "lateShareHighValue": 0,
+    "lateShareOtherValue": 9,
+    "openAtEnd": 0,
+    "needsManual": 0,
+    "waitForReplenishmentMinutes": 124,
+    "replenishmentsCentralOnly": 23,
+    "avgApprovalMinutes": 5.1,
+    "interventionsByCause": {
+     "replenishmentDecisions": 22,
+     "duplicateOfReplenishment": 30,
+     "reassignmentSuggestions": 0,
+     "delays": 0,
+     "driverNoResponse": 12,
+     "capacity": 0,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 42,
+      "late": 7.1,
+      "meanErr": -3.3
+     },
+     "pos1": {
+      "n": 9,
+      "late": 33.3,
+      "meanErr": 3.1
+     },
+     "pos2plus": {
+      "n": 2,
+      "late": 0,
+      "meanErr": -1.6
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 53,
+      "late": 11.3,
+      "meanErr": -2.2
+     },
+     "horizonUnder20": {
+      "n": 48,
+      "late": 10.4,
+      "meanErr": -2.1
+     },
+     "horizon20to40": {
+      "n": 5,
+      "late": 20,
+      "meanErr": -2.9
+     },
+     "horizon40plus": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     }
+    },
+    "managementInterventionsDistinct": 35,
+    "driveMinutes": 766,
+    "driveMinutesPerDelivery": 8.6,
+    "extraDriveMinutes": 891,
+    "depotDriveMinutes": 150,
+    "stockProblems": 47,
+    "replenishments": 23,
+    "replenishmentsCompleted": 21,
+    "managementInterventions": 65,
+    "failedOrUnresolvedActions": 0,
+    "offersRejectedOrExpired": 20,
+    "conversationsNeedingStaff": 7,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 98,
+    "alertsByCategory": {
+     "auto": 37,
+     "inform": 18,
+     "approval": 30,
+     "takeover": 13
+    },
+    "driverHours": 81.3,
+    "simulatedEndAt": "2026-06-16T20:16:00.000Z",
+    "wallClockMs": 5216
+   }
+  },
+  {
+   "load": "100",
+   "orders": 100,
+   "drivers": 8,
+   "seed": 23,
+   "profile": "large",
+   "strategy": "fifo",
+   "metrics": {
+    "strategy": "fifo",
+    "profile": "large",
+    "orders": 100,
+    "drivers": 8,
+    "seed": 23,
+    "ordersGenerated": 100,
+    "ordersAccepted": 91,
+    "delivered": 89,
+    "cancelled": 2,
+    "unresolved": 0,
+    "revenueOre": 1586000,
+    "contributionOre": 1014200,
+    "operatingHours": 12,
+    "deliveriesPerHour": 7.4,
+    "deliveriesPerDriverHour": 1.1,
+    "avgDeliveryMinutes": 32.6,
+    "p90DeliveryMinutes": 57.5,
+    "lateShare": 4.5,
+    "lateCount": 4,
+    "lateMinutes": 38,
+    "p90DelayMinutes": 1.2,
+    "slaLateShare": 6.7,
+    "etaChanges": 7,
+    "insertedAhead": 0,
+    "disruptiveInsertions": 0,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 43.8,
+    "lateShareInitialPromise": 10.3,
+    "lateShareHighValue": 0,
+    "lateShareOtherValue": 6,
+    "openAtEnd": 0,
+    "needsManual": 0,
+    "waitForReplenishmentMinutes": 322,
+    "replenishmentsCentralOnly": 55,
+    "avgApprovalMinutes": 5.4,
+    "interventionsByCause": {
+     "replenishmentDecisions": 43,
+     "duplicateOfReplenishment": 80,
+     "reassignmentSuggestions": 0,
+     "delays": 0,
+     "driverNoResponse": 17,
+     "capacity": 0,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 37,
+      "late": 5.4,
+      "meanErr": -2.5
+     },
+     "pos1": {
+      "n": 2,
+      "late": 100,
+      "meanErr": 18.5
+     },
+     "pos2plus": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 39,
+      "late": 10.3,
+      "meanErr": -1.4
+     },
+     "horizonUnder20": {
+      "n": 34,
+      "late": 8.8,
+      "meanErr": -2.2
+     },
+     "horizon20to40": {
+      "n": 5,
+      "late": 20,
+      "meanErr": 3.8
+     },
+     "horizon40plus": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     }
+    },
+    "managementInterventionsDistinct": 61,
+    "driveMinutes": 1142,
+    "driveMinutesPerDelivery": 12.8,
+    "extraDriveMinutes": 1294,
+    "depotDriveMinutes": 372,
+    "stockProblems": 115,
+    "replenishments": 56,
+    "replenishmentsCompleted": 37,
+    "managementInterventions": 141,
+    "failedOrUnresolvedActions": 0,
+    "offersRejectedOrExpired": 26,
+    "conversationsNeedingStaff": 3,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 155,
+    "alertsByCategory": {
+     "auto": 38,
+     "inform": 19,
+     "approval": 80,
+     "takeover": 18
+    },
+    "driverHours": 82.9,
+    "simulatedEndAt": "2026-06-16T20:45:00.000Z",
+    "wallClockMs": 5193
+   }
+  },
+  {
+   "load": "100",
+   "orders": 100,
+   "drivers": 8,
+   "seed": 23,
+   "profile": "large",
+   "strategy": "shortest_detour",
+   "metrics": {
+    "strategy": "shortest_detour",
+    "profile": "large",
+    "orders": 100,
+    "drivers": 8,
+    "seed": 23,
+    "ordersGenerated": 100,
+    "ordersAccepted": 91,
+    "delivered": 89,
+    "cancelled": 2,
+    "unresolved": 0,
+    "revenueOre": 1586000,
+    "contributionOre": 1014200,
+    "operatingHours": 12,
+    "deliveriesPerHour": 7.4,
+    "deliveriesPerDriverHour": 1.1,
+    "avgDeliveryMinutes": 48.4,
+    "p90DeliveryMinutes": 96,
+    "lateShare": 10.1,
+    "lateCount": 9,
+    "lateMinutes": 169,
+    "p90DelayMinutes": 20.9,
+    "slaLateShare": 27,
+    "etaChanges": 13,
+    "insertedAhead": 25,
+    "disruptiveInsertions": 25,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 42.7,
+    "lateShareInitialPromise": 23.7,
+    "lateShareHighValue": 9.1,
+    "lateShareOtherValue": 10.4,
+    "openAtEnd": 0,
+    "needsManual": 0,
+    "waitForReplenishmentMinutes": 183,
+    "replenishmentsCentralOnly": 48,
+    "avgApprovalMinutes": 5,
+    "interventionsByCause": {
+     "replenishmentDecisions": 26,
+     "duplicateOfReplenishment": 60,
+     "reassignmentSuggestions": 2,
+     "delays": 0,
+     "driverNoResponse": 17,
+     "capacity": 0,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 28,
+      "late": 10.7,
+      "meanErr": -2.8
+     },
+     "pos1": {
+      "n": 6,
+      "late": 66.7,
+      "meanErr": 16.2
+     },
+     "pos2plus": {
+      "n": 4,
+      "late": 50,
+      "meanErr": 17.5
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 38,
+      "late": 23.7,
+      "meanErr": 2.3
+     },
+     "horizonUnder20": {
+      "n": 28,
+      "late": 7.1,
+      "meanErr": -3.2
+     },
+     "horizon20to40": {
+      "n": 8,
+      "late": 75,
+      "meanErr": 19.9
+     },
+     "horizon40plus": {
+      "n": 2,
+      "late": 50,
+      "meanErr": 9.1
+     }
+    },
+    "managementInterventionsDistinct": 46,
+    "driveMinutes": 827,
+    "driveMinutesPerDelivery": 9.3,
+    "extraDriveMinutes": 907,
+    "depotDriveMinutes": 195,
+    "stockProblems": 96,
+    "replenishments": 48,
+    "replenishmentsCompleted": 23,
+    "managementInterventions": 106,
+    "failedOrUnresolvedActions": 0,
+    "offersRejectedOrExpired": 20,
+    "conversationsNeedingStaff": 3,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 136,
+    "alertsByCategory": {
+     "auto": 45,
+     "inform": 11,
+     "approval": 62,
+     "takeover": 18
+    },
+    "driverHours": 83.1,
+    "simulatedEndAt": "2026-06-16T21:15:00.000Z",
+    "wallClockMs": 5899
+   }
+  },
+  {
+   "load": "100",
+   "orders": 100,
+   "drivers": 8,
+   "seed": 23,
+   "profile": "large",
+   "strategy": "economic",
+   "metrics": {
+    "strategy": "economic",
+    "profile": "large",
+    "orders": 100,
+    "drivers": 8,
+    "seed": 23,
+    "ordersGenerated": 100,
+    "ordersAccepted": 91,
+    "delivered": 88,
+    "cancelled": 2,
+    "unresolved": 1,
+    "revenueOre": 1562300,
+    "contributionOre": 999100,
+    "operatingHours": 12,
+    "deliveriesPerHour": 7.3,
+    "deliveriesPerDriverHour": 1.1,
+    "avgDeliveryMinutes": 40,
+    "p90DeliveryMinutes": 77.5,
+    "lateShare": 13.6,
+    "lateCount": 12,
+    "lateMinutes": 167,
+    "p90DelayMinutes": 16.7,
+    "slaLateShare": 21.6,
+    "etaChanges": 18,
+    "insertedAhead": 18,
+    "disruptiveInsertions": 18,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 47.7,
+    "lateShareInitialPromise": 28.6,
+    "lateShareHighValue": 4.5,
+    "lateShareOtherValue": 16.7,
+    "openAtEnd": 0,
+    "needsManual": 1,
+    "waitForReplenishmentMinutes": 211,
+    "replenishmentsCentralOnly": 45,
+    "avgApprovalMinutes": 5,
+    "interventionsByCause": {
+     "replenishmentDecisions": 28,
+     "duplicateOfReplenishment": 60,
+     "reassignmentSuggestions": 1,
+     "delays": 0,
+     "driverNoResponse": 16,
+     "capacity": 1,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 32,
+      "late": 18.8,
+      "meanErr": -2.8
+     },
+     "pos1": {
+      "n": 7,
+      "late": 57.1,
+      "meanErr": 10
+     },
+     "pos2plus": {
+      "n": 3,
+      "late": 66.7,
+      "meanErr": 19.8
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 42,
+      "late": 28.6,
+      "meanErr": 1
+     },
+     "horizonUnder20": {
+      "n": 33,
+      "late": 24.2,
+      "meanErr": 0.9
+     },
+     "horizon20to40": {
+      "n": 8,
+      "late": 50,
+      "meanErr": 5.8
+     },
+     "horizon40plus": {
+      "n": 1,
+      "late": 0,
+      "meanErr": -34.6
+     }
+    },
+    "managementInterventionsDistinct": 47,
+    "driveMinutes": 895,
+    "driveMinutesPerDelivery": 10.2,
+    "extraDriveMinutes": 963,
+    "depotDriveMinutes": 235,
+    "stockProblems": 92,
+    "replenishments": 45,
+    "replenishmentsCompleted": 25,
+    "managementInterventions": 107,
+    "failedOrUnresolvedActions": 2,
+    "offersRejectedOrExpired": 36,
+    "conversationsNeedingStaff": 3,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 143,
+    "alertsByCategory": {
+     "auto": 51,
+     "inform": 13,
+     "approval": 61,
+     "takeover": 18
+    },
+    "driverHours": 82.6,
+    "simulatedEndAt": "2026-06-16T21:01:30.000Z",
+    "wallClockMs": 5994
+   }
+  },
+  {
+   "load": "100",
+   "orders": 100,
+   "drivers": 8,
+   "seed": 37,
+   "profile": "spread",
+   "strategy": "fifo",
+   "metrics": {
+    "strategy": "fifo",
+    "profile": "spread",
+    "orders": 100,
+    "drivers": 8,
+    "seed": 37,
+    "ordersGenerated": 100,
+    "ordersAccepted": 89,
+    "delivered": 87,
+    "cancelled": 2,
+    "unresolved": 0,
+    "revenueOre": 966800,
+    "contributionOre": 691250,
+    "operatingHours": 12,
+    "deliveriesPerHour": 7.3,
+    "deliveriesPerDriverHour": 1.1,
+    "avgDeliveryMinutes": 38,
+    "p90DeliveryMinutes": 63,
+    "lateShare": 12.6,
+    "lateCount": 11,
+    "lateMinutes": 92,
+    "p90DelayMinutes": 11.5,
+    "slaLateShare": 13.8,
+    "etaChanges": 8,
+    "insertedAhead": 0,
+    "disruptiveInsertions": 0,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 54,
+    "lateShareInitialPromise": 23.4,
+    "lateShareHighValue": 4.8,
+    "lateShareOtherValue": 15.2,
+    "openAtEnd": 0,
+    "needsManual": 0,
+    "waitForReplenishmentMinutes": 201,
+    "replenishmentsCentralOnly": 38,
+    "avgApprovalMinutes": 5,
+    "interventionsByCause": {
+     "replenishmentDecisions": 34,
+     "duplicateOfReplenishment": 42,
+     "reassignmentSuggestions": 0,
+     "delays": 0,
+     "driverNoResponse": 10,
+     "capacity": 0,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 41,
+      "late": 19.5,
+      "meanErr": -0.8
+     },
+     "pos1": {
+      "n": 6,
+      "late": 50,
+      "meanErr": 5.9
+     },
+     "pos2plus": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 47,
+      "late": 23.4,
+      "meanErr": 0
+     },
+     "horizonUnder20": {
+      "n": 20,
+      "late": 20,
+      "meanErr": 0
+     },
+     "horizon20to40": {
+      "n": 24,
+      "late": 29.2,
+      "meanErr": 0.4
+     },
+     "horizon40plus": {
+      "n": 3,
+      "late": 0,
+      "meanErr": -2.3
+     }
+    },
+    "managementInterventionsDistinct": 45,
+    "driveMinutes": 1738,
+    "driveMinutesPerDelivery": 20,
+    "extraDriveMinutes": 1826,
+    "depotDriveMinutes": 384,
+    "stockProblems": 83,
+    "replenishments": 38,
+    "replenishmentsCompleted": 25,
+    "managementInterventions": 87,
+    "failedOrUnresolvedActions": 0,
+    "offersRejectedOrExpired": 23,
+    "conversationsNeedingStaff": 10,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 128,
+    "alertsByCategory": {
+     "auto": 52,
+     "inform": 23,
+     "approval": 42,
+     "takeover": 11
+    },
+    "driverHours": 82.3,
+    "simulatedEndAt": "2026-06-16T20:45:00.000Z",
+    "wallClockMs": 5253
+   }
+  },
+  {
+   "load": "100",
+   "orders": 100,
+   "drivers": 8,
+   "seed": 37,
+   "profile": "spread",
+   "strategy": "shortest_detour",
+   "metrics": {
+    "strategy": "shortest_detour",
+    "profile": "spread",
+    "orders": 100,
+    "drivers": 8,
+    "seed": 37,
+    "ordersGenerated": 100,
+    "ordersAccepted": 89,
+    "delivered": 85,
+    "cancelled": 3,
+    "unresolved": 1,
+    "revenueOre": 948000,
+    "contributionOre": 677750,
+    "operatingHours": 12,
+    "deliveriesPerHour": 7.1,
+    "deliveriesPerDriverHour": 1,
+    "avgDeliveryMinutes": 51,
+    "p90DeliveryMinutes": 97,
+    "lateShare": 15.3,
+    "lateCount": 13,
+    "lateMinutes": 103,
+    "p90DelayMinutes": 11.7,
+    "slaLateShare": 31.8,
+    "etaChanges": 12,
+    "insertedAhead": 18,
+    "disruptiveInsertions": 18,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 52.9,
+    "lateShareInitialPromise": 28.9,
+    "lateShareHighValue": 0,
+    "lateShareOtherValue": 20.3,
+    "openAtEnd": 0,
+    "needsManual": 1,
+    "waitForReplenishmentMinutes": 141,
+    "replenishmentsCentralOnly": 32,
+    "avgApprovalMinutes": 4.9,
+    "interventionsByCause": {
+     "replenishmentDecisions": 27,
+     "duplicateOfReplenishment": 35,
+     "reassignmentSuggestions": 3,
+     "delays": 0,
+     "driverNoResponse": 9,
+     "capacity": 1,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 29,
+      "late": 17.2,
+      "meanErr": -1.6
+     },
+     "pos1": {
+      "n": 13,
+      "late": 53.8,
+      "meanErr": 5
+     },
+     "pos2plus": {
+      "n": 3,
+      "late": 33.3,
+      "meanErr": 4.8
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 45,
+      "late": 28.9,
+      "meanErr": 0.7
+     },
+     "horizonUnder20": {
+      "n": 24,
+      "late": 16.7,
+      "meanErr": -2
+     },
+     "horizon20to40": {
+      "n": 14,
+      "late": 28.6,
+      "meanErr": 0.5
+     },
+     "horizon40plus": {
+      "n": 7,
+      "late": 71.4,
+      "meanErr": 10.7
+     }
+    },
+    "managementInterventionsDistinct": 41,
+    "driveMinutes": 1170,
+    "driveMinutesPerDelivery": 13.8,
+    "extraDriveMinutes": 1250,
+    "depotDriveMinutes": 222,
+    "stockProblems": 70,
+    "replenishments": 32,
+    "replenishmentsCompleted": 20,
+    "managementInterventions": 76,
+    "failedOrUnresolvedActions": 1,
+    "offersRejectedOrExpired": 18,
+    "conversationsNeedingStaff": 9,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 117,
+    "alertsByCategory": {
+     "auto": 55,
+     "inform": 13,
+     "approval": 38,
+     "takeover": 11
+    },
+    "driverHours": 83.2,
+    "simulatedEndAt": "2026-06-16T21:26:00.000Z",
+    "wallClockMs": 5664
+   }
+  },
+  {
+   "load": "100",
+   "orders": 100,
+   "drivers": 8,
+   "seed": 42,
+   "profile": "central",
+   "strategy": "fifo",
+   "metrics": {
+    "strategy": "fifo",
+    "profile": "central",
+    "orders": 100,
+    "drivers": 8,
+    "seed": 42,
+    "ordersGenerated": 100,
+    "ordersAccepted": 92,
+    "delivered": 89,
+    "cancelled": 3,
+    "unresolved": 0,
+    "revenueOre": 1088300,
+    "contributionOre": 767000,
+    "operatingHours": 12,
+    "deliveriesPerHour": 7.4,
+    "deliveriesPerDriverHour": 1.1,
+    "avgDeliveryMinutes": 31.9,
+    "p90DeliveryMinutes": 53,
+    "lateShare": 2.2,
+    "lateCount": 2,
+    "lateMinutes": 8,
+    "p90DelayMinutes": 0,
+    "slaLateShare": 4.5,
+    "etaChanges": 1,
+    "insertedAhead": 0,
+    "disruptiveInsertions": 0,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 43.8,
+    "lateShareInitialPromise": 5.1,
+    "lateShareHighValue": 0,
+    "lateShareOtherValue": 3,
+    "openAtEnd": 0,
+    "needsManual": 0,
+    "waitForReplenishmentMinutes": 349,
+    "replenishmentsCentralOnly": 56,
+    "avgApprovalMinutes": 5.3,
+    "interventionsByCause": {
+     "replenishmentDecisions": 46,
+     "duplicateOfReplenishment": 78,
+     "reassignmentSuggestions": 0,
+     "delays": 0,
+     "driverNoResponse": 8,
+     "capacity": 0,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 39,
+      "late": 5.1,
+      "meanErr": -2.8
+     },
+     "pos1": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "pos2plus": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 39,
+      "late": 5.1,
+      "meanErr": -2.8
+     },
+     "horizonUnder20": {
+      "n": 34,
+      "late": 2.9,
+      "meanErr": -3
+     },
+     "horizon20to40": {
+      "n": 5,
+      "late": 20,
+      "meanErr": -1.9
+     },
+     "horizon40plus": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     }
+    },
+    "managementInterventionsDistinct": 55,
+    "driveMinutes": 1237,
+    "driveMinutesPerDelivery": 13.9,
+    "extraDriveMinutes": 1475,
+    "depotDriveMinutes": 435,
+    "stockProblems": 118,
+    "replenishments": 56,
+    "replenishmentsCompleted": 40,
+    "managementInterventions": 133,
+    "failedOrUnresolvedActions": 0,
+    "offersRejectedOrExpired": 9,
+    "conversationsNeedingStaff": 3,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 142,
+    "alertsByCategory": {
+     "auto": 30,
+     "inform": 25,
+     "approval": 78,
+     "takeover": 9
+    },
+    "driverHours": 81.9,
+    "simulatedEndAt": "2026-06-16T20:16:00.000Z",
+    "wallClockMs": 4775
+   }
+  },
+  {
+   "load": "100",
+   "orders": 100,
+   "drivers": 8,
+   "seed": 37,
+   "profile": "spread",
+   "strategy": "economic",
+   "metrics": {
+    "strategy": "economic",
+    "profile": "spread",
+    "orders": 100,
+    "drivers": 8,
+    "seed": 37,
+    "ordersGenerated": 100,
+    "ordersAccepted": 89,
+    "delivered": 86,
+    "cancelled": 2,
+    "unresolved": 1,
+    "revenueOre": 957900,
+    "contributionOre": 684850,
+    "operatingHours": 12,
+    "deliveriesPerHour": 7.2,
+    "deliveriesPerDriverHour": 1,
+    "avgDeliveryMinutes": 42.1,
+    "p90DeliveryMinutes": 87,
+    "lateShare": 9.3,
+    "lateCount": 8,
+    "lateMinutes": 179,
+    "p90DelayMinutes": 13,
+    "slaLateShare": 24.4,
+    "etaChanges": 15,
+    "insertedAhead": 13,
+    "disruptiveInsertions": 13,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 53.5,
+    "lateShareInitialPromise": 17.4,
+    "lateShareHighValue": 0,
+    "lateShareOtherValue": 12.3,
+    "openAtEnd": 0,
+    "needsManual": 1,
+    "waitForReplenishmentMinutes": 164,
+    "replenishmentsCentralOnly": 37,
+    "avgApprovalMinutes": 5.1,
+    "interventionsByCause": {
+     "replenishmentDecisions": 29,
+     "duplicateOfReplenishment": 41,
+     "reassignmentSuggestions": 4,
+     "delays": 0,
+     "driverNoResponse": 12,
+     "capacity": 1,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 37,
+      "late": 2.7,
+      "meanErr": -3.5
+     },
+     "pos1": {
+      "n": 6,
+      "late": 66.7,
+      "meanErr": 14.4
+     },
+     "pos2plus": {
+      "n": 3,
+      "late": 100,
+      "meanErr": 39.8
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 46,
+      "late": 17.4,
+      "meanErr": 1.7
+     },
+     "horizonUnder20": {
+      "n": 33,
+      "late": 3,
+      "meanErr": -3.5
+     },
+     "horizon20to40": {
+      "n": 10,
+      "late": 40,
+      "meanErr": 11.5
+     },
+     "horizon40plus": {
+      "n": 3,
+      "late": 100,
+      "meanErr": 25.5
+     }
+    },
+    "managementInterventionsDistinct": 47,
+    "driveMinutes": 1136,
+    "driveMinutesPerDelivery": 13.2,
+    "extraDriveMinutes": 1243,
+    "depotDriveMinutes": 198,
+    "stockProblems": 80,
+    "replenishments": 37,
+    "replenishmentsCompleted": 20,
+    "managementInterventions": 88,
+    "failedOrUnresolvedActions": 1,
+    "offersRejectedOrExpired": 18,
+    "conversationsNeedingStaff": 10,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 128,
+    "alertsByCategory": {
+     "auto": 50,
+     "inform": 19,
+     "approval": 45,
+     "takeover": 14
+    },
+    "driverHours": 82.7,
+    "simulatedEndAt": "2026-06-16T20:52:00.000Z",
+    "wallClockMs": 5835
+   }
+  },
+  {
+   "load": "100",
+   "orders": 100,
+   "drivers": 8,
+   "seed": 42,
+   "profile": "central",
+   "strategy": "shortest_detour",
+   "metrics": {
+    "strategy": "shortest_detour",
+    "profile": "central",
+    "orders": 100,
+    "drivers": 8,
+    "seed": 42,
+    "ordersGenerated": 100,
+    "ordersAccepted": 92,
+    "delivered": 89,
+    "cancelled": 3,
+    "unresolved": 0,
+    "revenueOre": 1088300,
+    "contributionOre": 767000,
+    "operatingHours": 12,
+    "deliveriesPerHour": 7.4,
+    "deliveriesPerDriverHour": 1.1,
+    "avgDeliveryMinutes": 58,
+    "p90DeliveryMinutes": 118,
+    "lateShare": 14.6,
+    "lateCount": 13,
+    "lateMinutes": 190,
+    "p90DelayMinutes": 17.7,
+    "slaLateShare": 32.6,
+    "etaChanges": 13,
+    "insertedAhead": 29,
+    "disruptiveInsertions": 29,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 41.6,
+    "lateShareInitialPromise": 35.1,
+    "lateShareHighValue": 4.5,
+    "lateShareOtherValue": 17.9,
+    "openAtEnd": 0,
+    "needsManual": 0,
+    "waitForReplenishmentMinutes": 174,
+    "replenishmentsCentralOnly": 37,
+    "avgApprovalMinutes": 5.6,
+    "interventionsByCause": {
+     "replenishmentDecisions": 28,
+     "duplicateOfReplenishment": 51,
+     "reassignmentSuggestions": 4,
+     "delays": 0,
+     "driverNoResponse": 15,
+     "capacity": 0,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 28,
+      "late": 17.9,
+      "meanErr": -1.3
+     },
+     "pos1": {
+      "n": 5,
+      "late": 80,
+      "meanErr": 15.3
+     },
+     "pos2plus": {
+      "n": 4,
+      "late": 100,
+      "meanErr": 32.1
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 37,
+      "late": 35.1,
+      "meanErr": 4.5
+     },
+     "horizonUnder20": {
+      "n": 27,
+      "late": 18.5,
+      "meanErr": -1.2
+     },
+     "horizon20to40": {
+      "n": 5,
+      "late": 80,
+      "meanErr": 14.7
+     },
+     "horizon40plus": {
+      "n": 5,
+      "late": 80,
+      "meanErr": 25.4
+     }
+    },
+    "managementInterventionsDistinct": 48,
+    "driveMinutes": 850,
+    "driveMinutesPerDelivery": 9.5,
+    "extraDriveMinutes": 969,
+    "depotDriveMinutes": 195,
+    "stockProblems": 76,
+    "replenishments": 37,
+    "replenishmentsCompleted": 24,
+    "managementInterventions": 99,
+    "failedOrUnresolvedActions": 0,
+    "offersRejectedOrExpired": 22,
+    "conversationsNeedingStaff": 3,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 122,
+    "alertsByCategory": {
+     "auto": 44,
+     "inform": 7,
+     "approval": 55,
+     "takeover": 16
+    },
+    "driverHours": 82.4,
+    "simulatedEndAt": "2026-06-16T20:27:00.000Z",
+    "wallClockMs": 5993
+   }
+  },
+  {
+   "load": "100",
+   "orders": 100,
+   "drivers": 8,
+   "seed": 42,
+   "profile": "central",
+   "strategy": "economic",
+   "metrics": {
+    "strategy": "economic",
+    "profile": "central",
+    "orders": 100,
+    "drivers": 8,
+    "seed": 42,
+    "ordersGenerated": 100,
+    "ordersAccepted": 92,
+    "delivered": 89,
+    "cancelled": 3,
+    "unresolved": 0,
+    "revenueOre": 1088300,
+    "contributionOre": 767000,
+    "operatingHours": 12,
+    "deliveriesPerHour": 7.4,
+    "deliveriesPerDriverHour": 1.1,
+    "avgDeliveryMinutes": 43.8,
+    "p90DeliveryMinutes": 85,
+    "lateShare": 7.9,
+    "lateCount": 7,
+    "lateMinutes": 67,
+    "p90DelayMinutes": 12.9,
+    "slaLateShare": 16.9,
+    "etaChanges": 7,
+    "insertedAhead": 14,
+    "disruptiveInsertions": 13,
+    "routeChangeOffers": 0,
+    "initialPromiseShare": 37.1,
+    "lateShareInitialPromise": 21.2,
+    "lateShareHighValue": 4.5,
+    "lateShareOtherValue": 9,
+    "openAtEnd": 0,
+    "needsManual": 0,
+    "waitForReplenishmentMinutes": 194,
+    "replenishmentsCentralOnly": 40,
+    "avgApprovalMinutes": 4.9,
+    "interventionsByCause": {
+     "replenishmentDecisions": 27,
+     "duplicateOfReplenishment": 54,
+     "reassignmentSuggestions": 0,
+     "delays": 0,
+     "driverNoResponse": 18,
+     "capacity": 0,
+     "integration": 1,
+     "other": 0
+    },
+    "promiseDiagnostics": {
+     "pos0": {
+      "n": 23,
+      "late": 4.3,
+      "meanErr": -3.6
+     },
+     "pos1": {
+      "n": 7,
+      "late": 42.9,
+      "meanErr": 4.3
+     },
+     "pos2plus": {
+      "n": 3,
+      "late": 100,
+      "meanErr": 15.5
+     },
+     "central": {
+      "n": 0,
+      "late": 0,
+      "meanErr": 0
+     },
+     "vehicle": {
+      "n": 33,
+      "late": 21.2,
+      "meanErr": -0.2
+     },
+     "horizonUnder20": {
+      "n": 24,
+      "late": 4.2,
+      "meanErr": -3.7
+     },
+     "horizon20to40": {
+      "n": 7,
+      "late": 71.4,
+      "meanErr": 10.4
+     },
+     "horizon40plus": {
+      "n": 2,
+      "late": 50,
+      "meanErr": 5.2
+     }
+    },
+    "managementInterventionsDistinct": 46,
+    "driveMinutes": 834,
+    "driveMinutesPerDelivery": 9.4,
+    "extraDriveMinutes": 1009,
+    "depotDriveMinutes": 170,
+    "stockProblems": 83,
+    "replenishments": 40,
+    "replenishmentsCompleted": 23,
+    "managementInterventions": 100,
+    "failedOrUnresolvedActions": 32,
+    "offersRejectedOrExpired": 8,
+    "conversationsNeedingStaff": 3,
+    "integrationFailures": 2,
+    "hourlyReportsSent": 12,
+    "alertsRaised": 114,
+    "alertsByCategory": {
+     "auto": 32,
+     "inform": 9,
+     "approval": 54,
+     "takeover": 19
+    },
+    "driverHours": 81.2,
+    "simulatedEndAt": "2026-06-16T20:00:30.000Z",
+    "wallClockMs": 5127
+   }
+  }
+ ]
+}

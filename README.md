@@ -8,10 +8,10 @@ læser og besvarer beskederne via **Apple Messages på en Mac**, opretter og
 bekræfter ordrer, reserverer lager, vælger chauffør, kommunikerer med chaufførerne
 via **Telegram** og holder kunden opdateret – mens medarbejdere altid kan overtage.
 
-> **Status (v0.4.0):** Fungerende desktop-applikation med komplet Demo Mode,
+> **Status (v0.4.1):** Fungerende desktop-applikation med komplet Demo Mode,
 > ordresystem, lager, AI-orkestrering, økonomisk dispatch, Telegram-baserede ETA'er
 > (ingen live-GPS), Human Takeover, ledelsesgruppe, proaktiv lageropfyldning,
-> timerapporter, proaktiv overvågning, hel-dags-driftssimulering og 147 automatiske tests. Rigtige integrationer (imsg/SMS,
+> timerapporter, proaktiv overvågning, hel-dags-driftssimulering, adaptiv dispatchstrategi og 159 automatiske tests. Rigtige integrationer (imsg/SMS,
 > Telegram, Google Maps, Claude) er implementeret, men **ikke verificeret mod
 > rigtig hardware/rigtige konti endnu**. Se [Status](#status).
 
@@ -48,6 +48,12 @@ Kør en simuleret arbejdsdag (300 ordrer, 8 chauffører, tre dispatchstrategier)
 npm run simulate -- --orders 300 --drivers 8 --seed 42
 ```
 
+Hele matrixen (100–1.000 ordrer, 4 seeds, fire strategier):
+
+```bash
+npm run simulate:matrix
+```
+
 ## Funktioner
 
 | Område | Indhold |
@@ -75,7 +81,7 @@ npm run simulate -- --orders 300 --drivers 8 --seed 42
 - [INSTALLATION.md](INSTALLATION.md) – installation hos en virksomhed, signering, notarisering, opdateringer
 - [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md) – etaper og status
 - [CHANGELOG.md](CHANGELOG.md)
-- [docs/simulation/](docs/simulation/) – resultater af hel-dags-simuleringen (simulerede data)
+- [docs/simulation/v0.4.1/](docs/simulation/v0.4.1/) – årsagsanalyse, adaptiv strategi og simuleringsmatrix (simulerede data)
 
 ## Status
 
@@ -87,7 +93,8 @@ npm run simulate -- --orders 300 --drivers 8 --seed 42
 | Ledelsesagent i Telegram (spørgsmål, handlinger, roller, bekræftelse, revisionsspor) | ✅ | ✅ 14 tests | 🟡 kræver test med rigtig gruppe + Claude-evaluering af danske ledelsesbeskeder |
 | Proaktiv lageropfyldning | ✅ | ✅ 9 tests | 🟡 kræver korrekt startlager i bilerne og kalibrering af afhentningstid |
 | Timerapporter og proaktiv overvågning | ✅ | ✅ 16 tests | 🟡 grænseværdier bør justeres efter første driftsuger |
-| Hel-dags-driftssimulering og strategisammenligning | ✅ | ✅ reproducerbar | – (simulerede data; beviser ikke rigtige integrationer) |
+| Hel-dags-driftssimulering og strategisammenligning | ✅ | ✅ reproducerbar, 4 seeds × 5 belastninger | – (simulerede data; beviser ikke rigtige integrationer) |
+| Adaptiv dispatchstrategi (standard) | ✅ | ✅ regressionstests + matrix | 🟡 grænser og vægte bør kalibreres på rigtige data |
 | Demo Mode (alle integrationer simuleret) | ✅ | ✅ tests + browsertest | – (demo) |
 | Human Takeover | ✅ | ✅ (simuleret) | ⚠️ automatisk registrering af manuelle iPhone-svar kræver hardwaretest |
 | SMS via Apple Messages (imsg) | ✅ | ✅ mod falsk imsg-proces | ❌ kræver PoC på rigtig iPhone + Mac |

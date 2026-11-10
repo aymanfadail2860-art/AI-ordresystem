@@ -1,7 +1,7 @@
 {
   "name": "ai-dispatch",
   "productName": "AI Dispatch",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "AI-drevet ordre- og logistiksystem til macOS (SMS via Apple Messages, chauffører via Telegram)",
   "private": true,
   "main": "dist/main/main.js",
@@ -17,6 +17,7 @@
     "dev:web": "node scripts/build-main.mjs --devserver && vite build && node dist/devserver/webServer.js",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "simulate": "node scripts/build-main.mjs && node dist/sim/cli.js",
+    "simulate:matrix": "node scripts/build-main.mjs && node dist/sim/matrix.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "rebuild:electron": "electron-builder install-app-deps",

@@ -120,15 +120,17 @@ export class MonitorService {
       } else if (expected > promised && o.eta_confidence === 'low') {
         if (o.driver_id != null) riskByDriver.set(o.driver_id, [...(riskByDriver.get(o.driver_id) ?? []), o.id]);
         if (suggestions.has(o.id)) {
+          // Forslaget er valgfrit (en forbedring) – ingen beslutning er påkrævet, så det er ikke et ledelsesindgreb.
+          // Bliver ordren reelt forsinket, eskalerer reglen "kritisk forsinkelse".
           out.push({
             rule: 'promise_risk',
             key: `promise_risk:order:${o.id}`,
-            category: 'approval',
-            severity: 'warn',
+            category: m.dedupeLinkedDecisions === false ? 'approval' : 'auto',
+            severity: 'info',
             title: `Risiko for brud på løftet for ordre #${o.id}`,
-            message: `Ordre #${o.id} (${who}) har usikker ETA tæt på løftet. Et omfordelingsforslag afventer godkendelse i Logistik.`,
+            message: `Ordre #${o.id} (${who}) har usikker ETA tæt på løftet. Et valgfrit omfordelingsforslag ligger klar i Logistik.`,
             data: { orderId: o.id, driverId: o.driver_id },
-            handling: 'Afventer ledelsens godkendelse af omfordelingsforslaget (den nye chauffør skal acceptere).',
+            handling: 'Overvåges; omfordelingsforslaget kan godkendes i Logistik (den nye chauffør skal acceptere).',
           });
         } else {
           out.push({
@@ -217,11 +219,13 @@ export class MonitorService {
       const existing = this.openAlert(key);
       const ageMin = existing ? (now - new Date(existing.firstSeenAt).getTime()) / 60000 : 0;
       if (rep?.status === 'awaiting_management') {
+        // Selve beslutningen er allerede sendt til ledelsen (med knapper) af opfyldningsmodulet –
+        // det er samme beslutning, så den tælles ikke som et ekstra indgreb.
         out.push({
           rule: 'stock_shortage',
           key,
-          category: 'approval',
-          severity: 'warn',
+          category: m.dedupeLinkedDecisions === false ? 'approval' : 'auto',
+          severity: 'info',
           title: `${d.name} mangler ${what}`,
           message: `${d.name} mangler ${what} fra ordre #${f.shortages[0].firstStopOrderId}. Opfyldning #${rep.id} afventer ledelsens godkendelse.`,
           data: { driverId: d.id, replenishmentId: rep.id },
@@ -258,7 +262,8 @@ export class MonitorService {
     // 5. Godkendelser der nærmer sig udløb
     const warnUntil = new Date(now + m.approvalWarnMinutes * 60000).toISOString();
     const reps = ctx.db
-      .prepare(`SELECT id, driver_id, deadline_at FROM replenishments WHERE status = 'awaiting_management' AND deadline_at IS NOT NULL AND deadline_at <= ?`)
+      // Allerede eskaleret af opfyldningsmodulet ("HASTER") → ingen ekstra advarsel om samme beslutning
+      .prepare(`SELECT id, driver_id, deadline_at FROM replenishments WHERE status = 'awaiting_management' AND deadline_at IS NOT NULL AND deadline_at <= ?${m.dedupeLinkedDecisions === false ? '' : ' AND escalated_at IS NULL'}`)
       .all(warnUntil) as { id: number; driver_id: number; deadline_at: string }[];
     for (const r of reps) {
       out.push({

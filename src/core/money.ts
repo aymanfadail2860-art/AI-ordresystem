@@ -1,13 +1,10 @@
 /** Formatér øre som dansk kronebeløb, fx 12950 → "129,50 kr." */
+const FMT_INT = new Intl.NumberFormat('da-DK', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+const FMT_DEC = new Intl.NumberFormat('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 export function formatDkk(ore: number): string {
-  const kr = ore / 100;
   const hasDecimals = ore % 100 !== 0;
-  return (
-    kr.toLocaleString('da-DK', {
-      minimumFractionDigits: hasDecimals ? 2 : 0,
-      maximumFractionDigits: 2,
-    }) + ' kr.'
-  );
+  return (hasDecimals ? FMT_DEC : FMT_INT).format(ore / 100) + ' kr.';
 }
 
 export function krToOre(kr: number): number {

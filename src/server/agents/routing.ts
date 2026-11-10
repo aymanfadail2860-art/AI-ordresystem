@@ -5,6 +5,7 @@ import { evaluateInsertions, optimizeSequence, orderValue, type InsertionResult,
 import type { Driver } from '../../shared/types';
 import type { TravelResult } from '../services/maps';
 import type { CustomerNotifier } from './notifier';
+import { DEFAULT_ADAPTIVE, nextLoadLevel, type LoadLevel } from '../../core/routePlanning';
 import { clock } from '../clock';
 
 export interface RouteStopRow {
@@ -49,6 +50,8 @@ export interface RefreshResult {
  * - ETA'er genberegnes ud fra chaufførens anker (melding/levering/afgang),
  *   køretider fra kortadapteren, meldte forsinkelser og historisk tillæg.
  */
+export const LOAD_LABELS: Record<LoadLevel, string> = { low: 'lav', medium: 'mellem', high: 'høj' };
+
 export class RoutingService {
   constructor(
     private ctx: Ctx,
@@ -283,6 +286,50 @@ export class RoutingService {
     if (anchor.kind === 'driver_report' && anchor.orderId === stops[0].orderId) return 1;
     if (driver.currentOrderId && driver.currentOrderId === stops[0].orderId) return 1;
     return 0;
+  }
+
+  // ---------------- Belastning (adaptiv strategi) ----------------
+
+  /**
+   * Aktuel belastning målt i kapacitet – ikke antal ordrer: timers planlagt
+   * arbejde pr. aktiv chauffør (resterende rute frem til sidste stops ETA
+   * + ventende ordrer uden chauffør). Niveauet skifter med hysterese.
+   */
+  loadState(): { value: number; level: LoadLevel; activeDrivers: number; waitingOrders: number; changedAt: number } {
+    const { ctx } = this;
+    const a = { ...DEFAULT_ADAPTIVE, ...(ctx.settings.get().economics.adaptive ?? {}) };
+    const now = clock.now();
+    const active = ctx.drivers.list().filter((d) => d.status === 'available' || d.status === 'busy');
+    const lastEtas = new Map(
+      (
+        ctx.db
+          .prepare(
+            `SELECT rs.driver_id AS d, MAX(rs.eta) AS eta FROM route_stops rs JOIN orders o ON o.id = rs.order_id WHERE o.status IN ('driver_assigned','out_for_delivery') GROUP BY rs.driver_id`,
+          )
+          .all() as { d: number; eta: string | null }[]
+      ).map((r) => [r.d, r.eta ? new Date(r.eta).getTime() : now]),
+    );
+    const backlog = active.reduce((sum, d) => sum + Math.max(0, ((lastEtas.get(d.id) ?? now) - now) / 60000), 0);
+    const waiting = (ctx.db.prepare(`SELECT COUNT(*) AS c FROM orders WHERE status IN ('confirmed','awaiting_driver')`).get() as { c: number }).c;
+    const value = active.length ? (backlog + waiting * a.minutesPerWaitingOrder) / (active.length * 60) : waiting ? 9 : 0;
+    const prev = ctx.kv.get<{ level: LoadLevel; changedAt: number; switches: number }>('dispatch:load', { level: 'low', changedAt: 0, switches: 0 });
+    const level = nextLoadLevel(prev.level, value, (now - prev.changedAt) / 60000, a);
+    if (level !== prev.level) {
+      ctx.kv.set('dispatch:load', { level, changedAt: now, switches: prev.switches + 1 });
+      ctx.events.log('info', 'dispatch', 'load_level', `Belastning skiftet fra ${LOAD_LABELS[prev.level]} til ${LOAD_LABELS[level]} (${value.toFixed(2)} timers arbejde pr. aktiv chauffør)`, {
+        data: { from: prev.level, to: level, value },
+      });
+      return { value, level, activeDrivers: active.length, waitingOrders: waiting, changedAt: now };
+    }
+    return { value, level, activeDrivers: active.length, waitingOrders: waiting, changedAt: prev.changedAt };
+  }
+
+  /** Planlagte minutter tilbage i chaufførens rute (til lastbalancering). */
+  backlogMinutes(driverId: number): number {
+    const r = this.ctx.db
+      .prepare(`SELECT MAX(rs.eta) AS eta FROM route_stops rs JOIN orders o ON o.id = rs.order_id WHERE rs.driver_id = ? AND o.status IN ('driver_assigned','out_for_delivery')`)
+      .get(driverId) as { eta: string | null };
+    return r.eta ? Math.max(0, (new Date(r.eta).getTime() - clock.now()) / 60000) : 0;
   }
 
   // ---------------- Planlægning af ny ordre ----------------
