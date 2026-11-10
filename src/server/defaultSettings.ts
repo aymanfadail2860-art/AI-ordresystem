@@ -36,7 +36,7 @@ const day = (open: string, close: string, closed = false) => ({ open, close, clo
 
 export function defaultSettings(mode: Settings['installation']['mode']): Settings {
   return {
-    company: { name: '', phone: '', email: '', address: '', cvr: '' },
+    company: { name: '', phone: '', email: '', address: '', cvr: '', timezone: 'Europe/Copenhagen' },
     installation: { mode, setupCompleted: false, automationEnabled: mode === 'demo' },
     automation: { customerReplies: true, autoDispatch: true, customerEtaUpdates: true },
     pricing: {
@@ -74,9 +74,21 @@ export function defaultSettings(mode: Settings['installation']['mode']): Setting
       delayTemplate: 'Din levering (ordre #{orderId}) er desværre forsinket. Ny forventet tid er ca. kl. {time}.',
       delayNoTimeTemplate: 'Din levering (ordre #{orderId}) er desværre forsinket. Vi giver besked, når chaufføren er tæt på.',
     },
-    management: { groupChatId: '', allowPrivateChats: true, confirmTimeoutMinutes: 10 },
+    management: { groupChatId: '', allowPrivateChats: true, confirmTimeoutMinutes: 10, hourlyReports: true },
+    monitoring: {
+      enabled: true,
+      notifyGroup: true,
+      criticalDelayMinutes: 15,
+      takeoverDelayMinutes: 40,
+      unresponsiveMinutes: 25,
+      capacityWaitMinutes: 10,
+      volumeChangeFactor: 2,
+      volumeMinOrders: 8,
+      approvalWarnMinutes: 5,
+    },
     replenishment: { enabled: true, pickupMinutes: 8, reminderAfterMinutes: 10, escalateLeadMinutes: 10, minRouteImprovementOre: 1000 },
     economics: {
+      strategy: 'economic',
       priorityWeight: 3,
       defaultMarginPct: 35,
       driveCostPerMinuteOre: 400,

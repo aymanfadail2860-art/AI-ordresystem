@@ -3,6 +3,7 @@ import path from 'node:path';
 import { scryptSync, randomBytes, timingSafeEqual } from 'node:crypto';
 import type { Ctx } from './context';
 import type { BackupInfo } from '../shared/types';
+import { clock } from './clock';
 
 /**
  * Backup og gendannelse. Bruger SQLites online backup-API, så der kan tages
@@ -19,7 +20,7 @@ export class BackupService {
         const s = ctx.settings.get();
         if (s.backup.enabled && this.dbFile !== ':memory:') {
           const last = this.list()[0];
-          if (!last || Date.now() - new Date(last.createdAt).getTime() > s.backup.intervalHours * 3600000) await this.create('auto');
+          if (!last || clock.now() - new Date(last.createdAt).getTime() > s.backup.intervalHours * 3600000) await this.create('auto');
         }
       } finally {
         ctx.jobs.enqueue('backup_tick', {}, { delayMs: 30 * 60000, dedupeKey: 'backup_tick' });
@@ -34,7 +35,7 @@ export class BackupService {
   async create(reason: 'auto' | 'manual' | 'pre_restore'): Promise<BackupInfo> {
     if (this.dbFile === ':memory:') throw new Error('Backup kræver en fil-database');
     fs.mkdirSync(this.backupDir, { recursive: true });
-    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const stamp = clock.date().toISOString().replace(/[:.]/g, '-');
     const file = path.join(this.backupDir, `ai-dispatch-${stamp}-${reason}.sqlite`);
     await this.ctx.db.backup(file);
     this.ctx.events.log('info', 'backup', 'backup_created', `Backup oprettet (${reason})`);
@@ -100,7 +101,7 @@ export class RetentionService {
   run(): { messages: number; customers: number; events: number } {
     const { db } = this.ctx;
     const r = this.ctx.settings.get().retention;
-    const cut = (days: number) => new Date(Date.now() - days * 86400000).toISOString();
+    const cut = (days: number) => new Date(clock.now() - days * 86400000).toISOString();
     const messages = db
       .prepare(`UPDATE messages SET body = '[slettet efter opbevaringsperiode]' WHERE created_at < ? AND body <> '[slettet efter opbevaringsperiode]'`)
       .run(cut(r.messageBodyDays)).changes;
@@ -124,7 +125,7 @@ export class RetentionService {
       .prepare(`SELECT m.direction, m.author, m.body, m.created_at FROM messages m JOIN conversations c ON c.id = m.conversation_id WHERE c.customer_id = ? ORDER BY m.id`)
       .all(customerId);
     this.ctx.audit.record('staff', 'gdpr_export', 'customer', customerId);
-    return { exportedAt: new Date().toISOString(), customer, orders, messages };
+    return { exportedAt: clock.date().toISOString(), customer, orders, messages };
   }
 
   /** Anonymisér kunden (ordrer bevares til regnskab, persondata fjernes). */
@@ -133,7 +134,7 @@ export class RetentionService {
     db.transaction(() => {
       db.prepare(`UPDATE customers SET phone = ?, name = NULL, default_address = NULL, notes = NULL, anonymized_at = ? WHERE id = ?`).run(
         `anonym-${customerId}`,
-        new Date().toISOString(),
+        clock.date().toISOString(),
         customerId,
       );
       db.prepare(
@@ -178,7 +179,7 @@ export class AuthService {
   unlock(pin: string): boolean {
     const ok = this.verify(pin);
     this.ctx.audit.record('staff', ok ? 'unlock_ok' : 'unlock_failed');
-    if (ok) this.unlockedUntil = Date.now() + 10 * 60000;
+    if (ok) this.unlockedUntil = clock.now() + 10 * 60000;
     return ok;
   }
 
@@ -187,7 +188,7 @@ export class AuthService {
   }
 
   isUnlocked(): boolean {
-    return !this.hasPin() || Date.now() < this.unlockedUntil;
+    return !this.hasPin() || clock.now() < this.unlockedUntil;
   }
 
   require(): void {

@@ -1,4 +1,5 @@
 import type { App } from '../app';
+import { clock } from '../clock';
 
 /**
  * Demo: chauffør med lager til 5 af 7 stop. Opretter syv fiktive ordrer på en
@@ -21,12 +22,12 @@ export async function replenishmentScenario(app: App): Promise<{ driverName: str
   if (free !== 10) ctx.inventory.adjust(vehicle, product.id, 10 - free, 'Demo: opfyldningsscenarie', 'system');
   const base = driver.lastLat != null ? { lat: driver.lastLat, lng: driver.lastLng! } : { lat: 55.68, lng: 12.56 };
   const ids: number[] = [];
-  const stamp = Date.now() % 1000;
+  const stamp = clock.now() % 1000;
   for (let i = 1; i <= 7; i++) {
     const phone = `+4599995${String((stamp + i) % 1000).padStart(3, '0')}`;
     const c = ctx.conversations.upsertCustomer(phone);
     const conv = ctx.conversations.getOrCreateConversation(c.id);
-    const { id } = ctx.orders.createDraft({ customerId: c.id, conversationId: conv, idempotencyKey: `demo-rep:${phone}:${Date.now()}`, actor: 'system' });
+    const { id } = ctx.orders.createDraft({ customerId: c.id, conversationId: conv, idempotencyKey: `demo-rep:${phone}:${clock.now()}`, actor: 'system' });
     ctx.orders.setLines(id, [{ productId: product.id, quantity: 2 }], ctx.settings.get().pricing, 'system');
     ctx.orders.updateFields(id, { addressText: `Demogade ${i * 10}, 2100 København Ø`, addressLat: base.lat + i * 0.007, addressLng: base.lng + 0.002 * (i % 2), addressValidated: true }, 'system');
     ctx.orders.transition(id, 'awaiting_stock_check', 'system');

@@ -6,6 +6,7 @@ import type { JobQueue, JobRow } from '../jobs/jobQueue';
 import { PermanentJobError, RetryLaterError } from '../jobs/jobQueue';
 import type { InboundSms, OutgoingObserved, SmsAdapter } from '../adapters/sms/types';
 import { normalizePhone, maskPhone } from '../../core/phone';
+import { clock } from '../clock';
 
 /**
  * SMS-gateway: forbinder den udskiftelige SMS-adapter med resten af systemet.
@@ -116,7 +117,7 @@ export class SmsGateway {
     const customer = this.conversations.customerByPhone(phone);
     const convId = customer ? this.conversations.getOrCreateConversation(customer.id) : null;
     if (convId) {
-      const since = new Date(Date.now() - 3 * 60000).toISOString();
+      const since = new Date(clock.now() - 3 * 60000).toISOString();
       const own = this.db
         .prepare(
           `SELECT id FROM messages WHERE conversation_id = ? AND direction = 'out' AND body = ? AND status IN ('sending','sent','uncertain')
@@ -187,7 +188,7 @@ export class SmsGateway {
         return;
       }
       // For gamle automatiske svar sendes ikke (fx efter langt nedbrud)
-      if (Date.now() - new Date(row.created_at as string).getTime() > 15 * 60000) {
+      if (clock.now() - new Date(row.created_at as string).getTime() > 15 * 60000) {
         this.conversations.setMessageStatus(messageId, 'blocked', { error: 'Svaret blev for gammelt til automatisk afsendelse' });
         this.events.log('warn', 'sms', 'stale_reply', `Automatisk svar #${messageId} blev ikke sendt, fordi det var over 15 minutter gammelt`, {
           requiresAction: true,

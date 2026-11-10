@@ -8,6 +8,7 @@ import { parseJson } from '../db/database';
 import type { Replenishment, ReplenishmentOption, ReplenishmentStatus, StockForecast } from '../../shared/types';
 import { REPLENISHMENT_STATUS_LABELS } from '../../shared/types';
 import type { TelegramButton } from '../adapters/telegram/types';
+import { clock } from '../clock';
 
 /** Gyldige statusskift for en lageropfyldning. */
 const TRANSITIONS: Record<ReplenishmentStatus, ReplenishmentStatus[]> = {
@@ -157,7 +158,7 @@ export class ReplenishmentService {
     if (!r) throw new Error('Opfyldning findes ikke');
     if (!TRANSITIONS[r.status].includes(to)) throw new Error(`Ugyldigt statusskift for opfyldning: ${REPLENISHMENT_STATUS_LABELS[r.status]} → ${REPLENISHMENT_STATUS_LABELS[to]}`);
     const sets = ['status = ?', 'updated_at = ?'];
-    const args: unknown[] = [to, new Date().toISOString()];
+    const args: unknown[] = [to, clock.date().toISOString()];
     for (const [k, v] of Object.entries(extra)) {
       sets.push(`${k} = ?`);
       args.push(v);
@@ -165,7 +166,7 @@ export class ReplenishmentService {
     this.ctx.db.prepare(`UPDATE replenishments SET ${sets.join(', ')} WHERE id = ? AND status = ?`).run(...args, id, r.status);
     this.ctx.db
       .prepare(`INSERT INTO replenishment_events (replenishment_id, from_status, to_status, actor, data, created_at) VALUES (?, ?, ?, ?, ?, ?)`)
-      .run(id, r.status, to, actor, JSON.stringify(data), new Date().toISOString());
+      .run(id, r.status, to, actor, JSON.stringify(data), clock.date().toISOString());
     this.ctx.bus.touch('replenishment', 'inventory', 'logistics');
     // ETA-grundlaget afhænger af opfyldningens status → genberegn ruten
     this.ctx.jobs.enqueue('refresh_route', { driverId: r.driver_id, reason: `opfyldning ${REPLENISHMENT_STATUS_LABELS[to].toLowerCase()}` }, { dedupeKey: `refresh_route:${r.driver_id}` });
@@ -276,7 +277,7 @@ export class ReplenishmentService {
     const m = await ctx.maps.matrix(all, all);
     const travel = (from: number, to: number) => m[from + 1][to + 1].durationS;
     const results = evaluateReplenishmentOptions({
-      nowMs: Date.now(),
+      nowMs: clock.now(),
       anchor,
       stops: stops.map((x) => ({ orderId: x.orderId, promisedMs: x.promisedMs, extraDelayMs: x.extraDelayMs, value: x.value, priority: x.priority })),
       lockedCount: this.routing.lockedCount(driver, stops, anchor),
@@ -366,10 +367,10 @@ export class ReplenishmentService {
     for (const o of coverIds) for (const [pid, q] of Object.entries(this.needsOf(o))) need[Number(pid)] = (need[Number(pid)] ?? 0) + q;
     this.ctx.db
       .prepare(`UPDATE replenishments SET covers_orders = ?, items = ?, updated_at = ? WHERE id = ?`)
-      .run(JSON.stringify(coverIds), JSON.stringify(Object.entries(need).map(([productId, quantity]) => ({ productId: Number(productId), quantity }))), new Date().toISOString(), id);
+      .run(JSON.stringify(coverIds), JSON.stringify(Object.entries(need).map(([productId, quantity]) => ({ productId: Number(productId), quantity }))), clock.date().toISOString(), id);
     this.ctx.db
       .prepare(`INSERT INTO replenishment_events (replenishment_id, from_status, to_status, actor, data, created_at) VALUES (?, NULL, NULL, ?, ?, ?)`)
-      .run(id, actor, JSON.stringify({ covers: coverIds }), new Date().toISOString());
+      .run(id, actor, JSON.stringify({ covers: coverIds }), clock.date().toISOString());
     this.ctx.bus.touch('replenishment');
   }
 
@@ -402,8 +403,8 @@ export class ReplenishmentService {
           JSON.stringify(coverIds),
           JSON.stringify(analysis),
           new Date(deadline).toISOString(),
-          new Date().toISOString(),
-          new Date().toISOString(),
+          clock.date().toISOString(),
+          clock.date().toISOString(),
         );
       id = Number(r.lastInsertRowid);
     } catch (e) {
@@ -412,11 +413,11 @@ export class ReplenishmentService {
     }
     ctx.db
       .prepare(`INSERT INTO replenishment_events (replenishment_id, from_status, to_status, actor, data, created_at) VALUES (?, NULL, 'proposed', 'system', ?, ?)`)
-      .run(id, JSON.stringify({ reason }), new Date().toISOString());
+      .run(id, JSON.stringify({ reason }), clock.date().toISOString());
     ctx.events.log('info', 'replenishment', 'proposed', `Opfyldning foreslået til ${driver.name}: ${this.itemsText(coverIds)} på ${chosen.locationName} (${reason})`, {
       data: { replenishmentId: id, driverId },
     });
-    this.transition(id, 'awaiting_management', 'system', {}, { sent_at: new Date().toISOString() });
+    this.transition(id, 'awaiting_management', 'system', {}, { sent_at: clock.date().toISOString() });
     this.sendProposal(id, intro ?? '🔄 Forslag til lageropfyldning');
     return id;
   }
@@ -454,11 +455,11 @@ export class ReplenishmentService {
         JSON.stringify(coverIds),
         JSON.stringify(analysis),
         new Date(deadline).toISOString(),
-        new Date().toISOString(),
+        clock.date().toISOString(),
         id,
       );
-    if (r.status === 'awaiting_driver') this.ctx.telegram.sendToDriver(r.driver_id, `Lagerbesøg #${id} er ændret og skal godkendes igen – afvent ny besked.`, `rep_replan_driver:${id}:${Date.now()}`);
-    this.transition(id, 'awaiting_management', 'system', { reason }, { sent_at: new Date().toISOString(), approved_by: null, approved_at: null });
+    if (r.status === 'awaiting_driver') this.ctx.telegram.sendToDriver(r.driver_id, `Lagerbesøg #${id} er ændret og skal godkendes igen – afvent ny besked.`, `rep_replan_driver:${id}:${clock.now()}`);
+    this.transition(id, 'awaiting_management', 'system', { reason }, { sent_at: clock.date().toISOString(), approved_by: null, approved_at: null });
     this.sendProposal(id, `🔁 ${reason}`);
   }
 
@@ -474,7 +475,7 @@ export class ReplenishmentService {
     });
     this.notifyGroup(
       `⚠️ Ingen forsvarlig lageropfyldning for ${driver.name}.\nOrdrer der mangler varer: ${coverIds.map((x) => '#' + x).join(', ')} (${this.itemsText(coverIds)}).\nÅrsag (${reason}):\n${why || '• Ingen lagerlokation med varerne'}\nForslag: omfordel ordrerne til en chauffør med varer ("flyt ordre X til chauffør Y") eller sæt dem i manuel håndtering.`,
-      `rep_nosol:${driverId}:${coverIds.join('-')}:${Math.floor(Date.now() / 600000)}`,
+      `rep_nosol:${driverId}:${coverIds.join('-')}:${Math.floor(clock.now() / 600000)}`,
     );
     if (this.onUncoverable) await this.onUncoverable(coverIds, driverId);
   }
@@ -532,7 +533,7 @@ export class ReplenishmentService {
     const rep = this.get(id)!;
     const text = this.proposalText(rep, title);
     if (this.groupChat()) {
-      this.notifyGroup(text, `rep_proposal:${id}:${Date.now()}`, [
+      this.notifyGroup(text, `rep_proposal:${id}:${clock.now()}`, [
         [
           { text: '✅ Godkend', data: `rep:${id}:approve` },
           { text: '🔍 Vis alternativer', data: `rep:${id}:alts` },
@@ -573,7 +574,7 @@ export class ReplenishmentService {
           if (o.stock_state !== 'reserved') throw new Error(`Ordre #${orderId} har ingen lagerreservation`);
           if (o.stock_location_id !== r.location_id) ctx.inventory.moveReservation(orderId, r.location_id);
         }
-        this.transition(id, 'approved', by.name, { source: by.source }, { approved_by: by.name, approved_at: new Date().toISOString() });
+        this.transition(id, 'approved', by.name, { source: by.source }, { approved_by: by.name, approved_at: clock.date().toISOString() });
       })();
     } catch (e) {
       const msg = e instanceof InsufficientStockError ? 'lageret har ikke længere varerne (en anden chauffør har fået dem)' : (e as Error).message;
@@ -594,7 +595,7 @@ export class ReplenishmentService {
     this.ctx.telegram.sendToDriver(
       rep.driverId,
       `${updated ? 'Opdateret lagerbesøg' : 'Lagerbesøg'} #${id}: Hent ${rep.items.map((i) => `${i.quantity}× ${i.productName}`).join(', ')} på ${rep.locationName} ${rep.afterOrderId ? `efter ordre #${rep.afterOrderId}` : 'før næste stop'}.\nEkstra ca. ${c ? Math.round(c.extraDriveMinutes + c.pickupMinutes) : '?'} min. Kan du det?`,
-      `rep_driver:${id}:${updated ? Date.now() : 'first'}`,
+      `rep_driver:${id}:${updated ? clock.now() : 'first'}`,
       { buttons: [[{ text: '✅ Accepter', data: `rep:${id}:driver_accept` }, { text: '❌ Kan ikke', data: `rep:${id}:driver_reject` }]] },
     );
   }
@@ -619,7 +620,7 @@ export class ReplenishmentService {
     if (!r || r.driver_id !== driverId) return 'Lagerbesøget blev ikke fundet.';
     if (r.status !== 'awaiting_driver') return `Lagerbesøg #${id} afventer ikke dit svar (status: ${REPLENISHMENT_STATUS_LABELS[r.status]}).`;
     if (accept) {
-      this.transition(id, 'en_route', 'driver', {}, { driver_accepted_at: new Date().toISOString() });
+      this.transition(id, 'en_route', 'driver', {}, { driver_accepted_at: clock.date().toISOString() });
       ctx.db.prepare(`UPDATE drivers SET route_version = route_version + 1 WHERE id = ?`).run(driverId);
       this.routing.touchAnchor(driverId);
       await this.routing.refreshEtas(driverId, 'lagerbesøg accepteret');
@@ -654,12 +655,12 @@ export class ReplenishmentService {
     let moved: { productId: number; quantity: number }[] = [];
     ctx.db.transaction(() => {
       moved = ctx.inventory.pickupForOrders(covers, r.location_id, driver.vehicleLocationId!, id);
-      this.transition(id, 'picked_up', 'driver', { moved }, { picked_up_at: new Date().toISOString() });
-      this.transition(id, 'completed', 'system', {}, { completed_at: new Date().toISOString() });
+      this.transition(id, 'picked_up', 'driver', { moved }, { picked_up_at: clock.date().toISOString() });
+      this.transition(id, 'completed', 'system', {}, { completed_at: clock.date().toISOString() });
       const loc = ctx.inventory.location(r.location_id);
       if (loc?.lat != null) {
         ctx.drivers.setPosition(driverId, loc.lat, loc.lng!, 'central');
-        this.routing.setAnchor(driverId, { kind: 'start', atMs: Date.now(), point: { lat: loc.lat, lng: loc.lng! } });
+        this.routing.setAnchor(driverId, { kind: 'start', atMs: clock.now(), point: { lat: loc.lat, lng: loc.lng! } });
       }
       ctx.db.prepare(`UPDATE drivers SET route_version = route_version + 1 WHERE id = ?`).run(driverId);
     })();
@@ -733,7 +734,7 @@ export class ReplenishmentService {
   async tick(): Promise<void> {
     const { ctx } = this;
     const s = ctx.settings.get().replenishment;
-    const now = Date.now();
+    const now = clock.now();
     const rows = ctx.db.prepare(`SELECT * FROM replenishments WHERE status IN ('awaiting_management','awaiting_driver')`).all() as Row[];
     for (const r of rows) {
       const deadline = r.deadline_at ? new Date(r.deadline_at).getTime() : null;

@@ -26,6 +26,8 @@ import { ReplenishmentService } from './agents/replenishment';
 import { ManagementAgent } from './agents/managementAgent';
 import { ManagementService } from './services/management';
 import { ClaudeManagementInterpreter, RuleBasedManagementInterpreter } from './ai/managementInterpreter';
+import { ReportService } from './agents/reports';
+import { MonitorService } from './agents/monitor';
 import { DispatchAgent } from './agents/dispatchAgent';
 import { DriverAgent } from './agents/driverAgent';
 import { LogisticsAgent } from './agents/logisticsAgent';
@@ -46,6 +48,7 @@ import type { MapsAdapter } from './adapters/maps/types';
 import type { SecretStore } from './secrets';
 import type { Ctx } from './context';
 import type { InstallationMode } from '../shared/types';
+import { clock } from './clock';
 
 export interface AppOptions {
   mode: InstallationMode;
@@ -81,6 +84,8 @@ export interface App {
     routing: RoutingService;
     replenishment: ReplenishmentService;
     management: ManagementAgent;
+    reports: ReportService;
+    monitor: MonitorService;
   };
   management: ManagementService;
   backup: BackupService;
@@ -102,7 +107,7 @@ export async function createApp(opts: AppOptions): Promise<App> {
       // Backup før migration af en eksisterende database
       if (opts.dbFile !== ':memory:') {
         fs.mkdirSync(opts.backupDir, { recursive: true });
-        preMigrateBackup = `${opts.backupDir}/pre-migration-${Date.now()}.sqlite`;
+        preMigrateBackup = `${opts.backupDir}/pre-migration-${clock.now()}.sqlite`;
         d.exec(`VACUUM INTO '${preMigrateBackup.replace(/'/g, "''")}'`);
       }
     },
@@ -206,13 +211,14 @@ export async function createApp(opts: AppOptions): Promise<App> {
       if (!alt?.best) continue;
       const open = db.prepare(`SELECT id FROM reassignment_suggestions WHERE order_id = ? AND status = 'open'`).get(id);
       if (open) continue;
-      db.prepare(`INSERT INTO reassignment_suggestions (order_id, from_driver_id, to_driver_id, reason, eta_gain_minutes, analysis) VALUES (?, ?, ?, ?, ?, ?)`).run(
+      db.prepare(`INSERT INTO reassignment_suggestions (order_id, from_driver_id, to_driver_id, reason, eta_gain_minutes, analysis, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`).run(
         id,
         fromDriverId,
         alt.driver.id,
         `${alt.driver.name} har varerne i bilen (lageropfyldning ikke mulig)`,
         null,
         JSON.stringify(alt.best.analysis),
+        clock.iso(),
       );
       bus.touch('logistics');
     }
@@ -220,6 +226,9 @@ export async function createApp(opts: AppOptions): Promise<App> {
   const management = new ManagementService(db, bus, audit);
   const managementInterpreter = isDemo ? new RuleBasedManagementInterpreter(ai) : new ClaudeManagementInterpreter(ai);
   const managementAgent = new ManagementAgent(ctx, management, managementInterpreter, dispatch, routing, replenishment);
+  const reports = new ReportService(ctx, routing, replenishment);
+  managementAgent.reports = reports;
+  const monitor = new MonitorService(ctx, routing, replenishment);
   const backup = new BackupService(ctx, opts.dbFile, opts.backupDir);
   const retention = new RetentionService(ctx);
   const auth = new AuthService(ctx);
@@ -248,7 +257,7 @@ export async function createApp(opts: AppOptions): Promise<App> {
   const app: App = {
     ctx,
     mode: opts.mode,
-    agents: { customer, dispatch, driver, logistics, routing, replenishment, management: managementAgent },
+    agents: { customer, dispatch, driver, logistics, routing, replenishment, management: managementAgent, reports, monitor },
     management,
     backup,
     retention,
@@ -263,6 +272,8 @@ export async function createApp(opts: AppOptions): Promise<App> {
       if (!opts.manualJobs) {
         logistics.start();
         replenishment.start();
+        reports.start();
+        monitor.start();
         backup.start();
         retention.start();
         jobs.start();

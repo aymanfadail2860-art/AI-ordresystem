@@ -9,6 +9,7 @@ import type { Driver } from '../../shared/types';
 import { fillTemplate, formatTime } from './replies';
 import { AiDisabledError, BudgetExceededError } from '../ai/gateway';
 import type { ReplenishmentService } from './replenishment';
+import { clock } from '../clock';
 
 /**
  * Driver Communication Agent – uden live-GPS.
@@ -49,7 +50,7 @@ export class DriverAgent {
   }
 
   private recordStatus(driver: Driver, kind: string, text: string, extra: { orderId?: number | null; etaMinutes?: number | null; delayMinutes?: number | null } = {}): void {
-    const now = new Date().toISOString();
+    const now = clock.date().toISOString();
     this.ctx.db
       .prepare(`UPDATE drivers SET last_status_text = ?, last_status_at = ?, status_request_sent_at = NULL WHERE id = ?`)
       .run(text.slice(0, 200), now, driver.id);
@@ -83,7 +84,7 @@ export class DriverAgent {
 
     if (u.kind === 'location') {
       // AI Dispatch bruger bevidst ikke live-GPS. Positionen gemmes ikke.
-      this.reply(driver.id, 'AI Dispatch bruger ikke live-position. Skriv i stedet din status, fx "ordre 142, der om 5 min" eller "10 min forsinket".', `nolocation:${driver.id}:${new Date().toISOString().slice(0, 13)}`);
+      this.reply(driver.id, 'AI Dispatch bruger ikke live-position. Skriv i stedet din status, fx "ordre 142, der om 5 min" eller "10 min forsinket".', `nolocation:${driver.id}:${clock.date().toISOString().slice(0, 13)}`);
       return;
     }
 
@@ -247,7 +248,7 @@ export class DriverAgent {
         this.reply(driver.id, 'Pause registreret. Skriv /online når du er tilbage.', replyKey);
         return;
       case 'capacity_available': {
-        const until = new Date(Date.now() + s.logistics.extraCapacityMinutes * 60000).toISOString();
+        const until = new Date(clock.now() + s.logistics.extraCapacityMinutes * 60000).toISOString();
         ctx.db.prepare(`UPDATE drivers SET extra_capacity_until = ? WHERE id = ?`).run(until, driver.id);
         this.recordStatus(driver, 'capacity', text);
         this.routing.touchAnchor(driver.id);
@@ -383,7 +384,7 @@ export class DriverAgent {
         this.routing.moveToFront(driver.id, order.id, 'chaufførens ETA-melding');
         if (order.status === 'driver_assigned') ctx.orders.transition(order.id, 'out_for_delivery', 'driver');
         this.routing.clearStopDelay(driver.id, order.id);
-        this.routing.setAnchor(driver.id, { kind: 'driver_report', atMs: Date.now() + minutes * 60000, orderId: order.id });
+        this.routing.setAnchor(driver.id, { kind: 'driver_report', atMs: clock.now() + minutes * 60000, orderId: order.id });
         this.recordStatus(driver, 'eta', text, { orderId: order.id, etaMinutes: minutes });
         ctx.orders.addEvent(order.id, 'driver_eta', 'driver', { minutes });
         const soon = this.notifier.arrivalSoon(order.id, minutes);
@@ -407,7 +408,7 @@ export class DriverAgent {
         this.setCurrent(driver.id, order.id);
         this.routing.moveToFront(driver.id, order.id, 'chaufføren er fremme');
         this.routing.clearStopDelay(driver.id, order.id);
-        this.routing.setAnchor(driver.id, { kind: 'driver_report', atMs: Date.now(), orderId: order.id });
+        this.routing.setAnchor(driver.id, { kind: 'driver_report', atMs: clock.now(), orderId: order.id });
         this.recordStatus(driver, 'arrived', text, { orderId: order.id, etaMinutes: 0 });
         if (conv) ctx.sms.queue(conv, `Din chauffør er fremme med ordre #${order.id}.`, 'system', `arrived:${order.id}`, order.id);
         await this.routing.refreshEtas(driver.id, 'chauffør fremme');
@@ -446,7 +447,7 @@ export class DriverAgent {
       ctx.orders.transition(order.id, 'delivered', 'driver', { via: 'telegram' });
       if (order.addressLat != null) {
         ctx.drivers.setPosition(driver.id, order.addressLat, order.addressLng!, 'delivered_stop');
-        this.routing.setAnchor(driver.id, { kind: 'delivered', atMs: Date.now(), point: { lat: order.addressLat, lng: order.addressLng! } });
+        this.routing.setAnchor(driver.id, { kind: 'delivered', atMs: clock.now(), point: { lat: order.addressLat, lng: order.addressLng! } });
       }
       ctx.db.prepare(`UPDATE drivers SET current_order_id = CASE WHEN current_order_id = ? THEN NULL ELSE current_order_id END, route_version = route_version + 1 WHERE id = ?`).run(order.id, driver.id);
       if (order.conversationId) ctx.sms.queue(order.conversationId, fillTemplate(s.messages.delivered, { orderId: order.id, company: s.company.name }), 'system', `delivered:${order.id}`, order.id);

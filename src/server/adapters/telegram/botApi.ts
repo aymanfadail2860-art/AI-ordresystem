@@ -1,4 +1,5 @@
 import type { TelegramAdapter, TelegramButton, TelegramHandlers, TelegramSendResult, TelegramUpdate } from './types';
+import { clock } from '../../clock';
 
 /**
  * Telegram Bot API-adapter (long polling via getUpdates – ingen offentlig webhook
@@ -175,7 +176,7 @@ function name(u?: RawUser): string {
 }
 
 export function mapUpdate(u: RawUpdate): TelegramUpdate | null {
-  const at = new Date().toISOString();
+  const at = clock.date().toISOString();
   if (u.callback_query) {
     const cq = u.callback_query;
     return {

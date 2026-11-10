@@ -12,6 +12,7 @@ import { haversineMeters } from '../../core/geo';
 import { isOpen } from '../../core/openingHours';
 import type { Order, OrderStatus } from '../../shared/types';
 import { fillTemplate, menuText, priceFacts, quoteText, statusText } from './replies';
+import { clock } from '../clock';
 
 /**
  * Customer Agent + Order Agent.
@@ -99,9 +100,9 @@ export class CustomerAgent {
     const lastInbound = pending[pending.length - 1];
     const replyKey = `reply:${conversationId}:${lastInbound.id}`;
 
-    if (!isOpen(s.openingHours, new Date())) {
+    if (!isOpen(s.openingHours, clock.date(), s.company.timezone || undefined)) {
       ctx.db.transaction(() => {
-        const day = new Date().toISOString().slice(0, 10);
+        const day = clock.date().toISOString().slice(0, 10);
         ctx.sms.queue(conversationId, fillTemplate(s.messages.closed, { company: s.company.name, nextOpen: 'i vores åbningstid' }), 'ai', `closed:${conversationId}:${day}`);
         ctx.conversations.markProcessed(pending.map((m) => m.id));
       })();

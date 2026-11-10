@@ -4,6 +4,7 @@ import type { JobQueue, JobRow } from '../jobs/jobQueue';
 import { PermanentJobError, RetryLaterError } from '../jobs/jobQueue';
 import type { TelegramAdapter, TelegramButton, TelegramUpdate } from '../adapters/telegram/types';
 import type { Db } from '../db/database';
+import { clock } from '../clock';
 
 /**
  * Telegram-gateway: chaufførkommunikation.
@@ -46,6 +47,8 @@ export class TelegramGateway {
 
   async start(adapter: TelegramAdapter | null): Promise<void> {
     this.adapter = adapter;
+    // Nedbrud midt i en afsendelse til en ledelseschat: vi ved ikke om den nåede frem → aldrig gensend
+    this.db.prepare(`UPDATE management_messages SET status = 'uncertain' WHERE status = 'sending' AND direction = 'out'`).run();
     if (!adapter) {
       this.integrations.set('telegram', 'not_configured', 'Telegram-bot er ikke konfigureret');
       return;
@@ -70,7 +73,7 @@ export class TelegramGateway {
         .prepare(
           `INSERT INTO management_messages (chat_id, direction, user_name, body, external_update_id, simulated, created_at) VALUES (?, 'in', ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING`,
         )
-        .run(u.chatId, u.fromName, body, `${this.adapter?.kind}:${u.updateId}`, this.adapter?.simulated ? 1 : 0, new Date().toISOString());
+        .run(u.chatId, u.fromName, body, `${this.adapter?.kind}:${u.updateId}`, this.adapter?.simulated ? 1 : 0, clock.date().toISOString());
       if (r.changes === 0) return; // dublet
       this.bus.touch('management');
       if (u.kind === 'location') return;
@@ -108,30 +111,56 @@ export class TelegramGateway {
   }
 
   /** Send en besked til en vilkårlig chat (fx ledelsesgruppen). Idempotent via nøglen. */
-  sendToChat(chatId: string, text: string, idempotencyKey: string, buttons?: TelegramButton[][]): void {
+  sendToChat(chatId: string, text: string, idempotencyKey: string, buttons?: TelegramButton[][]): boolean {
+    return this.db.transaction(() => this.queueChat(chatId, text, idempotencyKey, buttons))();
+  }
+
+  private queueChat(chatId: string, text: string, idempotencyKey: string, buttons?: TelegramButton[][]): boolean {
     const r = this.db
       .prepare(
         `INSERT INTO management_messages (chat_id, direction, body, idempotency_key, status, simulated, created_at) VALUES (?, 'out', ?, ?, 'queued', ?, ?) ON CONFLICT DO NOTHING`,
       )
-      .run(chatId, text, idempotencyKey, this.adapter?.simulated ? 1 : 0, new Date().toISOString());
-    if (r.changes === 0) return;
+      .run(chatId, text, idempotencyKey, this.adapter?.simulated ? 1 : 0, clock.date().toISOString());
+    if (r.changes === 0) return false;
     this.bus.touch('management');
     this.jobs.enqueue('send_telegram_chat', { messageId: Number(r.lastInsertRowid), chatId, text, buttons: buttons ?? [] }, { lane: `chat:${chatId}`, maxAttempts: 6 });
+    return true;
+  }
+
+  /** Afsendelsesstatus for en ledelsesbesked (via idempotensnøgle). */
+  chatMessageStatus(idempotencyKey: string): string | null {
+    return (this.db.prepare(`SELECT status FROM management_messages WHERE idempotency_key = ?`).get(idempotencyKey) as { status: string } | undefined)?.status ?? null;
   }
 
   private async handleSendChat(job: JobRow): Promise<void> {
     const { messageId, chatId, text, buttons } = job.payload as { messageId: number; chatId: string; text: string; buttons: TelegramButton[][] };
     const status = (this.db.prepare(`SELECT status FROM management_messages WHERE id = ?`).get(messageId) as { status: string } | undefined)?.status;
     if (status !== 'queued') return;
-    if (!this.adapter) throw new PermanentJobError('Telegram ikke konfigureret');
+    const giveUp = (msg: string) => {
+      this.db.prepare(`UPDATE management_messages SET status = 'failed' WHERE id = ? AND status = 'queued'`).run(messageId);
+      this.bus.touch('management');
+      return new PermanentJobError(msg);
+    };
+    if (!this.adapter) throw giveUp('Telegram ikke konfigureret');
+    const last = job.attempts >= job.maxAttempts;
     this.db.prepare(`UPDATE management_messages SET status = 'sending' WHERE id = ?`).run(messageId);
-    const r = await this.adapter.sendMessage(chatId, text, buttons);
+    let r: Awaited<ReturnType<TelegramAdapter['sendMessage']>>;
+    try {
+      r = await this.adapter.sendMessage(chatId, text, buttons);
+    } catch (e) {
+      // Uventet undtagelse: afsendelsen kan være nået frem → usikker, aldrig gensendt
+      this.db.prepare(`UPDATE management_messages SET status = 'uncertain' WHERE id = ?`).run(messageId);
+      this.bus.touch('management');
+      void e;
+      return;
+    }
     if (r.disposition === 'sent') {
       this.db.prepare(`UPDATE management_messages SET status = 'sent' WHERE id = ?`).run(messageId);
       return;
     }
     if (r.disposition === 'not_started') {
       this.db.prepare(`UPDATE management_messages SET status = 'queued' WHERE id = ?`).run(messageId);
+      if (last) throw giveUp(r.error ?? 'Telegram-afsendelse fejlede');
       if (r.retryAfterMs) throw new RetryLaterError(r.error ?? 'Telegram rate limit', r.retryAfterMs);
       throw new Error(r.error ?? 'Telegram-afsendelse fejlede');
     }

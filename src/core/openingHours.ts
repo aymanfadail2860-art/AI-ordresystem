@@ -1,4 +1,5 @@
 import type { OpeningHoursDay } from '../shared/types';
+import { zonedParts } from './time';
 
 const KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
 type DayKey = (typeof KEYS)[number];
@@ -9,13 +10,15 @@ function toMinutes(hhmm: string): number {
 }
 
 /**
- * Afgør om virksomheden har åbent på et givent tidspunkt (lokal tid).
+ * Afgør om virksomheden har åbent på et givent tidspunkt (lokal tid i `tz`,
+ * ellers maskinens tidszone).
  * Understøtter åbningstider over midnat (fx 18:00–03:00).
  */
-export function isOpen(hours: Record<DayKey, OpeningHoursDay>, at: Date): boolean {
-  const day = KEYS[at.getDay()];
-  const prevDay = KEYS[(at.getDay() + 6) % 7];
-  const minutes = at.getHours() * 60 + at.getMinutes();
+export function isOpen(hours: Record<DayKey, OpeningHoursDay>, at: Date, tz?: string): boolean {
+  const z = tz ? zonedParts(at.getTime(), tz) : { weekday: at.getDay(), hour: at.getHours(), minute: at.getMinutes() };
+  const day = KEYS[z.weekday];
+  const prevDay = KEYS[(z.weekday + 6) % 7];
+  const minutes = z.hour * 60 + z.minute;
   const today = hours[day];
   if (today && !today.closed) {
     const o = toMinutes(today.open);

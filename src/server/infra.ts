@@ -11,6 +11,7 @@ import type {
   Settings,
   SystemEvent,
 } from '../shared/types';
+import { clock } from './clock';
 
 /** Intern hændelsesbus. `live` sendes til UI'et; øvrige hændelser er domænehændelser. */
 export class Bus extends EventEmitter {
@@ -83,7 +84,7 @@ export class EventLog {
     opts: { data?: Record<string, unknown>; requiresAction?: boolean; dedupeKey?: string; dedupeMinutes?: number } = {},
   ): number | null {
     if (opts.dedupeKey) {
-      const since = new Date(Date.now() - (opts.dedupeMinutes ?? 10) * 60000).toISOString();
+      const since = new Date(clock.now() - (opts.dedupeMinutes ?? 10) * 60000).toISOString();
       const existing = this.db
         .prepare(
           `SELECT id FROM events WHERE dedupe_key = ? AND acknowledged_at IS NULL AND created_at >= ? LIMIT 1`,

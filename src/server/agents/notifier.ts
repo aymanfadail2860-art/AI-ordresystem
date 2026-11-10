@@ -1,5 +1,7 @@
+import { DEFAULT_TZ } from '../../core/time';
 import type { Ctx } from '../context';
 import { fillTemplate } from './replies';
+import { clock } from '../clock';
 
 /**
  * Kundeopdateringer om ETA. Konfigurerbare grænser forhindrer gentagne
@@ -19,7 +21,7 @@ export class CustomerNotifier {
   }
 
   private fmt(ms: number): string {
-    return new Date(ms).toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit' });
+    return new Date(ms).toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit', timeZone: DEFAULT_TZ });
   }
 
   /** Første ETA til kunden (ved tildeling) – kun hvis den kan kommunikeres forsvarligt. */
@@ -46,8 +48,8 @@ export class CustomerNotifier {
     if (row.arrival_soon_sent) return false;
     const m = Math.max(1, Math.round(minutes));
     ctx.sms.queue(en.conv, fillTemplate(s.arrivalSoonTemplate, { minutes: m, orderId }), 'system', `arrival_soon:${orderId}`, orderId);
-    const eta = new Date(Date.now() + m * 60000).toISOString();
-    ctx.db.prepare(`UPDATE orders SET arrival_soon_sent = 1, eta_notified_at = ?, eta_communicated = ? WHERE id = ?`).run(new Date().toISOString(), eta, orderId);
+    const eta = new Date(clock.now() + m * 60000).toISOString();
+    ctx.db.prepare(`UPDATE orders SET arrival_soon_sent = 1, eta_notified_at = ?, eta_communicated = ? WHERE id = ?`).run(clock.date().toISOString(), eta, orderId);
     ctx.orders.addEvent(orderId, 'customer_notified', 'system', { kind: 'arrival_soon', minutes: m });
     return true;
   }
@@ -81,7 +83,7 @@ export class CustomerNotifier {
       });
       return false;
     }
-    if (row.eta_notified_at && Date.now() - new Date(row.eta_notified_at).getTime() < s.minMinutesBetweenUpdates * 60000) return false;
+    if (row.eta_notified_at && clock.now() - new Date(row.eta_notified_at).getTime() < s.minMinutesBetweenUpdates * 60000) return false;
     // Uden pålidelig ETA siges kun at det er forsinket – aldrig et opdigtet tidspunkt
     if (!communicable && !later) return false;
     const rounded = Math.ceil(etaMs / 300000) * 300000;
@@ -93,7 +95,7 @@ export class CustomerNotifier {
     ctx.sms.queue(en.conv, text, 'system', `eta_update:${orderId}:${row.eta_updates_sent + 1}`, orderId);
     ctx.db
       .prepare(`UPDATE orders SET eta_communicated = ?, eta_notified_at = ?, eta_updates_sent = eta_updates_sent + 1 WHERE id = ?`)
-      .run(new Date(communicable ? rounded : etaMs).toISOString(), new Date().toISOString(), orderId);
+      .run(new Date(communicable ? rounded : etaMs).toISOString(), clock.date().toISOString(), orderId);
     ctx.orders.addEvent(orderId, 'customer_notified', 'system', {
       kind: communicable ? 'eta_update' : 'delay_no_time',
       previous: row.eta_communicated,

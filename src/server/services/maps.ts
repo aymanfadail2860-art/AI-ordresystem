@@ -3,6 +3,7 @@ import { nowIso } from '../db/database';
 import { haversineMeters, roundCoordKey, type LatLng } from '../../core/geo';
 import type { IntegrationRegistry } from '../infra';
 import type { GeocodeResult, MapsAdapter, TravelEstimate } from '../adapters/maps/types';
+import { clock } from '../clock';
 
 export interface TravelResult extends TravelEstimate {
   /** 'live' = kortleverandør, 'fallback' = luftlinjeestimat (må ikke loves til kunder). */
@@ -36,7 +37,7 @@ export class MapsService {
 
   async geocode(address: string): Promise<GeocodeResult & { cached?: boolean }> {
     const key = address.trim().toLowerCase().replace(/\s+/g, ' ');
-    const cutoff = new Date(Date.now() - this.opts.geocodeTtlHours * 3600000).toISOString();
+    const cutoff = new Date(clock.now() - this.opts.geocodeTtlHours * 3600000).toISOString();
     const row = this.db.prepare(`SELECT * FROM geocode_cache WHERE query = ? AND created_at >= ?`).get(key, cutoff) as
       | Record<string, unknown>
       | undefined;
@@ -72,7 +73,7 @@ export class MapsService {
 
   /** Køretider fra hvert origin til hver destination, med cache pr. par. */
   async matrix(origins: LatLng[], destinations: LatLng[]): Promise<TravelResult[][]> {
-    const cutoff = new Date(Date.now() - this.opts.travelTtlMinutes * 60000).toISOString();
+    const cutoff = new Date(clock.now() - this.opts.travelTtlMinutes * 60000).toISOString();
     const get = this.db.prepare(`SELECT duration_s, distance_m FROM travel_cache WHERE origin = ? AND destination = ? AND created_at >= ?`);
     const result: (TravelResult | null)[][] = origins.map((o) =>
       destinations.map((d) => {
@@ -121,7 +122,7 @@ export class MapsService {
   }
 
   purgeCache(): void {
-    const cutoff = new Date(Date.now() - 24 * 3600000).toISOString();
+    const cutoff = new Date(clock.now() - 24 * 3600000).toISOString();
     this.db.prepare(`DELETE FROM travel_cache WHERE created_at < ?`).run(cutoff);
   }
 }

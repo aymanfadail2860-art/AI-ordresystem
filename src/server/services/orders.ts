@@ -6,6 +6,8 @@ import { assertTransition, ACTIVE_STATUSES, RESERVED_STATUSES } from '../../core
 import { calculatePrice, type PricingRules } from '../../core/pricing';
 import type { InventoryService } from './inventory';
 import type { CatalogService } from './catalog';
+import { DEFAULT_TZ, startOfLocalDay } from '../../core/time';
+import { clock } from '../clock';
 
 export class ConcurrentModificationError extends Error {
   constructor(orderId: number) {
@@ -312,10 +314,9 @@ export class OrderService {
   }
 }
 
-export function startOfToday(): string {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d.toISOString();
+/** Starten af i dag (lokal midnat i virksomhedens tidszone, standard Europe/Copenhagen). */
+export function startOfToday(tz = DEFAULT_TZ): string {
+  return new Date(startOfLocalDay(clock.now(), tz)).toISOString();
 }
 
 export function mapOrder(r: Record<string, unknown>): Order {

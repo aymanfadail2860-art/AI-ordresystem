@@ -498,4 +498,78 @@ CREATE TABLE replenishment_events (
 );
 `,
   },
+  {
+    version: 4,
+    name: 'reports_monitoring_simulation',
+    sql: `
+-- Automatiske timerapporter og rapporter på forespørgsel. Én timerapport pr. periode.
+CREATE TABLE management_reports (
+  id INTEGER PRIMARY KEY,
+  kind TEXT NOT NULL CHECK (kind IN ('hourly','on_demand')),
+  period_start TEXT NOT NULL,
+  period_end TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('pending','queued','sent','uncertain','failed','skipped')),
+  chat_id TEXT,
+  body TEXT,
+  metrics TEXT,
+  message_key TEXT,
+  requested_by TEXT,
+  error TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  sent_at TEXT
+);
+CREATE UNIQUE INDEX idx_reports_hourly ON management_reports(period_start) WHERE kind = 'hourly';
+CREATE INDEX idx_reports_created ON management_reports(created_at);
+
+-- Proaktiv overvågning: én åben advarsel pr. problem (dedupe på alert_key).
+CREATE TABLE monitor_alerts (
+  id INTEGER PRIMARY KEY,
+  rule TEXT NOT NULL,
+  alert_key TEXT NOT NULL,
+  severity TEXT NOT NULL CHECK (severity IN ('info','warn','critical')),
+  category TEXT NOT NULL CHECK (category IN ('auto','inform','approval','takeover')),
+  status TEXT NOT NULL CHECK (status IN ('open','resolved','acknowledged')),
+  title TEXT NOT NULL,
+  message TEXT NOT NULL,
+  data TEXT,
+  action_taken TEXT,
+  occurrences INTEGER NOT NULL DEFAULT 1,
+  notified_category TEXT,
+  notified_at TEXT,
+  first_seen_at TEXT NOT NULL,
+  last_seen_at TEXT NOT NULL,
+  resolved_at TEXT,
+  acknowledged_by TEXT
+);
+CREATE UNIQUE INDEX idx_monitor_alert_open ON monitor_alerts(alert_key) WHERE status IN ('open','acknowledged');
+CREATE INDEX idx_monitor_alert_status ON monitor_alerts(status, last_seen_at);
+
+-- Revisionsspor for overvågningens beslutninger og handlinger.
+CREATE TABLE monitor_decisions (
+  id INTEGER PRIMARY KEY,
+  alert_id INTEGER NOT NULL REFERENCES monitor_alerts(id),
+  category TEXT NOT NULL,
+  decision TEXT NOT NULL,
+  action TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX idx_monitor_decisions_alert ON monitor_decisions(alert_id);
+
+-- Driftssimuleringer (altid simulerede data).
+CREATE TABLE simulation_runs (
+  id INTEGER PRIMARY KEY,
+  group_id TEXT,
+  seed INTEGER NOT NULL,
+  strategy TEXT NOT NULL,
+  config TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('running','completed','failed')),
+  metrics TEXT,
+  error TEXT,
+  started_at TEXT NOT NULL,
+  finished_at TEXT,
+  duration_ms INTEGER
+);
+`,
+  },
 ];

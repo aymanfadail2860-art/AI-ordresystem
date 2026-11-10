@@ -15,6 +15,7 @@ import type {
 import { AI_MODES, ORDER_STATUSES } from '../shared/types';
 import type { DeepPartial } from './infra';
 import { krToOre } from '../core/money';
+import { clock } from './clock';
 
 /** Værten (Electron main eller dev-webserver) leverer disse funktioner. */
 export interface AppHost {
@@ -92,7 +93,7 @@ export function createApi(host: AppHost): Record<string, Handler> {
         pendingOrders: q(`SELECT COUNT(*) AS n FROM orders WHERE status IN ('new_inquiry','awaiting_customer_info','awaiting_stock_check','awaiting_confirmation')`),
         delayedOrders: q(
           `SELECT COUNT(*) AS n FROM orders WHERE status IN ('driver_assigned','out_for_delivery') AND eta IS NOT NULL AND eta < ?`,
-          new Date(Date.now() - 5 * 60000).toISOString(),
+          new Date(clock.now() - 5 * 60000).toISOString(),
         ),
         needsManual: q(`SELECT COUNT(*) AS n FROM orders WHERE status = 'needs_manual' OR (needs_attention = 1 AND status NOT IN ('delivered','cancelled'))`),
         activeDrivers: drivers.filter((d) => d.activeOrderCount > 0).length,
@@ -231,7 +232,7 @@ export function createApi(host: AppHost): Record<string, Handler> {
       if (!conv) throw new Error('Samtale findes ikke');
       // En medarbejder der skriver, overtager samtalen (AI stopper)
       if (conv.aiMode === 'ai_active') c.conversations.setMode(id, 'manual', 'Medarbejder skrev i samtalen', 'staff');
-      c.sms.queue(id, text, 'staff', `staff:${id}:${Date.now()}:${Math.random().toString(36).slice(2)}`);
+      c.sms.queue(id, text, 'staff', `staff:${id}:${clock.now()}:${Math.random().toString(36).slice(2)}`);
       return { ok: true };
     },
     'conversations.markRead': (p) => {
@@ -287,7 +288,7 @@ export function createApi(host: AppHost): Record<string, Handler> {
     },
     'drivers.sendMessage': (p) => {
       const id = num(p.id, 'id');
-      C().telegram.sendToDriver(id, str(p.text, 'tekst', 1000), `staff_tg:${id}:${Date.now()}`);
+      C().telegram.sendToDriver(id, str(p.text, 'tekst', 1000), `staff_tg:${id}:${clock.now()}`);
       return { ok: true };
     },
 
@@ -306,14 +307,14 @@ export function createApi(host: AppHost): Record<string, Handler> {
         const delivered = c.db
           .prepare(`SELECT COUNT(*) AS n, COALESCE(SUM(total_ore),0) AS rev, MIN(confirmed_at) AS first FROM orders WHERE driver_id = ? AND delivered_at >= ?`)
           .get(d.id, today) as { n: number; rev: number; first: string | null };
-        const hours = delivered.first ? Math.max(0.5, (Date.now() - new Date(delivered.first).getTime()) / 3600000) : 0;
+        const hours = delivered.first ? Math.max(0.5, (clock.now() - new Date(delivered.first).getTime()) / 3600000) : 0;
         const planned = stops.map((x) => {
           const o = byId.get(x.orderId);
           return o ? app.agents.routing.valueOf(o.id, o.deliveryFeeOre, margin) : { revenueOre: 0, contributionOre: 0, contributionEstimated: false };
         });
         const anchor = app.agents.routing.getAnchor(d.id);
         const lastInfo = Math.max(anchor?.reportedAtMs ?? 0, d.lastStatusAt ? new Date(d.lastStatusAt).getTime() : 0);
-        const statusAgeMin = lastInfo ? Math.round((Date.now() - lastInfo) / 60000) : null;
+        const statusAgeMin = lastInfo ? Math.round((clock.now() - lastInfo) / 60000) : null;
         return {
           driver: d,
           stops: stops.map((x, i) => ({ ...x, totalOre: byId.get(x.orderId)?.totalOre ?? 0, contributionOre: planned[i].contributionOre })),
@@ -326,7 +327,7 @@ export function createApi(host: AppHost): Record<string, Handler> {
           plannedRevenueOre: planned.reduce((a, x) => a + x.revenueOre, 0),
           plannedContributionOre: planned.reduce((a, x) => a + x.contributionOre, 0),
           contributionEstimated: planned.some((x) => x.contributionEstimated),
-          extraCapacity: !!d.extraCapacityUntil && new Date(d.extraCapacityUntil).getTime() > Date.now(),
+          extraCapacity: !!d.extraCapacityUntil && new Date(d.extraCapacityUntil).getTime() > clock.now(),
         };
       });
       const deliveredAll = c.db.prepare(`SELECT COUNT(*) AS n, COALESCE(SUM(total_ore),0) AS rev, MIN(confirmed_at) AS first FROM orders WHERE delivered_at >= ?`).get(today) as {
@@ -334,7 +335,7 @@ export function createApi(host: AppHost): Record<string, Handler> {
         rev: number;
         first: string | null;
       };
-      const hoursAll = deliveredAll.first ? Math.max(0.5, (Date.now() - new Date(deliveredAll.first).getTime()) / 3600000) : 0;
+      const hoursAll = deliveredAll.first ? Math.max(0.5, (clock.now() - new Date(deliveredAll.first).getTime()) / 3600000) : 0;
       return {
         drivers,
         orders,
@@ -420,7 +421,7 @@ export function createApi(host: AppHost): Record<string, Handler> {
       return { ok: true };
     },
     'events.ackAll': () => {
-      C().db.prepare(`UPDATE events SET acknowledged_at = ? WHERE acknowledged_at IS NULL`).run(new Date().toISOString());
+      C().db.prepare(`UPDATE events SET acknowledged_at = ? WHERE acknowledged_at IS NULL`).run(clock.date().toISOString());
       C().bus.touch('events');
       return { ok: true };
     },

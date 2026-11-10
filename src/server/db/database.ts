@@ -2,6 +2,7 @@ import BetterSqlite3 from 'better-sqlite3';
 import fs from 'node:fs';
 import path from 'node:path';
 import { MIGRATIONS, type Migration } from './migrations';
+import { clock } from '../clock';
 
 export type Db = BetterSqlite3.Database;
 
@@ -13,7 +14,7 @@ export interface OpenDbOptions {
 }
 
 export function nowIso(): string {
-  return new Date().toISOString();
+  return clock.date().toISOString();
 }
 
 export function openDatabase(opts: OpenDbOptions): Db {

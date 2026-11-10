@@ -1,3 +1,4 @@
+import { DEFAULT_TZ } from '../../core/time';
 import { formatDkk } from '../../core/money';
 import type { Order, Product, Settings } from '../../shared/types';
 
@@ -10,7 +11,7 @@ export function fillTemplate(tpl: string, vars: Record<string, string | number>)
 }
 
 export function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit' });
+  return new Date(iso).toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit', timeZone: DEFAULT_TZ });
 }
 
 export function quoteText(order: Order, s: Settings): string {

@@ -5,6 +5,7 @@ import { evaluateInsertions, optimizeSequence, orderValue, type InsertionResult,
 import type { Driver } from '../../shared/types';
 import type { TravelResult } from '../services/maps';
 import type { CustomerNotifier } from './notifier';
+import { clock } from '../clock';
 
 export interface RouteStopRow {
   orderId: number;
@@ -73,12 +74,12 @@ export class RoutingService {
          ON CONFLICT(driver_id) DO UPDATE SET kind=excluded.kind, at=excluded.at, lat=excluded.lat, lng=excluded.lng,
            order_id=excluded.order_id, reported_at=excluded.reported_at`,
       )
-      .run(driverId, a.kind, new Date(a.atMs).toISOString(), point?.lat ?? null, point?.lng ?? null, a.orderId ?? null, new Date(a.reportedAtMs ?? Date.now()).toISOString());
+      .run(driverId, a.kind, new Date(a.atMs).toISOString(), point?.lat ?? null, point?.lng ?? null, a.orderId ?? null, new Date(a.reportedAtMs ?? clock.now()).toISOString());
   }
 
   /** Markér at chaufføren netop har givet en frisk status (uden at ændre ankerets tid). */
   touchAnchor(driverId: number): void {
-    this.ctx.db.prepare(`UPDATE eta_anchors SET reported_at = ? WHERE driver_id = ?`).run(new Date().toISOString(), driverId);
+    this.ctx.db.prepare(`UPDATE eta_anchors SET reported_at = ? WHERE driver_id = ?`).run(clock.date().toISOString(), driverId);
   }
 
   /** Sørg for at chaufføren har et anker (afgang nu fra senest kendte stop / centrallager). */
@@ -87,7 +88,7 @@ export class RoutingService {
     if (existing) return existing;
     const central = this.ctx.inventory.centralLocation();
     const point = driver.lastLat != null ? { lat: driver.lastLat, lng: driver.lastLng! } : central?.lat != null ? { lat: central.lat, lng: central.lng! } : null;
-    this.setAnchor(driver.id, { kind: 'start', atMs: Date.now(), point });
+    this.setAnchor(driver.id, { kind: 'start', atMs: clock.now(), point });
     return this.getAnchor(driver.id)!;
   }
 
@@ -298,9 +299,9 @@ export class RoutingService {
     const s = this.ctx.settings.get();
     const existing: PlanningStop[] = stops.map((x) => ({ orderId: x.orderId, promisedMs: x.promisedMs, extraDelayMs: x.extraDelayMs, value: x.value, priority: x.priority }));
     // Anker til planlægning: et afgangsanker i fortiden betyder at chaufføren allerede er undervejs
-    const planAnchor = anchor.kind === 'start' && stops.length === 0 ? { ...anchor, atMs: Math.max(anchor.atMs, Date.now()), reportedAtMs: Date.now() } : anchor;
+    const planAnchor = anchor.kind === 'start' && stops.length === 0 ? { ...anchor, atMs: Math.max(anchor.atMs, clock.now()), reportedAtMs: clock.now() } : anchor;
     return evaluateInsertions({
-      nowMs: Date.now(),
+      nowMs: clock.now(),
       anchor: planAnchor,
       existing,
       lockedCount: this.lockedCount(driver, stops, anchor),
@@ -329,7 +330,7 @@ export class RoutingService {
     if (!driver) return null;
     const c = await this.routeContext(driver);
     if (c.stops.length < 2) return null;
-    return optimizeSequence({ nowMs: Date.now(), anchor: c.anchor, existing: c.existing, lockedCount: c.locked, travel: c.travel, eta: c.eta, econ: c.econ });
+    return optimizeSequence({ nowMs: clock.now(), anchor: c.anchor, existing: c.existing, lockedCount: c.locked, travel: c.travel, eta: c.eta, econ: c.econ });
   }
 
   /**
@@ -379,7 +380,7 @@ export class RoutingService {
       return 'afventer godkendelse af lageropfyldning';
     };
     const etas = computeRouteEtas(
-      Date.now(),
+      clock.now(),
       anchor,
       stops.map((s) => ({ orderId: s.orderId, extraDelayMs: s.extraDelayMs, blocked: blockedBy(s.orderId, s.needsPickup) })),
       (i) => travel(i === 0 ? -1 : i - 1, i),
@@ -387,7 +388,7 @@ export class RoutingService {
     );
     const mode = ctx.settings.get().installation.mode;
     const notified: number[] = [];
-    const now = new Date().toISOString();
+    const now = clock.date().toISOString();
     ctx.db.transaction(() => {
       etas.forEach((e, i) => {
         const stop = stops[i];

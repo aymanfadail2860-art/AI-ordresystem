@@ -1,5 +1,6 @@
 import { EventEmitter } from 'node:events';
 import type { TelegramAdapter, TelegramButton, TelegramHandlers, TelegramSendResult } from './types';
+import { clock } from '../../clock';
 
 /**
  * SIMULERET Telegram-adapter. Sender ALDRIG rigtige Telegram-beskeder.
@@ -54,7 +55,7 @@ export class SimulatedTelegramAdapter implements TelegramAdapter {
   private push(u: Omit<Parameters<TelegramHandlers['onUpdate']>[0], 'updateId' | 'at'>): void {
     if (!this.handlers) throw new Error('Telegram-simulator er ikke startet');
     this.updateId++;
-    this.handlers.onUpdate({ ...u, updateId: `sim-${this.updateId}`, at: new Date().toISOString() });
+    this.handlers.onUpdate({ ...u, updateId: `sim-${this.updateId}`, at: clock.date().toISOString() });
     this.handlers.saveOffset(this.updateId);
   }
 }

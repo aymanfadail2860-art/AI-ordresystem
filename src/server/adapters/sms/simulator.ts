@@ -1,6 +1,7 @@
 import { EventEmitter } from 'node:events';
 import { randomUUID } from 'node:crypto';
 import type { SendResult, SmsAdapter, SmsAdapterHandlers } from './types';
+import { clock } from '../../clock';
 
 /**
  * SIMULERET SMS-adapter til Demo Mode og tests.
@@ -35,7 +36,7 @@ export class SimulatedSmsAdapter implements SmsAdapter {
       return { disposition: d, error: `Simuleret fejl (${d})` };
     }
     const guid = `sim-out-${randomUUID()}`;
-    const at = new Date().toISOString();
+    const at = clock.date().toISOString();
     this.sentLog.push({ to, text, guid, at });
     this.rowId++;
     this.handlers?.saveCursor(this.rowId);
@@ -54,7 +55,7 @@ export class SimulatedSmsAdapter implements SmsAdapter {
       externalRowId: this.rowId,
       from,
       text,
-      receivedAt: new Date().toISOString(),
+      receivedAt: clock.date().toISOString(),
       service: 'SMS',
       chatId: `SMS;-;${from}`,
     });
@@ -72,7 +73,7 @@ export class SimulatedSmsAdapter implements SmsAdapter {
       externalRowId: this.rowId,
       to,
       text,
-      at: new Date().toISOString(),
+      at: clock.date().toISOString(),
       service: 'SMS',
       chatId: `SMS;-;${to}`,
     });

@@ -331,6 +331,13 @@ export interface RoutePlanSummary {
   alternatives: { driverId: number; driverName: string; score: number; feasible: boolean; reason: string }[];
 }
 
+export type DispatchStrategy = 'economic' | 'fifo' | 'shortest_detour';
+export const DISPATCH_STRATEGY_LABELS: Record<DispatchStrategy, string> = {
+  fifo: 'A. Først-til-mølle',
+  shortest_detour: 'B. Korteste ekstra køretid',
+  economic: 'C. AI Dispatch (økonomisk)',
+};
+
 export type ManagementRole = 'admin' | 'manager' | 'observer';
 export const MANAGEMENT_ROLE_LABELS: Record<ManagementRole, string> = { admin: 'Administrator', manager: 'Leder', observer: 'Observatør' };
 
@@ -526,6 +533,8 @@ export interface Settings {
     email: string;
     address: string;
     cvr: string;
+    /** IANA-tidszone for åbningstider og rapporter. */
+    timezone: string;
   };
   installation: {
     mode: InstallationMode;
@@ -583,6 +592,27 @@ export interface Settings {
     groupChatId: string;
     allowPrivateChats: boolean;
     confirmTimeoutMinutes: number;
+    /** Send automatisk timerapport til ledelsesgruppen hver hele time i åbningstiden. */
+    hourlyReports: boolean;
+  };
+  monitoring: {
+    enabled: boolean;
+    /** Send orienteringer/advarsler til ledelsesgruppen (ellers kun i kontrolpanelet). */
+    notifyGroup: boolean;
+    /** Forsinkelse (min) over løftet, der kræver orientering af ledelsen. */
+    criticalDelayMinutes: number;
+    /** Forsinkelse (min) over løftet, der kræver øjeblikkelig menneskelig overtagelse. */
+    takeoverDelayMinutes: number;
+    /** Minutter uden svar fra chauffør med aktive ordrer, før ledelsen orienteres. */
+    unresponsiveMinutes: number;
+    /** Minutter en bekræftet ordre må vente på chauffør, før det regnes som manglende kapacitet. */
+    capacityWaitMinutes: number;
+    /** Faktor for ændring i ordretilgang (seneste 30 min mod gennemsnit af de foregående 2 timer). */
+    volumeChangeFactor: number;
+    /** Minimum antal ordrer, før ændringer i ordretilgang vurderes. */
+    volumeMinOrders: number;
+    /** Advar så mange minutter før en godkendelse udløber. */
+    approvalWarnMinutes: number;
   };
   replenishment: {
     enabled: boolean;
@@ -594,6 +624,11 @@ export interface Settings {
     minRouteImprovementOre: number;
   };
   economics: {
+    /**
+     * Dispatchstrategi. 'economic' = AI Dispatchs økonomiske model (standard).
+     * 'fifo' og 'shortest_detour' findes til sammenligning i driftssimuleringen.
+     */
+    strategy: DispatchStrategy;
     /** Vægt for ordrer, ledelsen har prioriteret. */
     priorityWeight: number;
     /** Avance (%) for varer uden registreret vareomkostning. */
@@ -712,4 +747,156 @@ export type LiveTopic =
   | 'logistics'
   | 'demo'
   | 'management'
-  | 'replenishment';
+  | 'replenishment'
+  | 'reports'
+  | 'monitoring'
+  | 'simulation';
+
+// ---------------- Etape 4: rapporter, overvågning, simulering ----------------
+
+export interface ReportMetrics {
+  periodStart: string;
+  periodEnd: string;
+  dayStart: string;
+  generatedAt: string;
+  /** Demo Mode: tallene stammer fra simulerede data. */
+  simulated: boolean;
+  hour: { revenueOre: number; contributionOre: number; delivered: number; newOrders: number };
+  day: {
+    revenueOre: number;
+    contributionOre: number;
+    delivered: number;
+    newOrders: number;
+    cancelled: number;
+    avgOrderValueOre: number | null;
+    avgDeliveryMinutes: number | null;
+    onTimePct: number | null;
+  };
+  orders: { active: number; awaitingDriver: number; longestWaitMinutes: number; needsManual: number };
+  drivers: { active: number; staleStatus: number; deliveriesPerDriverHour: number | null; deliveriesPerDriverHourDay: number | null };
+  late: { count: number; worst: { orderId: number; minutes: number }[]; lowConfidence: number };
+  stock: {
+    shortages: { driverName: string; productName: string; missing: number; covered: boolean }[];
+    replenishments: { id: number; driverName: string; status: ReplenishmentStatus; locationName: string }[];
+  };
+  approvals: { replenishments: number; commands: number; reassignments: number };
+  ai: { monthCostUsd: number; budgetUsd: number; budgetUsedPct: number; blocked: boolean; callsInPeriod: number; live: boolean };
+  integrations: { name: IntegrationName; state: IntegrationState; message: string | null }[];
+  assessment: string[];
+}
+
+export type ReportStatus = 'pending' | 'queued' | 'sent' | 'uncertain' | 'failed' | 'skipped';
+export const REPORT_STATUS_LABELS: Record<ReportStatus, string> = {
+  pending: 'Under oprettelse',
+  queued: 'I udbakken',
+  sent: 'Sendt',
+  uncertain: 'Usikker (gensendes ikke)',
+  failed: 'Fejlet',
+  skipped: 'Sprunget over',
+};
+
+export interface ManagementReport {
+  id: number;
+  kind: 'hourly' | 'on_demand';
+  periodStart: string;
+  periodEnd: string;
+  status: ReportStatus;
+  body: string | null;
+  metrics: ReportMetrics | null;
+  requestedBy: string | null;
+  error: string | null;
+  createdAt: string;
+  sentAt: string | null;
+}
+
+/** A: håndteres automatisk · B: orientering · C: kræver godkendelse · D: øjeblikkelig menneskelig overtagelse. */
+export type AlertCategory = 'auto' | 'inform' | 'approval' | 'takeover';
+export const ALERT_CATEGORY_LABELS: Record<AlertCategory, string> = {
+  auto: 'A · Håndteres automatisk',
+  inform: 'B · Orientering',
+  approval: 'C · Kræver godkendelse',
+  takeover: 'D · Menneskelig overtagelse',
+};
+export type AlertRule =
+  | 'critical_delay'
+  | 'driver_unresponsive'
+  | 'capacity_shortage'
+  | 'stock_shortage'
+  | 'approval_expiring'
+  | 'order_volume_change'
+  | 'integration_failure'
+  | 'promise_risk';
+export const ALERT_RULE_LABELS: Record<AlertRule, string> = {
+  critical_delay: 'Kritisk forsinkelse',
+  driver_unresponsive: 'Chauffør svarer ikke',
+  capacity_shortage: 'Manglende chaufførkapacitet',
+  stock_shortage: 'Lagerunderskud',
+  approval_expiring: 'Godkendelse udløber snart',
+  order_volume_change: 'Ændring i ordretilgang',
+  integration_failure: 'Integrationsfejl',
+  promise_risk: 'Risiko for brud på leveringsløfte',
+};
+
+export interface MonitorAlert {
+  id: number;
+  rule: AlertRule;
+  key: string;
+  severity: 'info' | 'warn' | 'critical';
+  category: AlertCategory;
+  status: 'open' | 'resolved' | 'acknowledged';
+  title: string;
+  message: string;
+  data: Record<string, unknown> | null;
+  actionTaken: string | null;
+  occurrences: number;
+  notifiedAt: string | null;
+  firstSeenAt: string;
+  lastSeenAt: string;
+  resolvedAt: string | null;
+  acknowledgedBy: string | null;
+}
+
+export interface SimulationMetrics {
+  strategy: DispatchStrategy;
+  seed: number;
+  ordersGenerated: number;
+  ordersAccepted: number;
+  delivered: number;
+  cancelled: number;
+  unresolved: number;
+  revenueOre: number;
+  contributionOre: number;
+  operatingHours: number;
+  deliveriesPerHour: number;
+  deliveriesPerDriverHour: number;
+  avgDeliveryMinutes: number;
+  p90DeliveryMinutes: number;
+  lateShare: number;
+  lateCount: number;
+  driveMinutes: number;
+  driveMinutesPerDelivery: number;
+  extraDriveMinutes: number;
+  stockProblems: number;
+  replenishments: number;
+  managementInterventions: number;
+  failedOrUnresolvedActions: number;
+  offersRejectedOrExpired: number;
+  integrationFailures: number;
+  hourlyReportsSent: number;
+  alertsRaised: number;
+  wallClockMs: number;
+}
+
+export interface SimulationRun {
+  id: number;
+  groupId: string | null;
+  seed: number;
+  strategy: DispatchStrategy;
+  config: Record<string, unknown>;
+  status: 'running' | 'completed' | 'failed';
+  metrics: SimulationMetrics | null;
+  error: string | null;
+  startedAt: string;
+  finishedAt: string | null;
+  durationMs: number | null;
+}

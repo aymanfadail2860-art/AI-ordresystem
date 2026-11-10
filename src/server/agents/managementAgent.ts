@@ -16,6 +16,8 @@ import { startOfToday } from '../services/orders';
 import { DRAFT_STATUSES } from '../../core/orderStateMachine';
 import type { Driver, ManagementRole, ManagementUser, Order, OrderStatus } from '../../shared/types';
 import { DRIVER_STATUS_LABELS, MANAGEMENT_ROLE_LABELS, ORDER_STATUS_LABELS, REPLENISHMENT_STATUS_LABELS } from '../../shared/types';
+import type { ReportService } from './reports';
+import { clock } from '../clock';
 
 /** Mindste rolle pr. intention. Observatører må kun se. */
 const REQUIRED_ROLE: Record<ManagementIntent, ManagementRole> = {
@@ -83,6 +85,8 @@ interface Resolved {
  * - Alt logges: bruger, tidspunkt, instruktion, berørte ordrer, beslutning, resultat.
  */
 export class ManagementAgent {
+  /** Sættes af app.ts (rapporttjenesten oprettes efter agenten). */
+  reports: ReportService | null = null;
   constructor(
     private ctx: Ctx,
     private mgmt: ManagementService,
@@ -102,7 +106,7 @@ export class ManagementAgent {
   }
 
   private now(): string {
-    return formatTime(new Date().toISOString());
+    return formatTime(clock.date().toISOString());
   }
 
   async handle(u: TelegramUpdate): Promise<void> {
@@ -176,6 +180,12 @@ export class ManagementAgent {
       return;
     }
 
+    if (interp.intent === 'report' && this.reports) {
+      // Fuld rapport på forespørgsel – samme deterministiske nøgletal som timerapporten
+      const r = this.reports.sendOnDemand(u.chatId, user.name);
+      mgmt.logCommand({ user, telegramUserId: u.fromUserId, chatId: u.chatId, instruction: text, intent: interp.intent, params: this.params(interp), affectedOrders: affected, decision: 'answered', result: r.body });
+      return;
+    }
     if (!NEEDS_CONFIRMATION.includes(interp.intent)) {
       const answer = await this.query(interp.intent, resolved);
       mgmt.logCommand({ user, telegramUserId: u.fromUserId, chatId: u.chatId, instruction: text, intent: interp.intent, params: this.params(interp), affectedOrders: affected, decision: 'answered', result: answer });
@@ -189,7 +199,7 @@ export class ManagementAgent {
       this.reply(u.chatId, preview.error, key);
       return;
     }
-    const expires = new Date(Date.now() + this.ctx.settings.get().management.confirmTimeoutMinutes * 60000).toISOString();
+    const expires = new Date(clock.now() + this.ctx.settings.get().management.confirmTimeoutMinutes * 60000).toISOString();
     const id = mgmt.logCommand({
       user,
       telegramUserId: u.fromUserId,
@@ -256,7 +266,7 @@ export class ManagementAgent {
       this.reply(u.chatId, 'Handlingen er annulleret.', key);
       return;
     }
-    if (row.confirm_expires_at && new Date(row.confirm_expires_at as string).getTime() < Date.now()) {
+    if (row.confirm_expires_at && new Date(row.confirm_expires_at as string).getTime() < clock.now()) {
       mgmt.updateCommand(id, { decision: 'expired', result: 'Bekræftelsen udløb' });
       this.reply(u.chatId, 'Bekræftelsen er udløbet – giv instruktionen igen.', key);
       return;
@@ -388,7 +398,7 @@ export class ManagementAgent {
     const stops = ctx.drivers.routeStops(d.id);
     const anchor = this.routing.getAnchor(d.id);
     const lastInfo = Math.max(anchor?.reportedAtMs ?? 0, d.lastStatusAt ? new Date(d.lastStatusAt).getTime() : 0);
-    const age = lastInfo ? Math.round((Date.now() - lastInfo) / 60000) : null;
+    const age = lastInfo ? Math.round((clock.now() - lastInfo) / 60000) : null;
     const stale = stops.length > 0 && (age === null || age > s.logistics.statusStaleMinutes);
     const delivered = ctx.db.prepare(`SELECT COUNT(*) AS n, COALESCE(SUM(total_ore),0) AS rev FROM orders WHERE driver_id = ? AND delivered_at >= ?`).get(d.id, startOfToday()) as { n: number; rev: number };
     const route = stops.length
@@ -505,7 +515,7 @@ export class ManagementAgent {
     const est = stops.some((s) => s.value.contributionEstimated);
     const driveMin = Math.round(rs.reduce((a, s) => a + (s.durationFromPrevS ?? 0), 0) / 60);
     const lastEta = rs[rs.length - 1]?.eta;
-    const hours = lastEta ? Math.max(0.25, (new Date(lastEta).getTime() - Date.now()) / 3600000) : 1;
+    const hours = lastEta ? Math.max(0.25, (new Date(lastEta).getTime() - clock.now()) / 3600000) : 1;
     const cost = driveMin * ctx.settings.get().economics.driveCostPerMinuteOre;
     return [
       `📊 Rute for chauffør #${d.id} ${d.name}: ${stops.length} stop`,
@@ -657,7 +667,7 @@ export class ManagementAgent {
           if (driverId) ctx.db.prepare(`UPDATE drivers SET route_version = route_version + 1 WHERE id = ?`).run(driverId);
         })();
         if (driverId) {
-          ctx.telegram.sendToDriver(driverId, `⏸ Ordre #${order.id} er sat på pause af kontoret – kør ikke ud med den.`, `paused:${order.id}:${Date.now()}`, { orderId: order.id });
+          ctx.telegram.sendToDriver(driverId, `⏸ Ordre #${order.id} er sat på pause af kontoret – kør ikke ud med den.`, `paused:${order.id}:${clock.now()}`, { orderId: order.id });
           await this.routing.refreshEtas(driverId, 'ordre sat på pause');
         }
         return { ok: true, message: `⏸ Ordre #${order.id} er sat på pause.${driverId ? ' Chaufføren har fået besked.' : ''}` };

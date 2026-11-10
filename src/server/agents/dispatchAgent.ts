@@ -9,6 +9,7 @@ import { etaCommunicable } from '../../core/eta';
 import { InsufficientStockError } from '../services/inventory';
 import { formatDkk } from '../../core/money';
 import { formatTime } from './replies';
+import { clock } from '../clock';
 
 export type StockPlan = 'own_vehicle' | 'move_to_vehicle' | 'central_pickup' | 'move_to_central';
 
@@ -54,7 +55,7 @@ export class DispatchAgent {
       .list({ status: ['awaiting_driver'] })
       .filter((o) => !ctx.drivers.offers(o.id).some((x) => x.status === 'pending'))
       .map((o) => {
-        const waitedMin = o.confirmedAt ? (Date.now() - new Date(o.confirmedAt).getTime()) / 60000 : 0;
+        const waitedMin = o.confirmedAt ? (clock.now() - new Date(o.confirmedAt).getTime()) / 60000 : 0;
         return { id: o.id, prio: this.routing.valueOf(o.id, o.deliveryFeeOre, margin).contributionOre + waitedMin * 500 };
       })
       .sort((a, b) => b.prio - a.prio);
@@ -83,7 +84,7 @@ export class DispatchAgent {
   }
 
   capacityLeft(driver: Driver): number {
-    const extra = driver.extraCapacityUntil && new Date(driver.extraCapacityUntil).getTime() > Date.now() ? 1 : 0;
+    const extra = driver.extraCapacityUntil && new Date(driver.extraCapacityUntil).getTime() > clock.now() ? 1 : 0;
     return driver.maxActiveOrders + extra - driver.activeOrderCount - driver.pendingOfferCount;
   }
 
@@ -152,7 +153,7 @@ export class DispatchAgent {
       .map((o) => o.driverId);
     const { feasible, rejected } = await this.evaluate(order, { exclude: tried });
     if (!feasible.length) {
-      const waited = order.confirmedAt ? (Date.now() - new Date(order.confirmedAt).getTime()) / 60000 : 0;
+      const waited = order.confirmedAt ? (clock.now() - new Date(order.confirmedAt).getTime()) / 60000 : 0;
       const why = rejected.map((r) => `${r.driver.name}: ${r.reason}`).join('; ') || 'ingen chauffører';
       ctx.orders.flag(orderId, 'Ingen forsvarlig løsning – kræver medarbejder');
       ctx.events.log('warn', 'dispatch', 'no_driver', `Ingen forsvarlig tildeling af ordre #${orderId} (${why})`, {
@@ -197,14 +198,14 @@ export class DispatchAgent {
       analysis: r.analysis,
       alternatives,
     };
-    const expiresAt = new Date(Date.now() + s.delivery.offerTimeoutSeconds * 1000).toISOString();
+    const expiresAt = new Date(clock.now() + s.delivery.offerTimeoutSeconds * 1000).toISOString();
     return ctx.db.transaction(() => {
       const ins = ctx.db
         .prepare(
           `INSERT INTO dispatch_offers (order_id, driver_id, status, score, sent_at, expires_at, kind, plan, route_version, from_driver_id)
            VALUES (?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?)`,
         )
-        .run(order.id, c.driver.id, r.analysis.score, new Date().toISOString(), expiresAt, kind, JSON.stringify(plan), c.driver.routeVersion, fromDriverId);
+        .run(order.id, c.driver.id, r.analysis.score, clock.date().toISOString(), expiresAt, kind, JSON.stringify(plan), c.driver.routeVersion, fromDriverId);
       const id = Number(ins.lastInsertRowid);
       ctx.orders.addEvent(order.id, 'offer_sent', 'system', {
         driverId: c.driver.id,
@@ -261,7 +262,7 @@ export class DispatchAgent {
       | { status: string; order_id: number; driver_id: number; kind: string }
       | undefined;
     if (!offer || offer.status !== 'pending') return;
-    this.ctx.db.prepare(`UPDATE dispatch_offers SET status = 'expired', responded_at = ? WHERE id = ?`).run(new Date().toISOString(), offerId);
+    this.ctx.db.prepare(`UPDATE dispatch_offers SET status = 'expired', responded_at = ? WHERE id = ?`).run(clock.date().toISOString(), offerId);
     this.ctx.orders.addEvent(offer.order_id, 'offer_expired', 'system', { driverId: offer.driver_id, kind: offer.kind });
     this.ctx.telegram.sendToDriver(offer.driver_id, `Tilbuddet på ordre #${offer.order_id} er udløbet – din rute er uændret.`, `offer_expired:${offerId}`);
     this.ctx.bus.touch('logistics', 'drivers');
@@ -285,11 +286,11 @@ export class DispatchAgent {
       | undefined;
     if (!offer || offer.driver_id !== driverId) return 'Tilbuddet blev ikke fundet.';
     if (offer.status !== 'pending') return `Tilbuddet på ordre #${offer.order_id} er ikke længere aktivt.`;
-    if (new Date(offer.expires_at).getTime() < Date.now()) return `Tilbuddet på ordre #${offer.order_id} er udløbet.`;
+    if (new Date(offer.expires_at).getTime() < clock.now()) return `Tilbuddet på ordre #${offer.order_id} er udløbet.`;
     ctx.jobs.cancelByDedupeKey(`offer_timeout:${offerId}`);
     this.routing.touchAnchor(driverId);
     if (!accept) {
-      ctx.db.prepare(`UPDATE dispatch_offers SET status = 'rejected', responded_at = ? WHERE id = ?`).run(new Date().toISOString(), offerId);
+      ctx.db.prepare(`UPDATE dispatch_offers SET status = 'rejected', responded_at = ? WHERE id = ?`).run(clock.date().toISOString(), offerId);
       ctx.orders.addEvent(offer.order_id, 'offer_rejected', 'driver', { driverId, kind: offer.kind });
       ctx.bus.touch('logistics', 'drivers');
       this.dispatchWaiting();
@@ -318,7 +319,7 @@ export class DispatchAgent {
     let order = ctx.orders.get(offer.order_id)!;
     let sequence = plan.sequence;
     const cancelAndRedispatch = (msg: string) => {
-      ctx.db.prepare(`UPDATE dispatch_offers SET status = 'cancelled', responded_at = ? WHERE id = ?`).run(new Date().toISOString(), offerId);
+      ctx.db.prepare(`UPDATE dispatch_offers SET status = 'cancelled', responded_at = ? WHERE id = ?`).run(clock.date().toISOString(), offerId);
       if (offer.kind !== 'reassignment') this.enqueue(order.id);
       ctx.bus.touch('logistics', 'drivers');
       return msg;
@@ -326,14 +327,14 @@ export class DispatchAgent {
     if (offer.kind === 'route_change') {
       // Ændret rækkefølge i chaufførens egen rute – gælder kun hvis ruten er uændret siden forslaget
       const cancel = (msg: string) => {
-        ctx.db.prepare(`UPDATE dispatch_offers SET status = 'cancelled', responded_at = ? WHERE id = ?`).run(new Date().toISOString(), offerId);
+        ctx.db.prepare(`UPDATE dispatch_offers SET status = 'cancelled', responded_at = ? WHERE id = ?`).run(clock.date().toISOString(), offerId);
         ctx.bus.touch('logistics', 'drivers');
         return msg;
       };
       if (order.driverId !== driverId || !['driver_assigned', 'out_for_delivery'].includes(order.status)) return cancel(`Ruteændringen for ordre #${order.id} er ikke længere aktuel.`);
       if (driver.routeVersion !== offer.route_version) return cancel('Din rute er ændret siden forslaget – ruteændringen er annulleret. Kontoret kan bede om et nyt forslag.');
       ctx.db.transaction(() => {
-        ctx.db.prepare(`UPDATE dispatch_offers SET status = 'accepted', responded_at = ? WHERE id = ?`).run(new Date().toISOString(), offerId);
+        ctx.db.prepare(`UPDATE dispatch_offers SET status = 'accepted', responded_at = ? WHERE id = ?`).run(clock.date().toISOString(), offerId);
         this.routing.applySequence(driverId, sequence.filter((id) => this.isActiveFor(id, driverId)), `ruteændring accepteret (#${order.id})`);
         ctx.orders.addEvent(order.id, 'route_change_accepted', 'driver', { sequence });
       })();
@@ -377,12 +378,12 @@ export class DispatchAgent {
         this.moveStock(order, driver);
         ctx.orders.updateFields(order.id, { driverId, needsAttention: false, attentionReason: null }, 'system');
         ctx.orders.transition(order.id, 'driver_assigned', offer.kind === 'reassignment' ? 'staff' : 'driver', { driverId, driverName: driver.name, offerId });
-        ctx.db.prepare(`UPDATE dispatch_offers SET status = 'accepted', responded_at = ? WHERE id = ?`).run(new Date().toISOString(), offerId);
+        ctx.db.prepare(`UPDATE dispatch_offers SET status = 'accepted', responded_at = ? WHERE id = ?`).run(clock.date().toISOString(), offerId);
         ctx.db.prepare(`UPDATE dispatch_offers SET status = 'cancelled' WHERE order_id = ? AND status = 'pending' AND id <> ?`).run(order.id, offerId);
         if (wasIdle) {
           const prev = this.routing.getAnchor(driverId);
           const point = prev?.lat != null ? { lat: prev.lat, lng: prev.lng! } : driver.lastLat != null ? { lat: driver.lastLat, lng: driver.lastLng! } : null;
-          this.routing.setAnchor(driverId, { kind: 'start', atMs: Date.now(), point });
+          this.routing.setAnchor(driverId, { kind: 'start', atMs: clock.now(), point });
         }
         this.routing.applySequence(driverId, sequence.filter((id) => id === order.id || this.isActiveFor(id, driverId)), `ordre #${order.id} accepteret`);
         if (driver.status === 'available') ctx.drivers.setStatus(driverId, 'busy');
@@ -482,7 +483,7 @@ export class DispatchAgent {
     const driverId = order.driverId;
     ctx.orders.transition(orderId, 'awaiting_driver', actor, { reason, previousDriverId: driverId });
     ctx.db.prepare(`UPDATE drivers SET route_version = route_version + 1, current_order_id = CASE WHEN current_order_id = ? THEN NULL ELSE current_order_id END WHERE id = ?`).run(orderId, driverId);
-    ctx.telegram.sendToDriver(driverId, `Ordre #${orderId} er taget fra dig (${reason}).`, `unassigned:${orderId}:${Date.now()}`);
+    ctx.telegram.sendToDriver(driverId, `Ordre #${orderId} er taget fra dig (${reason}).`, `unassigned:${orderId}:${clock.now()}`);
     await this.routing.refreshEtas(driverId, 'ordre fjernet');
   }
 
@@ -539,11 +540,11 @@ export class DispatchAgent {
     const order = ctx.orders.get(orderId)!;
     const plan: RoutePlanSummary = { sequence, insertIndex: sequence.indexOf(orderId), newOrderId: orderId, etas, analysis, alternatives: [] };
     const s = ctx.settings.get();
-    const expiresAt = new Date(Date.now() + s.delivery.offerTimeoutSeconds * 1000).toISOString();
+    const expiresAt = new Date(clock.now() + s.delivery.offerTimeoutSeconds * 1000).toISOString();
     const id = ctx.db.transaction(() => {
       const r = ctx.db
         .prepare(`INSERT INTO dispatch_offers (order_id, driver_id, status, score, sent_at, expires_at, kind, plan, route_version) VALUES (?, ?, 'pending', ?, ?, ?, 'route_change', ?, ?)`)
-        .run(orderId, driverId, analysis.score, new Date().toISOString(), expiresAt, JSON.stringify(plan), driver.routeVersion);
+        .run(orderId, driverId, analysis.score, clock.date().toISOString(), expiresAt, JSON.stringify(plan), driver.routeVersion);
       const offerId = Number(r.lastInsertRowid);
       ctx.orders.addEvent(orderId, 'route_change_proposed', 'system', { driverId, sequence, explanation: analysis.explanation });
       ctx.telegram.sendToDriver(

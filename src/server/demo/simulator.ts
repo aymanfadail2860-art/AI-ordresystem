@@ -3,6 +3,7 @@ import type { SimulatedSmsAdapter } from '../adapters/sms/simulator';
 import type { SimulatedTelegramAdapter } from '../adapters/telegram/simulator';
 import type { TelegramButton } from '../adapters/telegram/types';
 import { normalizePhone } from '../../core/phone';
+import { clock } from '../clock';
 
 /**
  * DEMO-SIMULATOR. Simulerer kunder (SMS) og chauffører (Telegram) mod de
@@ -241,7 +242,7 @@ export class DemoSimulator {
     const order = this.ctx.orders.get(orderId);
     if (!order) return;
     const speed = Math.max(1, this.ctx.settings.get().demo.speedFactor);
-    const travelMs = order.eta ? Math.max(60000, new Date(order.eta).getTime() - Date.now()) : 10 * 60000;
+    const travelMs = order.eta ? Math.max(60000, new Date(order.eta).getTime() - clock.now()) : 10 * 60000;
     const simMs = travelMs / speed;
     const roll = Math.random();
     const busy = () => {

@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { haversineMeters, type LatLng } from '../../../core/geo';
 import type { GeocodeResult, MapsAdapter, TravelEstimate } from './types';
+import { clock } from '../../clock';
 
 /**
  * SIMULERET kortadapter til Demo Mode og tests.
@@ -31,7 +32,7 @@ export class SimulatedMapsAdapter implements MapsAdapter {
   }
 
   async travelMatrix(origins: LatLng[], destinations: LatLng[]): Promise<TravelEstimate[][]> {
-    const hour = new Date().getHours();
+    const hour = clock.date().getHours();
     const traffic = hour >= 15 && hour < 18 ? 1.35 : hour >= 7 && hour < 9 ? 1.25 : 1.0;
     return origins.map((o) =>
       destinations.map((d) => {

@@ -1,6 +1,7 @@
 import type { Db } from '../db/database';
 import { nowIso, parseJson } from '../db/database';
 import type { EventLog } from '../infra';
+import { clock } from '../clock';
 
 /**
  * Vedvarende jobkø i SQLite.
@@ -65,7 +66,7 @@ export class JobQueue {
   }
 
   enqueue(type: string, payload: Record<string, unknown>, o: EnqueueOptions = {}): number | null {
-    const now = this.opts.now?.() ?? Date.now();
+    const now = this.opts.now?.() ?? clock.now();
     const runAt = o.runAt ? o.runAt.toISOString() : new Date(now + (o.delayMs ?? 0)).toISOString();
     const r = this.db
       .prepare(
@@ -134,7 +135,7 @@ export class JobQueue {
   tick(): number {
     const concurrency = this.opts.concurrency ?? 4;
     if (this.running >= concurrency) return 0;
-    const now = new Date(this.opts.now?.() ?? Date.now()).toISOString();
+    const now = new Date(this.opts.now?.() ?? clock.now()).toISOString();
     const due = this.db
       .prepare(`SELECT * FROM jobs WHERE status = 'pending' AND run_at <= ? ORDER BY run_at, id LIMIT 50`)
       .all(now) as Record<string, unknown>[];
@@ -192,7 +193,7 @@ export class JobQueue {
         err instanceof RetryLaterError
           ? err.delayMs
           : Math.min(5 * 60_000, 1000 * 2 ** (job.attempts - 1)) * (0.8 + Math.random() * 0.4);
-      const runAt = new Date((this.opts.now?.() ?? Date.now()) + delay).toISOString();
+      const runAt = new Date((this.opts.now?.() ?? clock.now()) + delay).toISOString();
       this.db
         .prepare(`UPDATE jobs SET status = 'pending', run_at = ?, last_error = ?, updated_at = ? WHERE id = ?`)
         .run(runAt, msg, nowIso(), job.id);
@@ -215,7 +216,7 @@ export class JobQueue {
 
   /** Ryd gamle afsluttede jobs. */
   purge(olderThanDays = 7): void {
-    const cutoff = new Date(Date.now() - olderThanDays * 86400000).toISOString();
+    const cutoff = new Date(clock.now() - olderThanDays * 86400000).toISOString();
     this.db.prepare(`DELETE FROM jobs WHERE status IN ('done','cancelled') AND updated_at < ?`).run(cutoff);
   }
 }

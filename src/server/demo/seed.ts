@@ -1,5 +1,6 @@
 import type { Ctx } from '../context';
 import { nowIso } from '../db/database';
+import { clock } from '../clock';
 
 /**
  * Fiktive demodata. Alle navne, numre og adresser er opdigtede.
@@ -81,7 +82,7 @@ function seedHistory(ctx: Ctx): void {
     const phone = `+459999200${i}`;
     const customer = ctx.conversations.upsertCustomer(phone);
     const convId = ctx.conversations.getOrCreateConversation(customer.id);
-    const created = new Date(Date.now() - (3 - i) * 3600000);
+    const created = new Date(clock.now() - (3 - i) * 3600000);
     const p = products[i * 3];
     const subtotal = p.priceOre * (2 + i);
     const r = ctx.db

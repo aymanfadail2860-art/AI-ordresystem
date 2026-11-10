@@ -1,7 +1,9 @@
+import { DEFAULT_TZ } from '../../core/time';
 import type { Ctx } from '../context';
 import type { DispatchAgent } from './dispatchAgent';
 import type { RoutingService } from './routing';
 import { AI_MODE_LABELS } from '../../shared/types';
+import { clock } from '../clock';
 
 /**
  * Logistics Agent + Monitoring Agent.
@@ -41,7 +43,7 @@ export class LogisticsAgent {
     const { ctx } = this;
     const o = ctx.orders.get(orderId);
     if (!o || o.status !== 'awaiting_confirmation') return;
-    const age = Date.now() - new Date(o.updatedAt).getTime();
+    const age = clock.now() - new Date(o.updatedAt).getTime();
     const limit = ctx.settings.get().delivery.quoteExpiryMinutes * 60000;
     if (age < limit - 5000) {
       ctx.jobs.enqueue('expire_quote', { orderId }, { delayMs: limit - age, dedupeKey: `expire_quote:${orderId}` });
@@ -57,7 +59,7 @@ export class LogisticsAgent {
   async tick(): Promise<void> {
     const { ctx } = this;
     const s = ctx.settings.get();
-    const now = Date.now();
+    const now = clock.now();
 
     // Udløbne tilbud (sikkerhedsnet, hvis jobbet gik tabt)
     for (const o of ctx.orders.list({ status: ['awaiting_confirmation'] })) {
@@ -81,7 +83,7 @@ export class LogisticsAgent {
       const promised = ctx.db.prepare(`SELECT eta_communicated FROM orders WHERE id = ?`).get(o.id) as { eta_communicated: string | null };
       if (promised.eta_communicated && now - new Date(promised.eta_communicated).getTime() > 5 * 60000) {
         if (!o.needsAttention) ctx.orders.flag(o.id, 'Leveringsløftet er overskredet');
-        ctx.events.log('warn', 'logistics', 'order_late', `Ordre #${o.id} er forsinket i forhold til det lovede tidspunkt (${new Date(promised.eta_communicated).toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit' })})`, {
+        ctx.events.log('warn', 'logistics', 'order_late', `Ordre #${o.id} er forsinket i forhold til det lovede tidspunkt (${new Date(promised.eta_communicated).toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit', timeZone: DEFAULT_TZ })})`, {
           dedupeKey: `order_late:${o.id}`,
           dedupeMinutes: 30,
           data: { orderId: o.id },
@@ -157,8 +159,8 @@ export class LogisticsAgent {
         ],
       };
       ctx.db
-        .prepare(`INSERT INTO reassignment_suggestions (order_id, from_driver_id, to_driver_id, reason, eta_gain_minutes, analysis) VALUES (?, ?, ?, ?, ?, ?)`)
-        .run(o.id, current.id, alt.driver.id, `${alt.driver.name} giver en bedre samlet løsning (+${Math.round(gain / 100)} kr.)`, etaGain, JSON.stringify(analysis));
+        .prepare(`INSERT INTO reassignment_suggestions (order_id, from_driver_id, to_driver_id, reason, eta_gain_minutes, analysis, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`)
+        .run(o.id, current.id, alt.driver.id, `${alt.driver.name} giver en bedre samlet løsning (+${Math.round(gain / 100)} kr.)`, etaGain, JSON.stringify(analysis), clock.iso());
       ctx.bus.touch('logistics');
     }
     ctx.db
@@ -176,7 +178,7 @@ export class LogisticsAgent {
       )
       .all() as { id: number; ai_mode: keyof typeof AI_MODE_LABELS; last_in: string }[];
     for (const w of waiting) {
-      if (Date.now() - new Date(w.last_in).getTime() > 5 * 60000) {
+      if (clock.now() - new Date(w.last_in).getTime() > 5 * 60000) {
         ctx.events.log('warn', 'monitoring', 'customer_waiting', `En kunde har ventet over 5 minutter på svar (${AI_MODE_LABELS[w.ai_mode]})`, {
           requiresAction: true,
           dedupeKey: `customer_waiting:${w.id}`,

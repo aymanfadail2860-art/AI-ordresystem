@@ -10,6 +10,8 @@ import {
   type LlmProvider,
   type StructuredRequest,
 } from '../adapters/ai/types';
+import { DEFAULT_TZ, localToUtc, startOfLocalDay, zonedParts } from '../../core/time';
+import { clock } from '../clock';
 
 export class BudgetExceededError extends Error {
   constructor() {
@@ -78,23 +80,23 @@ export class AiGateway {
     const primary = ids.modelOverride ?? s.ai.routing[task];
     const candidates = [primary, ...s.ai.fallbackModels.filter((m) => m !== primary)].filter((m) => {
       const until = this.unavailableModels.get(m);
-      return !until || until < Date.now();
+      return !until || until < clock.now();
     });
     if (candidates.length === 0) throw new AiDisabledError('Ingen konfigurerede modeller er tilgængelige');
 
     let lastErr: unknown = null;
     for (const model of candidates) {
-      const started = Date.now();
+      const started = clock.now();
       try {
         const res = await this.provider.structured({ ...req, model });
-        this.logCall({ agent, task, model: res.model || model, usage: res.usage, latencyMs: Date.now() - started, success: !!res.output, error: res.refused ? 'refusal' : res.output ? null : 'ugyldigt output', ids });
+        this.logCall({ agent, task, model: res.model || model, usage: res.usage, latencyMs: clock.now() - started, success: !!res.output, error: res.refused ? 'refusal' : res.output ? null : 'ugyldigt output', ids });
         this.integrations.set('ai', 'ok', `Seneste kald: ${model}`);
         return { output: res.output, model: res.model || model, refused: res.refused };
       } catch (err) {
         lastErr = err;
-        this.logCall({ agent, task, model, usage: { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 }, latencyMs: Date.now() - started, success: false, error: (err as Error).message, ids });
+        this.logCall({ agent, task, model, usage: { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 }, latencyMs: clock.now() - started, success: false, error: (err as Error).message, ids });
         if (err instanceof ModelUnavailableError) {
-          this.unavailableModels.set(model, Date.now() + 30 * 60000);
+          this.unavailableModels.set(model, clock.now() + 30 * 60000);
           this.events.log('warn', 'ai', 'model_unavailable', `Modellen ${model} er ikke tilgængelig – prøver fallback`, {
             dedupeKey: `model_unavailable:${model}`,
             requiresAction: true,
@@ -169,11 +171,13 @@ export class AiGateway {
     if (!c.simulated) this.checkBudgetWarnings();
   }
 
+  private monthStartIso(): string {
+    const p = zonedParts(clock.now(), this.settings.get().company.timezone || DEFAULT_TZ);
+    return new Date(localToUtc(p.year, p.month, 1, 0, 0, this.settings.get().company.timezone || DEFAULT_TZ)).toISOString();
+  }
+
   private monthCostUsd(): number {
-    const start = new Date();
-    start.setDate(1);
-    start.setHours(0, 0, 0, 0);
-    const r = this.db.prepare(`SELECT COALESCE(SUM(cost_usd_micros), 0) AS c FROM ai_calls WHERE created_at >= ?`).get(start.toISOString()) as { c: number };
+    const r = this.db.prepare(`SELECT COALESCE(SUM(cost_usd_micros), 0) AS c FROM ai_calls WHERE created_at >= ?`).get(this.monthStartIso()) as { c: number };
     return r.c / 1_000_000;
   }
 
@@ -182,7 +186,7 @@ export class AiGateway {
     if (s.ai.monthlyBudgetUsd > 0 && this.monthCostUsd() >= s.ai.monthlyBudgetUsd) {
       this.events.log('critical', 'ai', 'budget_exceeded', 'Månedligt AI-budget er opbrugt. AI-svar er stoppet – samtaler sendes til medarbejder.', {
         requiresAction: true,
-        dedupeKey: `budget_exceeded:${new Date().toISOString().slice(0, 7)}`,
+        dedupeKey: `budget_exceeded:${clock.date().toISOString().slice(0, 7)}`,
         dedupeMinutes: 60 * 24 * 31,
       });
       throw new BudgetExceededError();
@@ -196,7 +200,7 @@ export class AiGateway {
     if (pct >= s.ai.warnAtPct) {
       this.events.log('warn', 'ai', 'budget_warning', `AI-forbrug har nået ${pct.toFixed(0)} % af månedsbudgettet`, {
         requiresAction: true,
-        dedupeKey: `budget_warning:${new Date().toISOString().slice(0, 7)}`,
+        dedupeKey: `budget_warning:${clock.date().toISOString().slice(0, 7)}`,
         dedupeMinutes: 60 * 24 * 31,
       });
     }
@@ -204,11 +208,8 @@ export class AiGateway {
 
   summary(): AiUsageSummary {
     const s = this.settings.get();
-    const monthStart = new Date();
-    monthStart.setDate(1);
-    monthStart.setHours(0, 0, 0, 0);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const monthStart = new Date(this.monthStartIso());
+    const today = new Date(startOfLocalDay(clock.now(), s.company.timezone || DEFAULT_TZ));
     const m = this.db
       .prepare(
         `SELECT COUNT(*) AS n, COALESCE(SUM(cost_usd_micros),0) AS c, COALESCE(SUM(input_tokens),0) AS i, COALESCE(SUM(output_tokens),0) AS o
