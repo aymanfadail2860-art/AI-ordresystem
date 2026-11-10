@@ -66,6 +66,8 @@ export interface ReplenishmentArgs {
   /** Afhentning skal ske før dette stop-indeks (første underskud). */
   mustBeBeforeIndex: number;
   need: Qty;
+  /** Ordrer der afhænger af opfyldningen – deres løfter kan ikke holdes uden den. */
+  coveredOrderIds: number[];
   locations: LocationCandidate[];
   /** Køretid (sek) mellem knuder: -1 = ankerpunkt, 0..n-1 = stop, location.node = lager. */
   travel: (from: number, to: number) => number;
@@ -144,7 +146,7 @@ export function evaluateReplenishmentOptions(a: ReplenishmentArgs): Replenishmen
         if (p) {
           const over = (etas[i].etaMs - p) / 60000;
           if (over > 0) late += over;
-          if (over > e.promiseToleranceMinutes && d > 0.5) violations.push(`Ordre #${a.stops[i].orderId} ville blive ${Math.round(over)} min senere end lovet`);
+          if (over > e.promiseToleranceMinutes && d > 0.5 && !a.coveredOrderIds.includes(a.stops[i].orderId)) violations.push(`Ordre #${a.stops[i].orderId} ville blive ${Math.round(over)} min senere end lovet`);
         }
       }
       const pickupCost = e.driveCostPerMinuteOre * (extraDriveMin + a.pickupMinutes);

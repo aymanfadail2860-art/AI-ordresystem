@@ -167,6 +167,8 @@ export class ReplenishmentService {
       .prepare(`INSERT INTO replenishment_events (replenishment_id, from_status, to_status, actor, data, created_at) VALUES (?, ?, ?, ?, ?, ?)`)
       .run(id, r.status, to, actor, JSON.stringify(data), new Date().toISOString());
     this.ctx.bus.touch('replenishment', 'inventory', 'logistics');
+    // ETA-grundlaget afhænger af opfyldningens status → genberegn ruten
+    this.ctx.jobs.enqueue('refresh_route', { driverId: r.driver_id, reason: `opfyldning ${REPLENISHMENT_STATUS_LABELS[to].toLowerCase()}` }, { dedupeKey: `refresh_route:${r.driver_id}` });
   }
 
   events(id: number) {
@@ -280,6 +282,7 @@ export class ReplenishmentService {
       lockedCount: this.routing.lockedCount(driver, stops, anchor),
       mustBeBeforeIndex: Number.isFinite(mustBeBefore) ? mustBeBefore : 0,
       need,
+      coveredOrderIds: coverIds,
       locations: locs,
       travel,
       pickupMinutes: s.replenishment.pickupMinutes,
